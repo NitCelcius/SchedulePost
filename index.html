@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+  <title>HOME</title>
+  <link href="index.css" rel="stylesheet">
+  <meta lang="ja">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,minimum-scale=1.0">
+</head>
+
+<body>
+  
+  <!-- 重なりがよくわからないので button はヘッダーから外してしまった！
+  子要素の z-index は 親要素の z-index より大きくならないのだろうか？ -->
+  <button id="Sidebar_OpenButton" onclick="Sidebar_Open()" type="button">
+    <span class="Sidebar_Visual">
+      <span class="Sidebar_Text">MENU</span>
+    </span>
+  </button>
+  <header>
+  
+    <p id="Title">SchedulePost</p>
+
+  </header>
+
+  <div id="Body_Wrapper">
+    <div id="Nav_Overlay" onclick="Sidebar_Close()">
+    </div>
+    
+    <div>
+      <h1>Annoying readout</h1>
+      <br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br>
+    </div>
+
+    <div id="Table_Body" class="InterSectTarget">
+      <section id="Table_Head">
+        <h1 id="Table_Date">
+          <span id="Date_Year">1000</span><span id="Date_YMSplit">年</span><span id="Date_Month">2</span><span id="Date_MDSplit">月</span><span id="Date_Day">3</span><span id="Date_DSplit">日</span><span id="Date_The_Day">月</span><span id="Date_TDSplit">曜日</span>
+        </h1>
+      </section>
+
+      <h2 class="Head">時間割</h2>
+      <section id="Table_Body">
+        <div class="Class_Block" style="background-color: antiquewhite;">
+          <label>1</label>
+          <div class="Class_Block_Side">
+            <h3 class="Class_Name">国語</h3>
+            <p class="Class_Note">AAAAAAAAAAAAAAAAAA</p>
+          </div>
+        </div>
+        <div class="Class_Block" style="background-color: mintcream;">
+          <label>2</label>
+          <div class="Class_Block_Side">
+            <h3 class="Class_Name">数学</h3>
+            <p class="Class_Note">BBBBBBBBBBBBBBB</p>
+          </div>
+        </div>
+        <div class="Class_Block" style="background-color: mintcream;">
+          <label>3</label>
+          <div class="Class_Block_Side">
+            <h3 class="Class_Name">特別活動</h3>
+            <p class="Class_Note"><br><br><br>aaa</p>
+          </div>
+        </div>
+      </section>
+    </div>
+    
+    <div id="Spacey_Block" class="InterSectTarget">
+      this div takes up your space.
+    </div>
+    
+    <nav>
+      <button id="Sidebar_CloseButton" onclick="Sidebar_Close()">CLOSE</button>
+      <div id="Nav_Body">
+        <p id="Nav_Title">Sidebar</p>
+        <ul>
+          <p id="Group_Label">1 年 A 組</p>
+          <li>Sidebar</li>
+          <li>...</li>
+          <li>...</li>
+        </ul>
+      </div>
+    </nav>
+  </div>
+
+  <footer>
+    <ul>
+      <li>
+        <p>aaaaa<br>1</p>
+      </li>
+      <li class="Active">
+        <p><img src="clock.png" alt="時間割"><br>LNK-2</p>
+      </li>
+      <li>
+        <p>LNK-3</p>
+      </li>
+      <li>
+        <p>LNK-4</p>
+      </li>
+    </ul>
+  </footer>
+</body>
+<script src="index.js"></script>
+
+</html>
