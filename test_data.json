@@ -1,0 +1,27 @@
+{
+  "Response": {
+    "ResponseCode": 200,
+    "Status": "OK"
+  },
+  "Schedule": {
+    "TimeTable": {
+      "Head": {
+        "LastUpdate": "2020-11-20 12:00:00"
+      },
+      "Body": [
+        {
+          "UUID": "012F",
+          "Subject": "Ja",
+          "Note": "確認テスト",
+          "Bringings": [
+            "えんぴつ"
+          ],
+          "UpdateUser": {
+            "ID": 184175012183,
+            "DisplayName": "田中"
+          }
+        }
+      ]
+    }   
+  }
+}
