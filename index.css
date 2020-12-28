@@ -3,6 +3,8 @@ body {
   font-family: 'メイリオ', Meiryo,'Hiragino Kaku Gothic ProN','ヒラギノ角ゴ ProN W3',sans-serif;
   max-width: 70rem;
   margin: 0rem auto;
+  /* If unnecessary, remove this */
+  background-image: url("Resources/Web/Grid.png");
 }
 
 header {
