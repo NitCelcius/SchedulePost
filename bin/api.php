@@ -20,4 +20,5 @@
   
   var_dump($recv);
 
+  echo json_encode($result);
 ?>
