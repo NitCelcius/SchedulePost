@@ -7,18 +7,20 @@
   $post = $RawPost;
   $api_getter = curl_init();
 
+  $Post_Obj = json_encode($post);
+
   // POST する
 
   curl_setopt_array($api_getter, [
     CURLOPT_URL => getenv("API_URL"),
     CURLOPT_RETURNTRANSFER => true,
-    CURLOPT_POSTFIELDS => http_build_query($post)
+    CURLOPT_POSTFIELDS => $Post_Obj
   ]);
   curl_setopt($api_getter, CURLOPT_URL, getenv("API_URL"));
   $api_resp = curl_exec($api_getter);
 
   echo "<h2>Response</h2>";
-  var_dump($api_resp);
+  echo $api_resp;
   curl_close($api_getter);
 
 ?>
