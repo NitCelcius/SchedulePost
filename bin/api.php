@@ -5,6 +5,8 @@
 
 declare(strict_types=1);
 
+$GLOBALS["DB_URI"] = getenv("DB_URI");
+
 function ReplaceArgs(string $Basement, array $Args) {
   return str_replace(array_keys($Args), array_values($Args), $Basement);
 }
@@ -30,9 +32,18 @@ while (true) {
     }
     
     //Authenticate here
+    //Probs insert this part on request header
+    $Auth = new UserAuth($Result["Auth"]["UserID"]);
+
+    switch ($Result["Action"]) {
+      case "GET_SCHEDULE": {
+
+        break;
+      }
+    }
     $School_UUID = $Recv["Auth"]["School_UUID"];
     $Group_UUID = $Recv["Auth"]["Group_UUID"];
-    
+  
     // This could be request time or use requested data?
     // Should be converted to LOCAL TIMEZONE (of school)
     $TimeObj = new DateTime($Recv["Options"]["Date"]);
@@ -51,6 +62,42 @@ while (true) {
     echo $TimeTablePath;
     
     break;
+}
+
+class UserAuth {
+  private $UUID;
+  private $Token;
+
+  function __construct($UserID, $Token = null)  {
+    $this->UUID = $UserID;
+    $this->Token = $Token;
+  }
+}
+
+class Fetcher {
+  private $Connection;
+
+  function Init() {
+
+  }
+
+  function Connect() {
+    try {
+      $this->Connection = new PDO($GLOBALS["API_URI"], $GLOBALS["DB_UserName"], $GLOBALS["DB_PassPhrase"]);
+    } catch (Exception $e) {
+      var_dump($e);
+      exit;
+    }
+
+  }
+
+  function IsPermitted(UserAuth $User, string $Command) {
+    
+  }
+
+  function GetSchedule(string $User, string $GroupID) {
+    
+  }
 }
 
 echo "<br>";

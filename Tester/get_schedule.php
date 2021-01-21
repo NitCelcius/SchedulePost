@@ -1,6 +1,9 @@
 <?php
   $API_URL = getenv("API_URL");
 
+  $API_URL = "localhost:84/bin/api.php";
+  //$API_URL = "https://webhook.site/b343d858-61f7-4aa5-b0d6-aac1d1d7afbc";
+
   echo "<h1>GET_SCHEDULE test</h1>";
   echo "<p>Request API URI: " . $API_URL . "</p>";
   echo "<h2>Body</h2>";
