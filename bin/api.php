@@ -183,8 +183,8 @@ class UserAuth {
   function SignIn() {
     $Connection = DBConnection::Connect();
     try {
-      $PDOstt = $Connection->prepare("select UUID from schedulepost.accounts where UUID = :UUID AND SessionToken = :Token");
-      $PDOstt->bindValue(":UUID", $this->UUID);
+      $PDOstt = $Connection->prepare("select UserID from schedulepost.accounts where UserID = :UserID AND SessionToken = :Token");
+      $PDOstt->bindValue(":UserID", $this->UUID);
       $PDOstt->bindValue(":Token", $this->SessionToken);
       $Result = $PDOstt->execute();
       if ($Result === null) {
@@ -203,11 +203,11 @@ class UserAuth {
   function SignInFromPassPhrase(string $PassPhrase) {
     $Connection = DBConnection::Connect();
     try {        
-      $PDOstt = $Connection->prepare("select PassHash from schedulepost.accounts where UUID = :UUID");
+      $PDOstt = $Connection->prepare("select PassHash from schedulepost.accounts where UserID = :UserID");
       if ($PDOstt === false) {
         throw new ConnectionException("Could not connect to the database.","Database: SchedulePost");
       }
-      $PDOstt->bindValue(":UUID", $this->UUID);
+      $PDOstt->bindValue(":UserID", $this->UUID);
       $PDOstt->execute();
       $Data = $PDOstt->fetch(PDO::FETCH_ASSOC);
       if (password_verify($PassPhrase, $Data["PassHash"])) {
@@ -225,11 +225,11 @@ class UserAuth {
   
   function SignInFromLongToken(string $LongToken) {
     $Connection = DBConnection::Connect();
-    $PDOstt = $Connection->prepare("select LongTokenGenAt from schedulepost.accounts where UUID = :UUID AND LongToken = :LongToken");
+    $PDOstt = $Connection->prepare("select LongTokenGenAt from schedulepost.accounts where UserID = :UserID AND LongToken = :LongToken");
     if ($PDOstt === false) {
       throw new ConnectionException("Could not connect to the database.","Database: SchedulePost");
     }
-    $PDOstt->bindValue(":UUID", $this->UUID);
+    $PDOstt->bindValue(":UserID", $this->UUID);
     $PDOstt->bindValue(":LongToken", $LongToken);
     $PDOstt->execute();
     
@@ -254,12 +254,12 @@ class UserAuth {
   function UpdateSessionToken() {
     try {
       $Connection = DBConnection::Connect();
-      $Updater = $Connection->prepare("Update `accounts` set `LastSigninAt` = :LoginDateTime,`SessionToken` = :SessionToken WHERE UUID = :UUID");
+      $Updater = $Connection->prepare("Update `accounts` set `LastSigninAt` = :LoginDateTime,`SessionToken` = :SessionToken WHERE UserID = :UserID");
       $Token = bin2hex(openssl_random_pseudo_bytes(32));
       $LoginDateTime = new DateTime("now", new DateTimeZone("UTC"));
       $Updater->bindValue(":LoginDateTime", $LoginDateTime->format("Y-m-d H:i:s"), PDO::PARAM_STR);
       $Updater->bindValue(":SessionToken", $Token);
-      $Updater->bindValue(":UUID", $this->UUID, PDO::PARAM_STR);
+      $Updater->bindValue(":UserID", $this->UUID, PDO::PARAM_STR);
       $Data = $Updater->execute();
       if ($Data === false) {
         throw new ConnectionException("Database refused to update.", "Database: SchedulePost");
