@@ -1,2 +1,4 @@
 .vscode/
 tester/test_data.json
+tester/group_profile.json
+tester/timetable.json
