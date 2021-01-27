@@ -2,3 +2,5 @@
 tester/test_data.json
 tester/group_profile.json
 tester/timetable.json
+Tester/UUID_gen.php
+Tester/default_timetable.json
