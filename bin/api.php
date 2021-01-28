@@ -7,7 +7,7 @@ $GLOBALS["DB_URL"] = getenv("DB_URL");
 $GLOBALS["DB_Username"] = getenv("DB_UserName");
 $GLOBALS["DB_PassPhrase"] = getenv("DB_PassPhrase");
 
-$GLOBALS["SessionTokenExpiry"] = "100 minutes";
+$GLOBALS["SessionTokenExpiry"] = "1000 minutes";
 $GLOBALS["LongTokenExpiry"] = "10 days";
 
 $GLOBALS["Connection"] = null;
@@ -21,8 +21,48 @@ define("ACCOUNT_SESSION_TOKEN_EXPIRED", -2);
 define("ACCOUNT_LONG_TOKEN_INVALID", -3);
 define("ACCOUNT_LONG_TOKEN_EXPIRED", -4);
 
+// Following ISO-8601.
+define("DAY_SUNDAY",   0);
+define("DAY_MONDAY",   1);
+define("DAY_TUESDAY",  2);
+define("DAY_WEDNESDAY", 3);
+define("DAY_THURSDAY", 4);
+define("DAY_FRIDAY",   5);
+define("DAY_SATURDAY", 6);
+
 function ReplaceArgs(string $Basement, array $Args) {
   return str_replace(array_keys($Args), array_values($Args), $Basement);
+}
+
+class DayEnum {
+  private const Dic = array(
+    "DAY_MONDAY"    => DAY_MONDAY,
+    "DAY_TUESDAY"   => DAY_TUESDAY,
+    "DAY_WEDNESDAY" => DAY_WEDNESDAY,
+    "DAY_THURSDAY"  => DAY_THURSDAY,
+    "DAY_FRIDAY"    => DAY_FRIDAY,
+    "DAY_SATURDAY"  => DAY_SATURDAY,
+    "DAY_SUNDAY"    => DAY_SUNDAY
+  );
+
+  // Converts DAY enum to STRING. If out of the range, returns null. 
+  static function EnumToStr(int $Day_Of_The_Date) {
+    foreach (DayEnum::Dic as $Str => $Enum) {
+      if ($Day_Of_The_Date === $Enum) {
+        return $Str;
+      }
+    }
+    return null;
+  }
+
+  // Converts STRING to DAY enum. If out of the range, returns null.
+  static function StrToEnum(string $Str) {
+    if (array_key_exists($Str, DayEnum::Dic)) {
+      return DayEnum::Dic[$Str];
+    } else {
+      return null;
+    }
+  }
 }
 
 class ConnectionException extends Exception {
@@ -289,8 +329,8 @@ class Fetcher {
   private $Connection;
   private $User;
 
-  function __construct(UserAuth $Auth) {
-    if ($Auth->Validate()) {
+  function __construct(UserAuth $Auth = null) {
+    if ($Auth->SignIn()) {
       $this->User = $Auth;
     } else {
       throw new UnexpectedValueException("Authentication data is invalid so Fetcher cannot use the provided credentials.");
@@ -298,23 +338,82 @@ class Fetcher {
   }
 
   function Connect() {
-    try {
-      $this->Connection = DBConnection::Connect();
-      //TODO: TOKEN 種類とって where 以下を変更する。
-    } catch (Exception $e) {
-      var_dump($e);
-      exit;
-    }
+    $this->Connection = DBConnection::Connect();
+    //TODO: TOKEN 種類とって where 以下を変更する。
   }
 
   function IsPermitted(UserAuth $User, string $Command) {
   }
 
-  function GetTokenValidity() {
-    $this->Connection->prepare();
+  function GetTimetable(string $GroupID, DateTime $Date, int $Revision = null) {
+    //TODO: Need to verify things here, but ignoring for now
+    $Base = $this->GetDefaultTimetable($GroupID, ((int)$Date->format("w")));
+    $Diff = $this->GetTimetableDiff($GroupID, $Date, $Revision);
+
+    return array_merge($Base, $Diff);
   }
 
-  function GetSchedule(string $User, string $GroupID, DateTime $Date) {
+  function GetDefaultTimetable(string $GroupID, int $Day_Of_The_Date) {
+    switch ($Day_Of_The_Date) {
+      case DAY_SUNDAY:
+      case DAY_MONDAY:
+      case DAY_TUESDAY:
+      case DAY_WEDNESDAY:
+      case DAY_THURSDAY:
+      case DAY_FRIDAY:
+      case DAY_SATURDAY:
+        break;
+      default:
+        throw new UnexpectedValueException("The day of the date is out of range. Make sure you have provided the correct day.");
+    }
+
+    $PDO = DBConnection::Connect();
+    $PDOstt = $PDO->prepare("select Body from default_timetable where BelongGroupID = :GroupID");
+    $PDOstt->bindValue(":GroupID", $GroupID, PDO::PARAM_STR);
+    $PDOstt->execute();
+    $Result = $PDOstt->fetch();
+
+    if ($Result === null || $Result === false) {
+      throw new ConnectionException("Could not connect to the database properly.");
+      return false;
+    }
+
+    $DefaultTimeTable = json_decode($Result[0], true);
+    $DayStr = DayEnum::EnumToStr($Day_Of_The_Date);
+
+    if ($DefaultTimeTable === false || $DefaultTimeTable === null) {
+      throw new UnexpectedValueException("The JSON of default timetable is malformed.");
+    } else if (!array_key_exists($DayStr, $DefaultTimeTable)) {
+      throw new OutOfBoundsException("The default timetable does not contain the index: \"" . $DayStr . "\"");
+    }
+
+    return $DefaultTimeTable[$DayStr];
+  }
+
+  function GetTimetableDiff(string $GroupID, DateTime $Date, int $Revision = null) {
+    $PDO = DBConnection::Connect();
+    if ($Revision === null) {
+      $PDOstt = $PDO->prepare("select Revision,Body from timetable where BelongGroupID = :GroupID and Date = :Date order by 'Revision' DESC");
+    } else {
+      $PDOstt = $PDO->prepare("select Revision,Body from timetable where BelongGroupID = :GroupID and Date = :Date and Revision = :Revision order by 'Revision' DESC");
+      $PDOstt->bindValue(":Revision", $Revision, PDO::PARAM_INT);
+    }
+    $PDOstt->bindValue(":GroupID", $GroupID);
+    $PDOstt->bindValue(":Date", $Date->format("Y-m-d"), PDO::PARAM_STR);
+    $PDOstt->execute();
+    $Result = $PDOstt->fetchAll();
+
+    if ($Result === null || $Result === false) {
+      throw new ConnectionException("Could not connect to the database properly.");
+      return false;
+    }
+    $Diff = json_decode($Result["0"]["Body"], true);
+
+    if ($Diff === false) {
+      throw new UnexpectedValueException("The JSON of the specified timetable is malformed.");
+    }
+
+    return $Diff;
   }
 }
 
@@ -339,7 +438,6 @@ while (true) {
 
   //Authenticate here
   //Probs insert this part on request header
-
 
   switch ($Recv["Action"]) {
     case "SIGN_IN": {
@@ -367,7 +465,6 @@ while (true) {
               "ReasonCode" => "INTERNAL_EXCEPTION",
               "ReasonText" => "There was an internal exception whlist trying to sign in:  " . $e->getMessage()
             );
-            echo ("SIGNIN: An error occurred whlist trying to sign in using long token. " . $e->getMessage() . " Stack trace:" . $e->getTraceAsString());
             error_log("SIGNIN: An error occurred whlist trying to sign in using long token. " . $e->getMessage() . " Stack trace:" . $e->getTraceAsString());
           } catch (InvalidCredentialsException $e) {
             $Resp = array(
@@ -390,29 +487,35 @@ while (true) {
 
     case "GET_SCHEDULE": {
         $User = new UserAuth($Recv["Auth"]["UserID"], $Recv["Auth"]["SessionToken"]);
-        if ($User->SignIn()) {
-          echo "DONE";
+        if (!$User->SignIn()) {
+          $Resp = array(
+            "Result" => false,
+            "ReasonCode" => "INVALID_CREDENTIALS",
+            "ReasonText" => " Could not sign in with the provided credentials." . $User->GetError()["Code"] . ", " . $User->GetError()["Message"]
+          );
+          break;
         }
-        var_dump($User->GetError());
+
+        $Date = new DateTime($Recv["Date"]);
+        $Fetcher = new Fetcher($User);
+        $Fetcher->GetDefaultTimetable(
+          $User->GetGroupID(),
+          // Note here: Because PHP Datetime::format() format character "w" follows ISO-8601, DayEnum corresponds to it.
+          (int)$Date->format("w")
+        );
+        $Result = json_encode($Fetcher->GetTimetable($User->GetGroupID(), $Date), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+
+        if ($Result != false) {
+          $Resp = array(
+            "Result" => true,
+            "ReasonCode" => "",
+            "Body" => $Result
+          );
+        }
+
         break;
       }
   }
-
-  // This could be request time or use requested data?
-  // Should be converted to LOCAL TIMEZONE (of school)
-
-  // Revision. Must be fetched before, not constant
-  $RecentRev = 1;
-  /*
-  $TimeTablePath = ReplaceArgs($TimeTablePathFormat, array(
-    "{School_UUID}" => $School_UUID,
-    "{Group_UUID}" => $Group_UUID,
-    "{Year}" => $TimeObj->format('Y'),
-    "{Month}" => $TimeObj->format('n'),
-    "{Day}" => $TimeObj->format('j'),
-    "{Version}" => $RecentRev
-  ));
-  */
 
   break;
 }
