@@ -443,7 +443,7 @@ while (true) {
     case "SIGN_IN": {
         $User = new UserAuth($Recv["Auth"]["UserID"]);
 
-        if ($Recv["Auth"]["LongToken"] !== NULL) {
+        if (array_key_exists("LongToken", $Recv["Auth"])) {
 
           try {
             $SessionToken = $User->SignInFromLongToken($Recv["Auth"]["LongToken"]);
@@ -480,10 +480,44 @@ while (true) {
             );
           }
         } else {
+          try {
           // Trying NOT to use passphrase in POST.
-          $User->SignInFromPassPhrase($Recv["Auth"]["PassPhrase"]);
+            $SessionToken = $User->SignInFromPassPhrase($Recv["Auth"]["PassPhrase"]);
+            if ($SessionToken !== false && $SessionToken !== NULL) {
+              $Resp = array(
+                "Result" => true,
+                "SessionToken" => $SessionToken
+              );
+            } else {
+              $Resp = array(
+                "Result" => false,
+                "ReasonCode" => "INVALID_CREDENTIALS",
+                "ReasonText" => "The passphrase provided is invalid."
+              );
+          }
+        } catch (ConnectionException $e) {
+            $Resp = array(
+              "Result" => false,
+              "ReasonCode" => "INTERNAL_EXCEPTION",
+              "ReasonText" => "There was an internal exception whlist trying to sign in:  " . $e->getMessage()
+            );
+            error_log("SIGNIN: An error occurred whlist trying to sign in using passphrase. " . $e->getMessage() . " Stack trace:" . $e->getTraceAsString());
+          } catch (InvalidCredentialsException $e) {
+            $Resp = array(
+              "Result" => false,
+              "ReasonCode" => "INVALID_CREDENTIALS",
+              "ReasonText" => "The passphrase provided is invalid. " . $e->getMessage()
+            );
+          } catch (Exception $e) {
+            $Resp = array(
+              "Result" => false,
+              "ReasonCode" => "INTERNAL_EXCEPTION",
+              "ReasonText" => "There was an internal exception whlist trying to sign in. " . $e->getMessage()
+            );
+          }
         }
-      }
+        break;
+    }
 
     case "GET_SCHEDULE": {
         $User = new UserAuth($Recv["Auth"]["UserID"], $Recv["Auth"]["SessionToken"]);
