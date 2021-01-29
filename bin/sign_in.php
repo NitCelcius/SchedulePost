@@ -1,4 +1,6 @@
 <?php
+  echo "Logging in...";
+
   $API_URL = getenv("API_URL");
 
   // Even now, I use localhost - cause it's cool. 5 ports in use.
@@ -8,7 +10,7 @@
   $post = json_encode(array(
     "Action" => "SIGN_IN",
     "Auth" => array(
-      "UserID" => $_POST["UUID"],
+      "Mail" => $_POST["Mail"],
       "PassPhrase" => $_POST["PassPhrase"]
     )
   ), JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE);
@@ -24,7 +26,11 @@
   $api_resp = curl_exec($api_getter);
   curl_close($api_getter);
 
-  echo $api_resp;
+  $RespObj = json_decode($api_resp, true);
 
-  $_COOKIE["UserID"] = $_POST["UUID"];
-  $_COOKIE["SessionToken"] = $SessionToken;
+  setcookie("UserID",  $RespObj["UserID"], time()+60*60*24*30, "/", 00.);
+  setcookie("SessionToken",  $RespObj["SessionToken"], time()+60*10, "/");
+  setcookie("LongToken",  $RespObj["LongToken"], time()+60*60*24*30, "/");
+
+  header("Location: ". "/index.html", true);
+  exit();
