@@ -123,22 +123,22 @@ class DBConnection {
 }
 
 class UserAuth {
-  private $UUID;
+  private $UserID;
   private $SessionToken;
   private $GroupID;
   private $Error;
 
   function __construct($UserID, $SessionToken = null) {
-    $this->UUID = $UserID;
+    $this->UserID = $UserID;
     $this->SessionToken = $SessionToken;
     if (!($this->Validate())) {
-      throw new UnexpectedValueException("User UUID or Token is invalid.");
+      throw new UnexpectedValueException("User ID or Token is invalid.");
     }
   }
 
   // Read-only.
-  function GetUUID() {
-    return $this->UUID;
+  function GetUserID() {
+    return $this->UserID;
   }
 
   // Read-only.
@@ -158,7 +158,7 @@ class UserAuth {
         $Connection = DBConnection::Connect();
         $PDOstt = $Connection->prepare("select BelongGroupID from user_profile where BelongUserID = :UserID");
         $PDOstt->execute(array(
-          ":UserID" => $this->UUID
+          ":UserID" => $this->UserID
         ));
         $Data = $PDOstt->fetch(PDO::FETCH_ASSOC);
       } catch (PDOException $e) {
@@ -182,7 +182,7 @@ class UserAuth {
     $Connection = DBConnection::Connect();
     try {
       $PDOstt = $Connection->prepare("select SessionToken,LastActivityAt from schedulepost.accounts where UserID = :UserID");
-      $PDOstt->bindValue(":UserID", $this->UUID);
+      $PDOstt->bindValue(":UserID", $this->UserID);
       $PDOstt->execute();
       $Data = $PDOstt->fetch();
       if ($this->SessionToken != $Data["SessionToken"]) {
@@ -204,7 +204,7 @@ class UserAuth {
         if ($Record_Activity) {
           $UpdateDateTime = new DateTime();
           $PDOstt = $Connection->prepare("update `accounts` SET `LastActivityAt`=:CurrentTime where UserID = :UserID");
-          $PDOstt->bindValue(":UserID", $this->UUID);
+          $PDOstt->bindValue(":UserID", $this->UserID);
           $PDOstt->bindValue(":CurrentTime", $UpdateDateTime->format("Y-m-d H:i:s"), PDO::PARAM_STR);
           $PDOstt->execute();
           $Data = $PDOstt->fetch();
@@ -246,7 +246,7 @@ class UserAuth {
       if ($PDOstt === false) {
         throw new ConnectionException("Could not connect to the database.", "Database: SchedulePost");
       }
-      $PDOstt->bindValue(":UserID", $this->UUID);
+      $PDOstt->bindValue(":UserID", $this->UserID);
       $PDOstt->execute();
       $Data = $PDOstt->fetch(PDO::FETCH_ASSOC);
 
@@ -256,7 +256,7 @@ class UserAuth {
         if ($PDOstt === false) {
           throw new ConnectionException("Could not connect to the database.", "Database: SchedulePost");
         }
-        $PDOstt->bindValue(":UserID", $this->UUID);
+        $PDOstt->bindValue(":UserID", $this->UserID);
         $PDOstt->bindValue(":LongToken", $LongToken);
         $PDOstt->execute();
         $Data = $PDOstt->fetch(PDO::FETCH_ASSOC);
@@ -281,7 +281,7 @@ class UserAuth {
     if ($PDOstt === false) {
       throw new ConnectionException("Could not connect to the database.", "Database: SchedulePost");
     }
-    $PDOstt->bindValue(":UserID", $this->UUID);
+    $PDOstt->bindValue(":UserID", $this->UserID);
     $PDOstt->bindValue(":LongToken", $LongToken);
     $PDOstt->execute();
 
@@ -298,7 +298,7 @@ class UserAuth {
         return false;
       }
     } else {
-      throw new InvalidCredentialsException("The UUID or long token provided is invalid.", "Database: SchedulePost");
+      throw new InvalidCredentialsException("The user ID or long token provided is invalid.", "Database: SchedulePost");
       return false;
     }
   }
@@ -311,7 +311,7 @@ class UserAuth {
       $LoginDateTime = new DateTime("now", new DateTimeZone("UTC"));
       $Updater->bindValue(":LoginDateTime", $LoginDateTime->format("Y-m-d H:i:s"), PDO::PARAM_STR);
       $Updater->bindValue(":SessionToken", $Token);
-      $Updater->bindValue(":UserID", $this->UUID, PDO::PARAM_STR);
+      $Updater->bindValue(":UserID", $this->UserID, PDO::PARAM_STR);
       $Data = $Updater->execute();
       if ($Data === false) {
         throw new ConnectionException("Database refused to update.", "Database: SchedulePost");
@@ -327,7 +327,7 @@ class UserAuth {
 
   // 形式上合っているかどうか。$Token どうしようかな...。
   function Validate() {
-    if (preg_match("/[0-9a-f]{32}/", $this->UUID)) {
+    if (preg_match("/[0-9a-f]{32}/", $this->UserID)) {
       return true;
     } else {
       return false;
@@ -354,7 +354,7 @@ class Fetcher {
     //TODO: TOKEN 種類とって where 以下を変更する。
   }
 
-  function Mail2UUID(string $Email) {
+  function Mail2UserID(string $Email) {
     $Connection = DBConnection::Connect();
     $PDOstt = $Connection->prepare("select UserID from schedulepost.accounts where Mail = :Mail");
     if ($PDOstt === false) {
@@ -454,9 +454,7 @@ $Resp = array(
 );
 
 // BASICではよくある、 while(true) -> break. try~catch(exception e)~finally ができるやり方。
-if (!class_exists("ConnectionException")) {
-  die("There is no hope!");
-}
+
 while (true) {
   $Recv = json_decode(file_get_contents("php://input"), true);
 
@@ -465,6 +463,8 @@ while (true) {
     $Resp["ReasonText"] = "The provided JSON was malformed so the API could not recognize.";
     break;
   }
+
+  /* Please note that SchedulePost API does not support any GET method. */
 
   //Authenticate here
   //Probs insert this part on request header
@@ -477,12 +477,11 @@ while (true) {
           "ReasonCode" => "UNEXPECTED_ARGUMENT",
           "ReasonText" => "The information provided to sign-in is insuffcient."
         );
-
         // Prioritize Mail & Passphrase if exists.
         if (array_key_exists("Mail", $Recv["Auth"]) && array_key_exists("PassPhrase", $Recv["Auth"])) {
           $Fetch = new Fetcher();
           try {
-            $UserID = $Fetch->Mail2UUID($Recv["Auth"]["Mail"]);
+            $UserID = $Fetch->Mail2UserID($Recv["Auth"]["Mail"]);
             $User = new UserAuth($UserID);
             // Trying NOT to use passphrase in POST.
             $LongToken = $User->GetLongTokenFromPassPhrase($Recv["Auth"]["PassPhrase"]);
@@ -601,11 +600,108 @@ while (true) {
             "Body" => $Result
           );
         }
-
         break;
       }
+
+      case "GET_USER_PROFILE": {
+        $User = new UserAuth($Recv["Auth"]["UserID"], $Recv["Auth"]["SessionToken"]);
+        if (!$User->SignIn()) {
+          $Resp = array(
+            "Result" => false,
+            "ReasonCode" => "INVALID_CREDENTIALS",
+            "ReasonText" => " Could not sign in with the provided credentials." . $User->GetError()["Code"] . ", " . $User->GetError()["Message"]
+          );
+          break;
+        }
+
+        // Fetch user profile(raw)
+        $Connection = DBConnection::Connect();
+        $PDOstt = $Connection->prepare("select BelongGroupID, BelongSchoolID, DisplayName from user_profile where BelongUserID = :UserID");
+        $PDOstt->bindValue(":UserID", $User->GetUserID());
+        $PDOstt->execute();
+        $Data = $PDOstt->fetch();
+        if ($Data === false || $Data === null) {
+          $Resp = array(
+            "Result" => false,
+            "ReasonCode" => "INTERNAL_EXCEPTION",
+            "ReasonText" => "There was an internal error while trying to fetch user profile."
+          );
+          break;
+        }
+        $UserDisplayName = $Data["DisplayName"];
+        $GroupID = $Data["BelongGroupID"];
+        $SchoolID = $Data["BelongSchoolID"];
+
+        // Fetch school name
+        $PDOstt = $Connection->prepare("select DisplayName from school_profile where SchoolID = :SchoolID");
+        $PDOstt->bindValue(":SchoolID", $SchoolID);
+        $PDOstt->execute();
+        $Data = $PDOstt->fetch();
+        if ($Data === false || $Data === null) {
+          $Resp = array(
+            "Result" => false,
+            "ReasonCode" => "INTERNAL_EXCEPTION",
+            "ReasonText" => "There was an internal error while trying to fetch user profile."
+          );
+          break;
+        }
+        $SchoolDisplayName = $Data["DisplayName"];
+
+        // Fetch group name
+        $PDOstt = $Connection->prepare("select DisplayName from group_profile where GroupID = :GroupID");
+        $PDOstt->bindValue(":GroupID", $GroupID);
+        $PDOstt->execute();
+        $Data = $PDOstt->fetch();
+        if ($Data === false || $Data === null) {
+          $Resp = array(
+            "Result" => false,
+            "ReasonCode" => "INTERNAL_EXCEPTION",
+            "ReasonText" => "There was an internal error while trying to fetch user profile."
+          );
+          break;
+        }
+        $GroupDisplayName = $Data["DisplayName"];
+
+        $Resp = array(
+          "Result" => true,
+          "Profile" => array(
+            "School" => array(
+              "ID" => $SchoolID,
+              "DisplayName" => $SchoolDisplayName,
+            ),
+            "Group" => array(
+              "ID" => $GroupID,
+              "DisplayName" => $GroupDisplayName
+            ),
+            "User" => array(
+              "ID" => $User->GetUserID(),
+              "DisplayName" => $UserDisplayName
+            )
+          )
+        );
+      }
+
+      /*
+      case "REFRESH_SESSION_TOKEN": {
+        $User = new UserAuth($Recv["Auth"]["UserID"], $Recv["Auth"]["SessionToken"]);
+        if (!$User->SignIn()) {
+          $Resp = array(
+            "Result" => false,
+            "ReasonCode" => "INVALID_CREDENTIALS",
+            "ReasonText" => " Could not sign in with the provided credentials." . $User->GetError()["Code"] . ", " . $User->GetError()["Message"]
+          );
+          break;
+        }
+
+        $Resp = array(
+          "Result" => true
+        );
+      }
+      */
   }
   break;
 }
 
 echo json_encode($Resp, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+
+exit;
