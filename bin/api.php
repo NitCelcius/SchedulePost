@@ -238,16 +238,15 @@ class UserAuth {
     return $Error;
   }
 
-  function Mail2UUID(string $Email) {
-  }
-
   function SignInFromPassPhrase(string $PassPhrase) {
+    //TODO: Obtain LongToken.
     $Connection = DBConnection::Connect();
     try {
       $PDOstt = $Connection->prepare("select PassHash from schedulepost.accounts where UserID = :UserID");
       if ($PDOstt === false) {
         throw new ConnectionException("Could not connect to the database.", "Database: SchedulePost");
       }
+
       $PDOstt->bindValue(":UserID", $this->UUID);
       $PDOstt->execute();
       $Data = $PDOstt->fetch(PDO::FETCH_ASSOC);
@@ -341,6 +340,24 @@ class Fetcher {
     $this->Connection = DBConnection::Connect();
     //TODO: TOKEN 種類とって where 以下を変更する。
   }
+
+  function Mail2UUID(string $Email) {
+    $Connection = DBConnection::Connect();
+    $PDOstt = $Connection->prepare("select UserID from schedulepost.accounts where Mail = :Mail");
+    if ($PDOstt === false) {
+      throw new ConnectionException("Could not connect to the database.", "Database: SchedulePost");
+    }
+    $PDOstt->bindValue(":Mail", $Email);
+    $PDOstt->execute();
+    $Data = $PDOstt->fetch(PDO::FETCH_ASSOC);
+    if ($Data !== NULL) {
+      return $Data["UserID"];
+    } else {
+      throw new InvalidArgumentException("The email is not registered.");
+      return null;
+    }
+  }
+
 
   function IsPermitted(UserAuth $User, string $Command) {
   }
@@ -441,10 +458,53 @@ while (true) {
 
   switch ($Recv["Action"]) {
     case "SIGN_IN": {
-        $User = new UserAuth($Recv["Auth"]["UserID"]);
+        $UserID = null;
+
+        // Prioritize Mail & Passphrase if exists.
+        if (array_key_exists("Mail", $Recv["Auth"]) && array_key_exists("Passphrase", $Recv["Auth"])) {
+          $Fetch = new Fetcher();
+          try {
+            $UserID = $Fetch->Mail2UUID($Recv["Auth"]["Mail"]);
+            $User = new UserAuth($UserID);
+            // Trying NOT to use passphrase in POST.
+            $SessionToken = $User->SignInFromPassPhrase($Recv["Auth"]["PassPhrase"]);
+            if ($SessionToken !== false && $SessionToken !== NULL) {
+              $Resp = array(
+                "Result" => true,
+                "SessionToken" => $SessionToken
+              );
+            } else {
+              $Resp = array(
+                "Result" => false,
+                "ReasonCode" => "INVALID_CREDENTIALS",
+                "ReasonText" => "The passphrase provided is invalid."
+              );
+            }
+          } catch (ConnectionException $e) {
+            $Resp = array(
+              "Result" => false,
+              "ReasonCode" => "INTERNAL_EXCEPTION",
+              "ReasonText" => "There was an internal exception whlist trying to sign in:  " . $e->getMessage()
+            );
+            error_log("SIGNIN: An error occurred whlist trying to sign in using passphrase. " . $e->getMessage() . " Stack trace:" . $e->getTraceAsString());
+          } catch (InvalidCredentialsException $e) {
+            $Resp = array(
+              "Result" => false,
+              "ReasonCode" => "INVALID_CREDENTIALS",
+              "ReasonText" => "The passphrase provided is invalid. " . $e->getMessage()
+            );
+          } catch (InvalidArgumentException $e) {
+          } catch (Exception $e) {
+            $Resp = array(
+              "Result" => false,
+              "ReasonCode" => "INTERNAL_EXCEPTION",
+              "ReasonText" => "There was an internal exception whlist trying to sign in. " . $e->getMessage()
+            );
+          }
+          break;
+        }
 
         if (array_key_exists("LongToken", $Recv["Auth"])) {
-
           try {
             $SessionToken = $User->SignInFromLongToken($Recv["Auth"]["LongToken"]);
             if ($SessionToken !== false && $SessionToken !== NULL) {
@@ -480,44 +540,9 @@ while (true) {
             );
           }
         } else {
-          try {
-          // Trying NOT to use passphrase in POST.
-            $SessionToken = $User->SignInFromPassPhrase($Recv["Auth"]["PassPhrase"]);
-            if ($SessionToken !== false && $SessionToken !== NULL) {
-              $Resp = array(
-                "Result" => true,
-                "SessionToken" => $SessionToken
-              );
-            } else {
-              $Resp = array(
-                "Result" => false,
-                "ReasonCode" => "INVALID_CREDENTIALS",
-                "ReasonText" => "The passphrase provided is invalid."
-              );
-          }
-        } catch (ConnectionException $e) {
-            $Resp = array(
-              "Result" => false,
-              "ReasonCode" => "INTERNAL_EXCEPTION",
-              "ReasonText" => "There was an internal exception whlist trying to sign in:  " . $e->getMessage()
-            );
-            error_log("SIGNIN: An error occurred whlist trying to sign in using passphrase. " . $e->getMessage() . " Stack trace:" . $e->getTraceAsString());
-          } catch (InvalidCredentialsException $e) {
-            $Resp = array(
-              "Result" => false,
-              "ReasonCode" => "INVALID_CREDENTIALS",
-              "ReasonText" => "The passphrase provided is invalid. " . $e->getMessage()
-            );
-          } catch (Exception $e) {
-            $Resp = array(
-              "Result" => false,
-              "ReasonCode" => "INTERNAL_EXCEPTION",
-              "ReasonText" => "There was an internal exception whlist trying to sign in. " . $e->getMessage()
-            );
-          }
         }
         break;
-    }
+      }
 
     case "GET_SCHEDULE": {
         $User = new UserAuth($Recv["Auth"]["UserID"], $Recv["Auth"]["SessionToken"]);
