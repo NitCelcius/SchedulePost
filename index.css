@@ -115,10 +115,19 @@ nav li {
   list-style: none;
 }
 
+nav p#Brief_Profile {
+  border-bottom: 1px dashed black;
+  margin: 1rem 0;
+}
+
 nav #Group_Label {
   font-size: 180%;
-  margin: 1rem 0;
-  border-bottom: 1px dashed black;
+}
+
+nav #School_Label {
+  font-size: 80%;
+  color: #444;
+  margin: 0;
 }
 
 #Nav_Title {
