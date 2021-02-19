@@ -6,19 +6,28 @@ $GLOBALS["DB_URL"] = getenv("DB_URL");
 $GLOBALS["DB_Username"] = getenv("DB_UserName");
 $GLOBALS["DB_PassPhrase"] = getenv("DB_PassPhrase");
 
+if (($GLOBALS["DefaultTimeZone"] = getenv("DefaultTimeZone")) === null) {
+  $GLOBALS["DefaultTimeZone"] = "UTC";
+}
+
+// TODO: Get rid of those. Let envilonment variables hold those.
 $GLOBALS["SessionTokenExpiry"] = "1000 minutes";
 $GLOBALS["LongTokenExpiry"] = "10 days";
 
 $GLOBALS["Connection"] = null;
 
-$ProfilePathFormat = "/Data/Profiles/{School_UUID}/{Group_UUID}.json";
-$TimeTablePathFormat = "/Data/Schedules/{School_UUID}/{Group_UUID}/{Year}/{Month}/{Day}/{Version}.json";
+// RIP JSON data structure.
+//$ProfilePathFormat = "/Data/Profiles/{School_UUID}/{Group_UUID}.json";
+//$TimeTablePathFormat = "/Data/Schedules/{School_UUID}/{Group_UUID}/{Year}/{Month}/{Day}/{Version}.json";
 
 define("ACCOUNT_OK", 1);
 define("ACCOUNT_SESSION_TOKEN_INVALID", -1);
 define("ACCOUNT_SESSION_TOKEN_EXPIRED", -2);
 define("ACCOUNT_LONG_TOKEN_INVALID", -3);
 define("ACCOUNT_LONG_TOKEN_EXPIRED", -4);
+define("ACCOUNT_CREDENTIALS_INVALID", -5);
+
+define("INTERNAL_EXCEPTION", -100);
 
 // Following ISO-8601.
 define("DAY_SUNDAY",   0);
@@ -106,7 +115,16 @@ class DBConnection {
         $GLOBALS["Connection"] = null;
       }
       if ($GLOBALS["Connection"] === null) {
-        $Connection = new PDO(sprintf("mysql:host=%s;dbname=%s;charset=utf8", $GLOBALS["DB_URL"], "schedulepost"), $GLOBALS["DB_Username"], $GLOBALS["DB_PassPhrase"], array(PDO::MYSQL_ATTR_INIT_COMMAND => "SET CHARACTER SET 'utf8mb4'"));
+        $Connection = new PDO(
+          sprintf("mysql:host=%s;dbname=%s;charset=utf8", 
+          $GLOBALS["DB_URL"], "schedulepost"), 
+          $GLOBALS["DB_Username"], 
+          $GLOBALS["DB_PassPhrase"], 
+          array(
+            PDO::MYSQL_ATTR_INIT_COMMAND => "SET CHARACTER SET 'utf8mb4'",
+            PDO::MYSQL_ATTR_FOUND_ROWS => true
+          )
+        );
         $Connection->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
         $GLOBALS["Connection"] = $Connection;
         return $Connection;
@@ -125,14 +143,62 @@ class DBConnection {
 class UserAuth {
   private $UserID;
   private $SessionToken;
+  private $LongToken; // TODO: Is this suitable for security reason?
   private $GroupID;
   private $Error;
 
-  function __construct($UserID, $SessionToken = null) {
+  // これ基本のコンストラクタ
+  function __construct($UserID = null, $SessionToken = null) {
     $this->UserID = $UserID;
     $this->SessionToken = $SessionToken;
-    if (!($this->Validate())) {
-      throw new UnexpectedValueException("User ID or Token is invalid.");
+  }
+
+
+  /**
+   * Sign-in using EMAIL and PASSPHRASE. Basically this converts arguments and sign-in using  SignInFromUserIDAndLongToken.
+   *
+   * @param string $Mail
+   * @param string $PassPhrase
+   * @return true|false If succeed, returns true. Otherwise returns false. Refer to $GetError() for more info.
+   * @todo Consider how to create UserAuth object from Mail & pass
+   */
+  function SignInFromMailAndPassphrase(string $Mail, string $PassPhrase) {
+    // Prioritize Mail & Passphrase if exists.
+    $Fetch = new Fetcher();
+    $this->UserID = $Fetch->Mail2UserID($Mail);
+    // Trying NOT to use passphrase in POST.
+    $LongToken = $this->GetLongTokenFromPassPhrase($PassPhrase);
+    if ($LongToken !== false && $LongToken !== NULL) {
+      // NOTE: this may makes the user sign-in twice.
+      if ($this->SignInFromUserIDAndLongToken($this->UserID, $LongToken)) {
+        $this->LongToken = $LongToken;
+        return true;
+      }
+    } else {
+      $this->Error = ACCOUNT_CREDENTIALS_INVALID;
+      return false;
+    }
+  }
+
+  /**
+   * Sign-in using UserID and LongToken.
+   *
+   * @param string $UserID
+   * @param string $LongToken
+   * @return true|false If succeed, returns true. Otherwise returns false. Refer to $GetError() for more info.
+   */
+  function SignInFromUserIDAndLongToken(string $UserID, string $LongToken) {
+    $SessionToken = $this->GetSessionTokenFromLongToken($LongToken);
+    if ($SessionToken !== false && $SessionToken !== NULL) {
+      $this->UpdateLastActivity();
+      $this->UserID = $UserID;
+      $this->LongToken = $LongToken;
+      $this->SessionToken = $SessionToken;
+
+      return $this->SignIn();
+    } else {
+      $this->Error = ACCOUNT_CREDENTIALS_INVALID;
+      return false;
     }
   }
 
@@ -144,6 +210,11 @@ class UserAuth {
   // Read-only.
   function GetSessionToken() {
     return $this->SessionToken;
+  }
+
+  // Read-only.
+  function GetLongToken() {
+    return $this->LongToken;
   }
 
   // Returns the group UUID that the user belongs to.
@@ -202,12 +273,7 @@ class UserAuth {
       $Expiry->add(DateInterval::createFromDateString($GLOBALS["SessionTokenExpiry"]));
       if ($Expiry > new $CurrentTime) {
         if ($Record_Activity) {
-          $UpdateDateTime = new DateTime();
-          $PDOstt = $Connection->prepare("update `accounts` SET `LastActivityAt`=:CurrentTime where UserID = :UserID");
-          $PDOstt->bindValue(":UserID", $this->UserID);
-          $PDOstt->bindValue(":CurrentTime", $UpdateDateTime->format("Y-m-d H:i:s"), PDO::PARAM_STR);
-          $PDOstt->execute();
-          $Data = $PDOstt->fetch();
+          $this->UpdateLastActivity();
         }
         return true;
       } else {
@@ -217,30 +283,84 @@ class UserAuth {
     }
   }
 
-  function GetError() {
-    $Error = array(
-      "Code" => $this->Error,
-      "Message" => null
-    );
+  private function UpdateLastActivity() {
+    $Connection = DBConnection::Connect();
+    $UpdateDateTime = new DateTime();
+    $PDOstt = $Connection->prepare("update `accounts` SET `LastActivityAt`=:CurrentTime where UserID = :UserID");
+    $PDOstt->bindValue(":UserID", $this->UserID);
+    $PDOstt->bindValue(":CurrentTime", $UpdateDateTime->format("Y-m-d H:i:s"), PDO::PARAM_STR);
+    $PDOstt->execute();
+    $Data = $PDOstt->fetch();
 
+    //TODO: Is there any errors in SQL?
+    return ($Data !== false && ($PDOstt->rowCount() > 0)) ? true : false;
+  }
+
+  private function GetErrorCode() {
     switch ($this->Error) {
       case ACCOUNT_SESSION_TOKEN_EXPIRED: {
-          $Error["Message"] = "The account session token is expired.";
+          return "ACCOUNT_SESSION_TOKEN_EXPIRED";
           break;
         }
       case ACCOUNT_SESSION_TOKEN_INVALID: {
-          $Error["Message"] = "The account session token is invalid.";
+          return "ACCOUNT_SESSION_TOKEN_INVALID";
+          break;
+        }
+      case ACCOUNT_LONG_TOKEN_INVALID: {
+          return "ACCOUNT_LONG_TOKEN_INVALID";
+          break;
+        }
+      case ACCOUNT_LONG_TOKEN_EXPIRED: {
+          return "ACCOUNT_LONG_TOKEN_EXPIRED";
+          break;
+        }
+      case ACCOUNT_CREDENTIALS_INVALID: {
+          return "ACCOUNT_CREDENTIALS_INVALID";
           break;
         }
     }
 
+    return "ERROR_UNKNOWN";
+  }
+
+  // Do we even need this as a part of API feature?
+  function GetError() {
+    $Error = array(
+      "Code" => $this->GetErrorCode(),
+      //"Message" => null
+    );
+
+    /*
+    switch ($this->Error) {
+      case ACCOUNT_SESSION_TOKEN_EXPIRED: {
+          $Error["Message"] = "The account session token is expired.";
+          break;
+      }
+      case ACCOUNT_SESSION_TOKEN_INVALID: {
+          $Error["Message"] = "The account session token is invalid.";
+          break;
+      }
+      case 
+    }
+    */
+
     return $Error;
   }
 
-  // NOTE: this function returns LONGTOKEN.
+  /**
+   * @throws ConnectionException
+   * @throws InvalidCredentialsException
+   * @return string|false this function returns LONGTOKEN.
+   */
   function GetLongTokenFromPassPhrase(string $PassPhrase) {
     //TODO: Obtain LongToken.
     $Connection = DBConnection::Connect();
+    $VerifyHash = null;
+    if ($this->UserID === null) {
+      $this->Error = INTERNAL_EXCEPTION;
+      throw new UnexpectedValueException("The UserID is not set. This is possibly a bug!");
+    }
+
     try {
       $PDOstt = $Connection->prepare("select PassHash from schedulepost.accounts where UserID = :UserID");
       if ($PDOstt === false) {
@@ -249,15 +369,24 @@ class UserAuth {
       $PDOstt->bindValue(":UserID", $this->UserID);
       $PDOstt->execute();
       $Data = $PDOstt->fetch(PDO::FETCH_ASSOC);
+      $VerifyHash = $Data["PassHash"];
+    } catch (Exception $e) {
+      throw new ConnectionException("Could not process connection properly: " . $e->getMessage(), "Internal function");
+      return false;
+    }
 
-      if (password_verify($PassPhrase, $Data["PassHash"])) {
+    if (password_verify($PassPhrase, $VerifyHash)) {
+      try {
         $LongToken = bin2hex(openssl_random_pseudo_bytes(64));
-        $PDOstt = $Connection->prepare("update accounts set LongToken = :LongToken where UserID = :UserID");
+        $PDOstt = $Connection->prepare("update accounts set LongToken = :LongToken,LongTokenGenAt = :LongTokenGenAt where UserID = :UserID");
         if ($PDOstt === false) {
           throw new ConnectionException("Could not connect to the database.", "Database: SchedulePost");
+          return false;
         }
+        $UpdateDateTime = new DateTime("now", new DateTimeZone($GLOBALS["DefaultTimeZone"]));
         $PDOstt->bindValue(":UserID", $this->UserID);
         $PDOstt->bindValue(":LongToken", $LongToken);
+        $PDOstt->bindValue(":LongTokenGenAt", $UpdateDateTime->format("Y-m-d H:i:s"));
         $PDOstt->execute();
         $Data = $PDOstt->fetch(PDO::FETCH_ASSOC);
 
@@ -265,12 +394,15 @@ class UserAuth {
         $this->UpdateSessionToken();
 
         return $LongToken;
-      } else {
-        throw new InvalidCredentialsException("The provided passphrase is invalid.", "PASSPHRASE");
+      } catch (ConnectionException $e) {
+        throw $e;
+        return false;
+      } catch (Exception $e) {
+        throw new ConnectionException("Could not process connection properly: " . $e->getMessage(), "Internal function");
         return false;
       }
-    } catch (Exception $e) {
-      throw new ConnectionException("Could not process connection properly: " . $e->getMessage(), "Internal function");
+    } else {
+      throw new InvalidCredentialsException("The provided passphrase is invalid.", "PASSPHRASE");
       return false;
     }
   }
@@ -308,7 +440,7 @@ class UserAuth {
       $Connection = DBConnection::Connect();
       $Updater = $Connection->prepare("Update `accounts` set `LastSigninAt` = :LoginDateTime,`SessionToken` = :SessionToken WHERE UserID = :UserID");
       $Token = bin2hex(openssl_random_pseudo_bytes(32));
-      $LoginDateTime = new DateTime("now", new DateTimeZone("UTC"));
+      $LoginDateTime = new DateTime("now", new DateTimeZone($GLOBALS["DefaultTimeZone"]));
       $Updater->bindValue(":LoginDateTime", $LoginDateTime->format("Y-m-d H:i:s"), PDO::PARAM_STR);
       $Updater->bindValue(":SessionToken", $Token);
       $Updater->bindValue(":UserID", $this->UserID, PDO::PARAM_STR);
@@ -317,7 +449,6 @@ class UserAuth {
         throw new ConnectionException("Database refused to update.", "Database: SchedulePost");
       }
       $this->Token = $Token;
-
       return true;
     } catch (Exception $e) {
       throw new ConnectionException("Could not update database: " . $e->getMessage(), "Internal function");
@@ -477,31 +608,24 @@ while (true) {
           "ReasonCode" => "UNEXPECTED_ARGUMENT",
           "ReasonText" => "The information provided to sign-in is insuffcient."
         );
-        // Prioritize Mail & Passphrase if exists.
+
         if (array_key_exists("Mail", $Recv["Auth"]) && array_key_exists("PassPhrase", $Recv["Auth"])) {
-          $Fetch = new Fetcher();
           try {
-            $UserID = $Fetch->Mail2UserID($Recv["Auth"]["Mail"]);
-            $User = new UserAuth($UserID);
-            // Trying NOT to use passphrase in POST.
-            $LongToken = $User->GetLongTokenFromPassPhrase($Recv["Auth"]["PassPhrase"]);
-            if ($LongToken !== false && $LongToken !== NULL) {
-              $SessionToken = $User->GetSessionTokenFromLongToken($LongToken);
-              $Resp = array(
-                "Result" => true,
-                "UserID" => $UserID,
-                "LongToken" => $LongToken,
-                "SessionToken" => $SessionToken
-              );
-              break;
-            } else {
-              $Resp = array(
-                "Result" => false,
-                "ReasonCode" => "INVALID_CREDENTIALS",
-                "ReasonText" => "The passphrase provided is invalid."
-              );
-              break;
+            $User = new UserAuth();
+            switch ($User->SignInFromMailAndPassphrase($Recv["Auth"]["Mail"], $Recv["Auth"]["PassPhrase"])) {
+              case true:
+                $Resp = array(
+                  "Result" => true,
+                  "UserID" => $User->GetUserID(),
+                  "SessionToken" => $User->GetSessionToken(),
+                  "LongToken" => $User->GetLongToken()
+                );
+                break;
+              
+              case false:
+                break;
             }
+
           } catch (ConnectionException $e) {
             $Resp = array(
               "Result" => false,
@@ -528,58 +652,56 @@ while (true) {
               "ReasonText" => "There was an internal exception whlist trying to sign in. " . $e->getMessage()
             );
           }
-          break;
-        }
+        } else {
+          if (array_key_exists("UserID", $Recv["Auth"]) && array_key_exists("LongToken", $Recv["Auth"])) {
+            try {
+              $User = new UserAuth();
+              switch ($User->SignInFromUserIDAndLongToken($Recv["Auth"]["UserID"], $Recv["Auth"]["LongToken"])) {
+                case true:
+                  $Resp = array(
+                    "Result" => true,
+                    "UserID" => $User->GetUserID(),
+                    "SessionToken" => $User->GetSessionToken(),
+                    "LongToken" => $User->GetLongToken()
+                  );
+                  break;
 
-        if (array_key_exists("UserID", $Recv["Auth"]) && array_key_exists("LongToken", $Recv["Auth"])) {
-          try {
-            $SessionToken = $User->GetSessionTokenFromLongToken($Recv["Auth"]["LongToken"]);
-            if ($SessionToken !== false && $SessionToken !== NULL) {
+                case false:
+                  break;
+              }
+            } catch (ConnectionException $e) {
               $Resp = array(
-                "Result" => true,
-                "SessionToken" => $SessionToken
+                "Result" => false,
+                "ReasonCode" => "INTERNAL_EXCEPTION",
+                "ReasonText" => "There was an internal exception whlist trying to sign in:  " . $e->getMessage()
               );
-              break;
-            } else {
+              error_log("SIGNIN: An error occurred whlist trying to sign in using long token. " . $e->getMessage() . " Stack trace:" . $e->getTraceAsString());
+            } catch (InvalidCredentialsException $e) {
               $Resp = array(
                 "Result" => false,
                 "ReasonCode" => "INVALID_CREDENTIALS",
-                "ReasonText" => "The long token provided is invalid, or expired."
+                "ReasonText" => "The long token provided is invalid. " . $e->getMessage()
               );
-              break;
+            } catch (Exception $e) {
+              $Resp = array(
+                "Result" => false,
+                "ReasonCode" => "INTERNAL_EXCEPTION",
+                "ReasonText" => "There was an internal exception whlist trying to sign in. " . $e->getMessage()
+              );
             }
-          } catch (ConnectionException $e) {
-            $Resp = array(
-              "Result" => false,
-              "ReasonCode" => "INTERNAL_EXCEPTION",
-              "ReasonText" => "There was an internal exception whlist trying to sign in:  " . $e->getMessage()
-            );
-            error_log("SIGNIN: An error occurred whlist trying to sign in using long token. " . $e->getMessage() . " Stack trace:" . $e->getTraceAsString());
-          } catch (InvalidCredentialsException $e) {
-            $Resp = array(
-              "Result" => false,
-              "ReasonCode" => "INVALID_CREDENTIALS",
-              "ReasonText" => "The long token provided is invalid. " . $e->getMessage()
-            );
-          } catch (Exception $e) {
-            $Resp = array(
-              "Result" => false,
-              "ReasonCode" => "INTERNAL_EXCEPTION",
-              "ReasonText" => "There was an internal exception whlist trying to sign in. " . $e->getMessage()
-            );
           }
         }
-
         break;
       }
 
     case "GET_SCHEDULE": {
         $User = new UserAuth($Recv["Auth"]["UserID"], $Recv["Auth"]["SessionToken"]);
         if (!$User->SignIn()) {
+          $Error = $User->GetError();
           $Resp = array(
             "Result" => false,
-            "ReasonCode" => "INVALID_CREDENTIALS",
-            "ReasonText" => " Could not sign in with the provided credentials." . $User->GetError()["Code"] . ", " . $User->GetError()["Message"]
+            "ReasonCode" => $Error["Code"],
+            "ReasonText" => "Could not sign in with the provided credentials. " . ", " . $Error["Code"]
           );
           break;
         }
@@ -603,13 +725,14 @@ while (true) {
         break;
       }
 
-      case "GET_USER_PROFILE": {
+    case "GET_USER_PROFILE": {
         $User = new UserAuth($Recv["Auth"]["UserID"], $Recv["Auth"]["SessionToken"]);
         if (!$User->SignIn()) {
+          $Error = $User->GetError();
           $Resp = array(
             "Result" => false,
-            "ReasonCode" => "INVALID_CREDENTIALS",
-            "ReasonText" => " Could not sign in with the provided credentials." . $User->GetError()["Code"] . ", " . $User->GetError()["Message"]
+            "ReasonCode" => $User->GetError()["Code"],
+            "ReasonText" => "Could not sign in with the provided credentials."
           );
           break;
         }
