@@ -578,11 +578,34 @@ class Fetcher {
   }
 }
 
-$Resp = array(
-  "Result" => false,
-  "ReasonCode" => "ERROR_UNKNOWN",
-  "ReasonText" => "The API did not respond properly to your request."
-);
+class Messages {
+  public const ErrorCodes = array(
+    "ERROR_UNKNOWN" => "The API did not respond properly to your request.",
+    "INPUT_MALFORMED" => "The provided input or argument or both is malformed.",
+    "UNEXPECTED_ARGUMENT" => "The input data contains unexpected value.",
+    "INTERNAL_EXCEPTION" => "There was an internal exception occurred. Please try again.",
+    "INVALID_CREDENTIALS" => "The provided credential is invalid."
+  );
+
+  static function GenerateErrorJSON(string $Code, $Message = null) {
+    return array(
+      "Result" => false,
+      "ReasonCode" => $Code,
+      "ReasonText" => Messages::GetErrorMessage($Code)
+    );
+  }
+
+  static function GetErrorMessage(string $Code) {
+    if (array_key_exists($Code, Messages::ErrorCodes)) {
+      $Message = Messages::ErrorCodes[$Code];
+    } else {
+      $Message = "Error information not provided.";
+    }
+  }
+
+}
+
+$Resp = Messages::GenerateErrorJSON("ERROR_UNKNOWN", "The API could not respond properly to your request.");
 
 // BASICではよくある、 while(true) -> break. try~catch(exception e)~finally ができるやり方。
 
@@ -603,11 +626,7 @@ while (true) {
   switch ($Recv["Action"]) {
     case "SIGN_IN": {
         $UserID = null;
-        $Resp = array(
-          "Result" => false,
-          "ReasonCode" => "UNEXPECTED_ARGUMENT",
-          "ReasonText" => "The information provided to sign-in is insuffcient."
-        );
+        $Resp = Messages::GenerateErrorJSON("UNEXPECTED_ARGUMENT", "The information provided to signin is insuffcient.");
 
         if (array_key_exists("Mail", $Recv["Auth"]) && array_key_exists("PassPhrase", $Recv["Auth"])) {
           try {
@@ -627,30 +646,14 @@ while (true) {
             }
 
           } catch (ConnectionException $e) {
-            $Resp = array(
-              "Result" => false,
-              "ReasonCode" => "INTERNAL_EXCEPTION",
-              "ReasonText" => "There was an internal exception whlist trying to sign in:  " . $e->getMessage()
-            );
+            $Resp = Messages::GenerateErrorJSON("INTERNAL_EXCEPTION", "There was an internal exception whlist trying to sign in:  " . $e->getMessage());
             error_log("SIGNIN: An error occurred whlist trying to sign in using passphrase. " . $e->getMessage() . " Stack trace:" . $e->getTraceAsString());
           } catch (InvalidCredentialsException $e) {
-            $Resp = array(
-              "Result" => false,
-              "ReasonCode" => "INVALID_CREDENTIALS",
-              "ReasonText" => "The passphrase provided is invalid. " . $e->getMessage()
-            );
+            $Resp = Messages::GenerateErrorJSON("INVALID_CREDENTIALS", "The passphrase provided is invalid. " . $e->getMessage());
           } catch (InvalidArgumentException $e) {
-            $Resp = array(
-              "Result" => false,
-              "ReasonCode" => "INVALID_CREDENTIALS",
-              "ReasonText" => "The e-mail address provided is invalid. " . $e->getMessage()
-            );
+            $Resp = Messages::GenerateErrorJSON("INVALID_CREDENTIALS", "The Email address provided is invalid. " . $e->getMessage());
           } catch (Exception $e) {
-            $Resp = array(
-              "Result" => false,
-              "ReasonCode" => "INTERNAL_EXCEPTION",
-              "ReasonText" => "There was an internal exception whlist trying to sign in. " . $e->getMessage()
-            );
+            $Resp = Messages::GenerateErrorJSON("INTERNAL_EXCEPTION", "There was an internal exception whlist trying to sign in. " . $e->getMessage());
           }
         } else {
           if (array_key_exists("UserID", $Recv["Auth"]) && array_key_exists("LongToken", $Recv["Auth"])) {
@@ -670,24 +673,12 @@ while (true) {
                   break;
               }
             } catch (ConnectionException $e) {
-              $Resp = array(
-                "Result" => false,
-                "ReasonCode" => "INTERNAL_EXCEPTION",
-                "ReasonText" => "There was an internal exception whlist trying to sign in:  " . $e->getMessage()
-              );
+              $Resp = Messages::GenerateErrorJSON("INTERNAL_EXCEPTION", "There was an internal exception whlist trying to sign in:  " . $e->getMessage());
               error_log("SIGNIN: An error occurred whlist trying to sign in using long token. " . $e->getMessage() . " Stack trace:" . $e->getTraceAsString());
             } catch (InvalidCredentialsException $e) {
-              $Resp = array(
-                "Result" => false,
-                "ReasonCode" => "INVALID_CREDENTIALS",
-                "ReasonText" => "The long token provided is invalid. " . $e->getMessage()
-              );
+              $Resp = Messages::GenerateErrorJSON("INVALID_CREDENTIALS", "The long token provided is invalid. " . $e->getMessage());
             } catch (Exception $e) {
-              $Resp = array(
-                "Result" => false,
-                "ReasonCode" => "INTERNAL_EXCEPTION",
-                "ReasonText" => "There was an internal exception whlist trying to sign in. " . $e->getMessage()
-              );
+              $Resp = Messages::GenerateErrorJSON("INTERNAL_EXCEPTION", "There was an internal exception whlist trying to sign in. " . $e->getMessage());
             }
           }
         }
@@ -725,6 +716,19 @@ while (true) {
         break;
       }
 
+    case "GET_SCHOOL_PROFILE": {
+      $User = new UserAuth($Recv["Auth"]["UserID"], $Recv["Auth"]["SessionToken"]);
+        if (!$User->SignIn()) {
+          $Error = $User->GetError();
+          $Resp = array(
+            "Result" => false,
+            "ReasonCode" => $User->GetError()["Code"],
+            "ReasonText" => "Could not sign in with the provided credentials."
+          );
+          break;
+        }
+    }
+
     case "GET_USER_PROFILE": {
         $User = new UserAuth($Recv["Auth"]["UserID"], $Recv["Auth"]["SessionToken"]);
         if (!$User->SignIn()) {
@@ -744,11 +748,7 @@ while (true) {
         $PDOstt->execute();
         $Data = $PDOstt->fetch();
         if ($Data === false || $Data === null) {
-          $Resp = array(
-            "Result" => false,
-            "ReasonCode" => "INTERNAL_EXCEPTION",
-            "ReasonText" => "There was an internal error while trying to fetch user profile."
-          );
+          $Resp = Messages::GenerateErrorJSON("INTERNAL_EXCEPTION", "There was an internal error while trying to fetch user profile.");
           break;
         }
         $UserDisplayName = $Data["DisplayName"];
@@ -761,11 +761,7 @@ while (true) {
         $PDOstt->execute();
         $Data = $PDOstt->fetch();
         if ($Data === false || $Data === null) {
-          $Resp = array(
-            "Result" => false,
-            "ReasonCode" => "INTERNAL_EXCEPTION",
-            "ReasonText" => "There was an internal error while trying to fetch user profile."
-          );
+          $Resp = Messages::GenerateErrorJSON("INTERNAL_EXCEPTION", "There was an internal error while trying to fetch user profile.");
           break;
         }
         $SchoolDisplayName = $Data["DisplayName"];
@@ -776,11 +772,7 @@ while (true) {
         $PDOstt->execute();
         $Data = $PDOstt->fetch();
         if ($Data === false || $Data === null) {
-          $Resp = array(
-            "Result" => false,
-            "ReasonCode" => "INTERNAL_EXCEPTION",
-            "ReasonText" => "There was an internal error while trying to fetch user profile."
-          );
+          $Resp = Messages::GenerateErrorJSON("INTERNAL_EXCEPTION", "There was an internal error while trying to fetch user profile.");
           break;
         }
         $GroupDisplayName = $Data["DisplayName"];
