@@ -27,10 +27,20 @@
   curl_close($api_getter);
 
   $RespObj = json_decode($api_resp, true);
+  /*
+  echo "<h1>Sent</h1>";
+  echo var_dump($post);
+  echo "<h1>Recv</h1>";
+  echo $api_resp;
+  */
 
-  setcookie("UserID",  $RespObj["UserID"], time()+60*60*24*30, "/", 00.);
-  setcookie("SessionToken",  $RespObj["SessionToken"], time()+60*10, "/");
-  setcookie("LongToken",  $RespObj["LongToken"], time()+60*60*24*30, "/");
+  if ($RespObj["Result"]) {
+    setcookie("UserID",  $RespObj["UserID"], time()+60*60*24*30, "/");
+    setcookie("SessionToken",  $RespObj["SessionToken"], time()+60*10, "/");
+    setcookie("LongToken",  $RespObj["LongToken"], time()+60*60*24*30, "/");
 
-  header("Location: ". "/index.html", true);
+    header("Location: ". "/index.html", true);
+  } else {
+    //var_dump($RespObj);
+  }
   exit();
