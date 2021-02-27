@@ -145,6 +145,7 @@ class UserAuth {
   private $SessionToken;
   private $LongToken; // TODO: Is this suitable for security reason?
   private $GroupID;
+  private $SchoolID;
   private $Error;
 
   // これ基本のコンストラクタ
@@ -243,6 +244,38 @@ class UserAuth {
         return null;
       }
     } else if ($this->GroupID === false) {
+      return null;
+    } else {
+      return $this->GroupID;
+    }
+  }
+
+  // Returns the school UUID that the user belongs to.
+  // Returns NULL if the user does not belong to any, and stores false.
+  // If $Force_Update is set TRUE, updates the school ID.
+  function GetSchoolID(bool $Force_Update = false) {
+    if ($Force_Update) {
+      $this->SchoolID = null;
+    }
+    if ($this->SchoolID === null) {
+      try {
+        $Connection = DBConnection::Connect();
+        $PDOstt = $Connection->prepare("select BelongSchoolID from user_profile where BelongUserID = :UserID");
+        $PDOstt->execute(array(
+          ":UserID" => $this->UserID,
+        ));
+        $Data = $PDOstt->fetch(PDO::FETCH_ASSOC);
+      } catch (PDOException $e) {
+        throw new ConnectionException("Could not connect to the database, or could not process properly. " . $e->getMessage(), "DATABASE");
+      }
+      if (array_key_exists("BelongSchoolID", $Data) && $Data["BelongSchoolID"] !== NULL) {
+        $this->SchoolID = $Data["BelongSchoolID"];
+        return $this->SchoolID;
+      } else {
+        $this->SchoolID = false;
+        return null;
+      }
+    } else if ($this->SchoolID === false) {
       return null;
     } else {
       return $this->GroupID;
@@ -716,28 +749,63 @@ while (true) {
         break;
       }
 
-    case "GET_SCHOOL_PROFILE": {
+    case "GET_SCHOOL_CONFIG": {
       $User = new UserAuth($Recv["Auth"]["UserID"], $Recv["Auth"]["SessionToken"]);
         if (!$User->SignIn()) {
           $Error = $User->GetError();
-          $Resp = array(
-            "Result" => false,
-            "ReasonCode" => $User->GetError()["Code"],
-            "ReasonText" => "Could not sign in with the provided credentials."
-          );
+          $Resp = Messages::GenerateErrorJSON($User->GetError()["Code"], "Could not sign in with the provided credentials.");
           break;
         }
+
+        // Fetch school profile(raw)
+        $Connection = DBConnection::Connect();
+        $PDOstt = $Connection->prepare("select DisplayName, Config, from school_profile where SchoolID = :SchoolID");
+        $PDOstt->bindValue(":SchoolID", $User->GetSchoolID());
+        $PDOstt->execute();
+        $Data = $PDOstt->fetch();
+        if ($Data === false || $Data === null) {
+          $Resp = Messages::GenerateErrorJSON("INTERNAL_EXCEPTION", "There was an internal error while trying to fetch school profile.");
+          break;
+        }
+
+        $SchoolConfig = json_decode($Data["Config"], true);
+        if ($SchoolConfig === null) {
+          $Resp = Messages::GenerateErrorJSON("INTERNAL_EXCEPTION");
+          error_log(sprintf("JSON: The school ID %s has a malformed CONFIG JSON! Please fix it manually.", $User->GetSchoolID()));
+          break;
+        }
+
+        $Resp = array(
+          "Result" => true,
+          "Item" => null,
+          "Content" => null
+        );
+        
+        switch ($Recv["Item"]) {
+          case "Subjects": {
+            if (array_key_exists("Subjects", $SchoolConfig)) {
+              $Resp["Content"] = $SchoolConfig["Subjects"];
+            } else {
+              $Resp["Content"] = null;
+            }
+          }
+
+          default: {
+            $Resp = array(
+              "Result" => false,
+              $Resp["ReasonCode"] = "UNEXPECTED_ARGUMENT",
+              $Resp["ReasonText"] = "The item type requested is not defined in the system. There might be a typo in your code!"
+            );
+          }
+        }
+        
     }
 
     case "GET_USER_PROFILE": {
         $User = new UserAuth($Recv["Auth"]["UserID"], $Recv["Auth"]["SessionToken"]);
         if (!$User->SignIn()) {
           $Error = $User->GetError();
-          $Resp = array(
-            "Result" => false,
-            "ReasonCode" => $User->GetError()["Code"],
-            "ReasonText" => "Could not sign in with the provided credentials."
-          );
+          $Resp = Messages::GenerateErrorJSON($User->GetError()["Code"], "Could not sign in with the provided credentials.");
           break;
         }
 
