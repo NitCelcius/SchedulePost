@@ -8,34 +8,74 @@ const InterSectObs = new IntersectionObserver(Scroll_Update, {
   threshold: [0.0, 1.0]
 })
 
+
 for (var i = 0; i < InterSectNodes.length; i++) {
   InterSectIDs.push(InterSectNodes[i].id);
   InterSectObs.observe(InterSectNodes[i]);
 }
 
-function FetchPersonalInfo(UserClass, CallbackSucceed, CallbackFailed, CallbackProgress) {
-  let Req = new XMLHttpRequest();
+async function InitPage(User) {
   try {
-    Req.addEventListener("loadend", CallbackSucceed);
-    Req.addEventListener("error", CallbackFailed);
-    Req.addEventListener("progress", CallbackProgress);
-  } catch (ReferenceError) {
-    /* Do nothing */
+    Prof = await FetchPersonalInfo(User);
+    Resp = JSON.parse(Prof.Content);
+    if (Resp["Result"]) {
+      document.getElementById("Group_Label").innerHTML = Resp.Profile.Group.DisplayName;
+      document.getElementById("Group_Label").innerHTML = Resp.Profile.School.DisplayName;
+    } else {
+      switch (Resp["ReasonCode"]) {
+        case "ACCOUNT_SESSION_TOKEN_EXPIRED":
+        case "INVALID_CREDENTIALS": {
+          TransferLoginPage();
+          break;
+        }
+      }
+    }
+  } catch (e) {
+    console.error(e);
   }
+}
 
-  Req.open("POST", API_URL, true);
-  Req.setRequestHeader("Content-Type", "application/json");
+function AwaitAjaxy(URL, Content) {
+  return new Promise(function (Resolve, Reject) {
+    let Req = new XMLHttpRequest();
+    Req.open("POST", URL, true);
+    Req.setRequestHeader("Content-Type", "application/json");
 
-  console.info(UserClass);
-  Req.send(JSON.stringify({
-    "Auth": {
-      "UserID": UserClass.UserID,
-      "SessionToken": UserClass.SessionToken
-    },
-    "Action": "GET_USER_PROFILE"
-  }));
+    Req.onload = function (LoadData) {
+      if (LoadData.target.status >= 200 && LoadData.target.status < 300) {
+        Resolve({
+          "status": LoadData.target.status,
+          "statusText": LoadData.target.statusText,
+          "Content": LoadData.target.response
+        });
+      } else {
+        Reject({
+          "status": LoadData.target.status,
+          "statusText": LoadData.target.statusText
+        })
+      }
+    };
+    Req.onerror = function (LoadData) {
+      Reject({
+        "status": LoadData.target.status,
+        "statusText": LoadData.target.statusText
+      });
+    }
 
-  return;
+    Req.send(Content);
+  });
+}
+
+async function FetchPersonalInfo(UserClass) {
+  Info = await AwaitAjaxy( API_URL, JSON.stringify({
+      "Auth": {
+        "UserID": UserClass.UserID,
+        "SessionToken": UserClass.SessionToken
+      },
+      "Action": "GET_USER_PROFILE"
+    })
+  );
+  return Info;
 }
 
 class User {
@@ -214,35 +254,10 @@ setInterval(function () {
 */
 
 
-
 UserID = GetCookie("UserID");
 SessionToken = GetCookie("SessionToken");
 
 if (UserID == null || SessionToken == null) {
   TransferLoginPage();
 }
-
-Prof = FetchPersonalInfo(new User(UserID, SessionToken),
-  function (Req) { // When succeeded
-    console.info(Req.target.responseText);
-    Resp = JSON.parse(Req.target.responseText);
-
-    if (Resp["Result"]) {
-      document.getElementById("Group_Label").innerHTML = Resp.Profile.Group.DisplayName;
-      document.getElementById("Group_Label").innerHTML = Resp.Profile.School.DisplayName;
-    } else {
-      switch (Resp["ReasonCode"]) {
-        case "ACCOUNT_SESSION_TOKEN_EXPIRED":
-        case "INVALID_CREDENTIALS": {
-          TransferLoginPage();
-          break;
-        }
-      }
-    }
-  },
-  function (Err) {
-    console.info(Err);
-  },
-  function (ProgressEvent) {
-    console.info(ProgressEvent);
-  });
+InitPage(new User(UserID, SessionToken));
