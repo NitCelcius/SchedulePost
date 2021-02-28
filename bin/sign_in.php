@@ -41,6 +41,6 @@
 
     header("Location: ". "/index.html", true);
   } else {
-    //var_dump($RespObj);
+    var_dump($api_resp);
   }
   exit();
