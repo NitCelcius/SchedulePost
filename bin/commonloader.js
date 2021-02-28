@@ -5,7 +5,6 @@ async function LoadCommonNodes() {
     try {
       CommonRaw = await AwaitLoady("/Resources/Common/Navs.html");
 
-
       if (CommonRaw["Content"] != null) {
         break;
       }
@@ -32,7 +31,23 @@ async function LoadCommonNodes() {
   Field.innerHTML = CommonRaw["Content"];
 
   for (var i = 0; i < Field.childNodes.length; i++) {
-    Target.appendChild(Field.childNodes[i]);
+    switch (Field.childNodes[i].tagName) {
+      case "NAV": {
+        // NAV needs some space.
+        Nav = document.getElementsByTagName("nav")[0];
+        console.info(Field.childNodes[i].childNodes);
+        Field.childNodes[i].childNodes.forEach( function(Node) {
+          cp = Node.cloneNode(true);
+          Nav.appendChild(cp);
+        })
+        break;
+      }
+      default: {
+        cp = Field.childNodes[i].cloneNode(true);
+        Target.appendChild(cp);
+        break;
+      }
+    }
   }
 
 }

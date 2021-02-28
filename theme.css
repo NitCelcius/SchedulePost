@@ -1,10 +1,14 @@
 body {
   background-color: white;
   font-family: 'メイリオ', Meiryo, 'Hiragino Kaku Gothic ProN', 'ヒラギノ角ゴ ProN W3', sans-serif;
-  max-width: 70rem;
+  max-width: 80rem;
   margin: 0rem auto;
   /* If unnecessary, remove this */
   background-image: url("Resources/Web/Grid.png");
+}
+
+body>* {
+  max-width: 80rem;
 }
 
 header {
@@ -12,16 +16,21 @@ header {
   top: 0;
   height: 3rem;
   width: 100%;
-  max-width: 70rem;
   background-color: rgb(240, 240, 220);
   position: fixed;
   z-index: 5;
 }
 
 article {
-  margin: 3rem auto 0 auto;
-  width: 30rem;
-  max-width: 80vw;
+  margin: 3rem auto 3rem auto;
+  width: 100%;
+  max-width: 90vw;
+  /* Overscroll */
+  padding-bottom: 50%;
+}
+
+article>* {
+  width:100%;
 }
 
 #Title {
@@ -41,7 +50,7 @@ article {
   position: fixed;
   top: 0;
   right: 0;
-  z-index: 10;
+  z-index: 0;
   background: #0d7;
   border: none;
   width: 3rem;
@@ -95,6 +104,7 @@ nav {
   /* 1 rem あけている */
   width: 25rem;
   height: calc(100% - 6rem);
+  margin-right: 1rem;
   /* height の値に関係なくタテのサイズが固定される。なんでだ？ */
   overflow-y: scroll;
   overflow-x: hidden;
@@ -119,7 +129,6 @@ div#Nav_Body {
 
 nav ul {
   margin: 0;
-
   padding: 0rem 1rem 0rem 1rem;
   margin: 1rem 0;
 }
@@ -167,7 +176,6 @@ button#Sidebar_CloseButton {
 footer {
   position: fixed;
   background-color: #eee;
-  left: 0;
   bottom: 0;
   overflow: hidden;
   height: 4rem;
@@ -247,6 +255,7 @@ footer img {
     top: 0;
     left: 0;
     height: 100%;
+    max-width: 100%;
     background: white;
 
     box-shadow: 2rem 0rem 1rem 0rem rgba(0, 0, 0, 0.8)

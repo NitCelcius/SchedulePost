@@ -1,15 +1,3 @@
-<header>
-  <!-- 重なりがよくわからないので button はヘッダーから外してしまった！
-子要素の z-index は 親要素の z-index より大きくならないのだろうか？ -->
-  <button id="Sidebar_OpenButton" onclick="Sidebar_Open()" type="button">
-    <span class="Sidebar_Visual">
-      <span class="Sidebar_Text">MENU</span>
-    </span>
-  </button>
-  <p id="Title">SchedulePost</p>
-  <div id="Nav_Overlay" style="display: none" onclick="Sidebar_Close()">
-  </div>
-</header>
 <nav>
   <button id="Sidebar_CloseButton" onclick="Sidebar_Close()">CLOSE</button>
   <div id="Nav_Body">
@@ -25,6 +13,18 @@
     </ul>
   </div>
 </nav>
+<header>
+  <!-- 重なりがよくわからないので button はヘッダーから外してしまった！
+子要素の z-index は 親要素の z-index より大きくならないのだろうか？ -->
+  <button id="Sidebar_OpenButton" onclick="Sidebar_Open()" type="button">
+    <span class="Sidebar_Visual">
+      <span class="Sidebar_Text">MENU</span>
+    </span>
+  </button>
+  <p id="Title">SchedulePost</p>
+  <div id="Nav_Overlay" style="display: none" onclick="Sidebar_Close()">
+  </div>
+</header>
 <footer>
   <ul>
     <li>
