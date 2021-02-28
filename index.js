@@ -1,5 +1,4 @@
 // Please note that this js requires "lib.js" ( I mean, SchedulePost common library )
-var Base_Header = document.getElementsByTagName("header")[0].childNodes;
 var InterSectNodes = document.getElementsByClassName("InterSectTarget");
 var CurrentInterSect = 0;
 var InterSectIDs = new Array;
@@ -170,6 +169,7 @@ function Scroll_Update(Elements, Obj) {
 }
 
 function Header_Update(ElementID) {
+  var Base_Header = document.getElementsByTagName("header")[0].childNodes;
   var Header = document.querySelector("header>p");
   switch (ElementID) {
     case "Table_Date":
@@ -222,15 +222,6 @@ function Scroller() {
 }
 */
 
-function Sidebar_Open() {
-  document.getElementsByTagName("nav")[0].style.display = "block";
-  document.getElementById("Nav_Overlay").style.display = "block";
-}
-
-function Sidebar_Close() {
-  document.getElementsByTagName("nav")[0].style.display = "none";
-  document.getElementById("Nav_Overlay").style.display = "none";
-}
 
 function TransferLoginPage() {
   // NOTE: Depending on the last-update time, automatically redirect or recommend to redirect.

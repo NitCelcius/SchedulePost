@@ -1,4 +1,32 @@
+function AwaitLoady(URL) {
+  return new Promise(function (Resolve, Reject) {
+    let Req = new XMLHttpRequest();
+    Req.open("GET", URL, true);
 
+    Req.onload = function (LoadData) {
+      if (LoadData.target.status >= 200 && LoadData.target.status < 300) {
+        Resolve({
+          "status": LoadData.target.status,
+          "statusText": LoadData.target.statusText,
+          "Content": LoadData.target.response
+        });
+      } else {
+        Reject({
+          "status": LoadData.target.status,
+          "statusText": LoadData.target.statusText
+        })
+      }
+    };
+    Req.onerror = function (LoadData) {
+      Reject({
+        "status": LoadData.target.status,
+        "statusText": LoadData.target.statusText
+      });
+    }
+
+    Req.send();
+  });
+}
 
 function AwaitAjaxy(URL, Content) {
   return new Promise(function (Resolve, Reject) {
@@ -240,4 +268,14 @@ function GetCookie(name) {
   } catch (err) {
     return null;
   }
+}
+
+function Sidebar_Open() {
+  document.getElementsByTagName("nav")[0].style.display = "block";
+  document.getElementById("Nav_Overlay").style.display = "block";
+}
+
+function Sidebar_Close() {
+  document.getElementsByTagName("nav")[0].style.display = "none";
+  document.getElementById("Nav_Overlay").style.display = "none";
 }

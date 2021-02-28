@@ -1,0 +1,43 @@
+<header>
+  <!-- 重なりがよくわからないので button はヘッダーから外してしまった！
+子要素の z-index は 親要素の z-index より大きくならないのだろうか？ -->
+  <button id="Sidebar_OpenButton" onclick="Sidebar_Open()" type="button">
+    <span class="Sidebar_Visual">
+      <span class="Sidebar_Text">MENU</span>
+    </span>
+  </button>
+  <p id="Title">SchedulePost</p>
+  <div id="Nav_Overlay" style="display: none" onclick="Sidebar_Close()">
+  </div>
+</header>
+<nav>
+  <button id="Sidebar_CloseButton" onclick="Sidebar_Close()">CLOSE</button>
+  <div id="Nav_Body">
+    <ul>
+      <p id="Brief_Profile">
+        <span id="School_Label">(学校名)</span>
+        <br>
+        <span id="Group_Label">1 年 A 組</span>
+      </p>
+      <li>Sidebar</li>
+      <li>...</li>
+      <li>...</li>
+    </ul>
+  </div>
+</nav>
+<footer>
+  <ul>
+    <li>
+      <p>aaaaa<br>1</p>
+    </li>
+    <li class="Active">
+      <p><img src="Resources/Web/Clock.png" alt="時間割"><br>LNK-2</p>
+    </li>
+    <li>
+      <p>LNK-3</p>
+    </li>
+    <li>
+      <p>LNK-4</p>
+    </li>
+  </ul>
+</footer>
