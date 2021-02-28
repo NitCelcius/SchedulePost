@@ -5,19 +5,6 @@ div#Body_Wrapper {
 }
 
 
-
-#Title {
-  display: inline-block;
-  margin: 0 0 0 1rem;
-  margin-left: 1rem;
-  font-size: 1.4rem;
-  height: 3rem;
-  width: 100%;
-  text-align: center;
-  /* むりやり */
-  line-height: 3rem;
-}
-
 div#Table_Body {
   margin: 0 auto;
   /*  margin: 4rem 1rem 1rem 1rem; */
@@ -64,11 +51,12 @@ h2.Head {
 }
 
 div.Class_Block {
-/*  box-shadow: 0 0 1px 0px black; */
+  /*  box-shadow: 0 0 1px 0px black; */
   margin: 0.5rem 0rem;
   /*padding: 0.5rem;*/
   border: 1px solid #aaa
 }
+
 /*
 div.Class_Block > label::before {
   content: "|";
@@ -80,7 +68,7 @@ div.Class_Block > label::before {
 }
 */
 
-div.Class_Block > label {
+div.Class_Block>label {
   height: 100%;
   display: table-cell;
   border-right: 1px solid #aaa;
@@ -92,7 +80,7 @@ div.Class_Block > label {
   background-color: var(--subject-color);
 }
 
-div.Class_Block.important > label {
+div.Class_Block.important>label {
   color: white;
   background-color: var(--subject-emphasize-color);
 }
@@ -103,9 +91,9 @@ div.Class_Block.important > label {
   height: 100%;
   width: 2em;
   background-color: var(--subject-color);
-} 
+}
 
-div.Class_Block.important > .Class_Emphasizer {
+div.Class_Block.important>.Class_Emphasizer {
   background-color: var(--subject-color);
 }
 
