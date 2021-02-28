@@ -2,6 +2,9 @@
 // Requirement: PHP 8.0.0 or later
 // TODO: PHP envilonment requirement
 // WIP.
+
+//error_reporting(0);
+
 $GLOBALS["DB_URL"] = getenv("DB_URL");
 $GLOBALS["DB_Username"] = getenv("DB_UserName");
 $GLOBALS["DB_PassPhrase"] = getenv("DB_PassPhrase");
@@ -289,6 +292,7 @@ class UserAuth {
       $PDOstt->bindValue(":UserID", $this->UserID);
       $PDOstt->execute();
       $Data = $PDOstt->fetch();
+      //var_dump($Data);
       if ($this->SessionToken != $Data["SessionToken"]) {
         $this->Error = ACCOUNT_SESSION_TOKEN_INVALID;
         return false;
@@ -540,11 +544,19 @@ class Fetcher {
   }
 
   function GetTimetable(string $GroupID, DateTime $Date, int $Revision = null) {
+    $Data = array();
     //TODO: Need to verify things here, but ignoring for now
     $Base = $this->GetDefaultTimetable($GroupID, ((int)$Date->format("w")));
     $Diff = $this->GetTimetableDiff($GroupID, $Date, $Revision);
-
-    return array_merge($Base, $Diff);
+    $Data = array_merge(array(
+      "Date" => $Date->format("d-m-Y"),
+      "Revision" => $Diff["Revision"],
+      "GroupID" => $GroupID
+    ),
+    $Base, 
+    $Diff["Body"]);
+    
+    return $Data;
   }
 
   function GetDefaultTimetable(string $GroupID, int $Day_Of_The_Date) {
@@ -559,6 +571,7 @@ class Fetcher {
         break;
       default:
         throw new UnexpectedValueException("The day of the date is out of range. Make sure you have provided the correct day.");
+        break;
     }
 
     $PDO = DBConnection::Connect();
@@ -572,7 +585,7 @@ class Fetcher {
       return false;
     }
 
-    $DefaultTimeTable = json_decode($Result[0], true);
+    $DefaultTimeTable = json_decode($Result[0], true, 512, JSON_FORCE_OBJECT);
     $DayStr = DayEnum::EnumToStr($Day_Of_The_Date);
 
     if ($DefaultTimeTable === false || $DefaultTimeTable === null) {
@@ -601,7 +614,10 @@ class Fetcher {
       throw new ConnectionException("Could not connect to the database properly.");
       return false;
     }
-    $Diff = json_decode($Result["0"]["Body"], true);
+    $Diff = array(
+      "Revision" => $Result["0"]["Revision"],
+      "Body" => json_decode($Result["0"]["Body"], true, 512, JSON_FORCE_OBJECT)
+    );
 
     if ($Diff === false) {
       throw new UnexpectedValueException("The JSON of the specified timetable is malformed.");
@@ -655,6 +671,7 @@ while (true) {
 
   //Authenticate here
   //Probs insert this part on request header
+  //var_dump($Recv);
 
   switch ($Recv["Action"]) {
     case "SIGN_IN": {
@@ -737,7 +754,7 @@ while (true) {
           // Note here: Because PHP Datetime::format() format character "w" follows ISO-8601, DayEnum corresponds to it.
           (int)$Date->format("w")
         );
-        $Result = json_encode($Fetcher->GetTimetable($User->GetGroupID(), $Date), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        $Result = json_encode($Fetcher->GetTimetable($User->GetGroupID(), $Date), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_FORCE_OBJECT);
 
         if ($Result != false) {
           $Resp = array(
@@ -750,6 +767,7 @@ while (true) {
       }
 
     case "GET_SCHOOL_CONFIG": {
+      // Need to check permissions here.
       $User = new UserAuth($Recv["Auth"]["UserID"], $Recv["Auth"]["SessionToken"]);
         if (!$User->SignIn()) {
           $Error = $User->GetError();
@@ -759,7 +777,7 @@ while (true) {
 
         // Fetch school profile(raw)
         $Connection = DBConnection::Connect();
-        $PDOstt = $Connection->prepare("select DisplayName, Config, from school_profile where SchoolID = :SchoolID");
+        $PDOstt = $Connection->prepare("select DisplayName, Config from school_profile where SchoolID = :SchoolID");
         $PDOstt->bindValue(":SchoolID", $User->GetSchoolID());
         $PDOstt->execute();
         $Data = $PDOstt->fetch();
@@ -783,22 +801,26 @@ while (true) {
         
         switch ($Recv["Item"]) {
           case "Subjects": {
-            if (array_key_exists("Subjects", $SchoolConfig)) {
+              $Resp["Item"] = "Subjects";
+              if (array_key_exists("Subjects", $SchoolConfig)) {
+              
               $Resp["Content"] = $SchoolConfig["Subjects"];
             } else {
               $Resp["Content"] = null;
             }
+            break;
           }
 
           default: {
             $Resp = array(
               "Result" => false,
-              $Resp["ReasonCode"] = "UNEXPECTED_ARGUMENT",
-              $Resp["ReasonText"] = "The item type requested is not defined in the system. There might be a typo in your code!"
+              "ReasonCode" => "UNEXPECTED_ARGUMENT",
+              "ReasonText" => "The item type requested is not defined in the system. There might be a typo in your code!"
             );
+              break;
           }
         }
-        
+        break;
     }
 
     case "GET_USER_PROFILE": {
@@ -885,6 +907,6 @@ while (true) {
   break;
 }
 
-echo json_encode($Resp, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+echo json_encode($Resp, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES||JSON_FORCE_OBJECT);
 
 exit;
