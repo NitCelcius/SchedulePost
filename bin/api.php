@@ -76,6 +76,21 @@ class DayEnum {
   }
 }
 
+
+// This might be rewritten into JSON but do not want to be modified.
+class Permissions {
+  const Dic = array(
+    "School.Admin" => null,
+    "School.Timetable.View" => null,
+    "School.Timetable.CreateBase" => null,
+    "School.Timetable.Edit" => null
+  );
+
+  static function IsExist(string $Permission) {
+    return array_key_exists($Permission, Permissions::Dic);
+  }
+}
+
 class ConnectionException extends Exception {
   private $Message;
 
@@ -159,7 +174,6 @@ class UserAuth {
     $this->UserID = $UserID;
     $this->SessionToken = $SessionToken;
   }
-
 
   /**
    * Sign-in using EMAIL and PASSPHRASE. Basically this converts arguments and sign-in using  SignInFromUserIDAndLongToken.
@@ -337,6 +351,29 @@ class UserAuth {
     return ($Data !== false && ($PDOstt->rowCount() > 0)) ? true : false;
   }
 
+  private function IsPermitted(string $Action) {
+    $Connection = DBConnection::Connect();
+    $PDOstt = $Connection->prepare("select Permissions from schedulepost.permissions where UserID = :UserID");
+    $PDOstt->bindValue(":UserID", $this->UserID);
+    $PDOstt->execute();
+    $Data = $PDOstt->fetch();
+    if ($Data === false) {
+      throw new Error("FATAL: The permission is not defined!");
+    }
+
+    $Permission = json_decode($Data["Permissions"]);
+    if (Permissions::IsExist($Action)) {
+      if ($Permission[$Action]) {
+        return true;
+      } else {
+        return false;
+      }
+    } else {
+      throw new UnexpectedValueException("The permission does not exist.");
+      return false;
+    }
+  }
+
   private function GetErrorCode() {
     switch ($this->Error) {
       case ACCOUNT_SESSION_TOKEN_EXPIRED: {
@@ -471,7 +508,7 @@ class UserAuth {
       return false;
     }
 
-    if (array_key_exists("LongTokenGenAt",$Data) && $Data["LongTokenGenAt"] !== NULL) {
+    if (array_key_exists("LongTokenGenAt", $Data) && $Data["LongTokenGenAt"] !== NULL) {
       $CurrentTime = new DateTime();
       $Expiry = new DateTime($Data["LongTokenGenAt"]);
       $Expiry->add(DateInterval::createFromDateString($GLOBALS["LongTokenExpiry"]));
@@ -553,10 +590,6 @@ class Fetcher {
       throw new InvalidArgumentException("The email is not registered.");
       return null;
     }
-  }
-
-
-  function IsPermitted(UserAuth $User, string $Command) {
   }
 
   function GetTimetable(string $GroupID, DateTime $Date, int $Revision = null) {
@@ -766,6 +799,8 @@ while (true) {
           );
           break;
         }
+
+        //TODO: permission here
 
         $Date = new DateTime($Recv["Date"]);
         $Fetcher = new Fetcher($User);
