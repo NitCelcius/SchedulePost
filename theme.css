@@ -18,6 +18,12 @@ header {
   z-index: 5;
 }
 
+article {
+  margin: 3rem auto 0 auto;
+  width: 30rem;
+  max-width: 80vw;
+}
+
 #Title {
   display: inline-block;
   margin: 0 0 0 1rem;
@@ -264,10 +270,11 @@ footer img {
     width: 100%;
   }
 
-  /* これ意味あるんかな */
+  /* これ意味あるんかな
   div#Body_Wrapper {
     padding: 0rem 0rem;
   }
+  */
 
   button#Sidebar_OpenButton {
     display: block;

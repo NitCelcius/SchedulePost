@@ -1,16 +1,18 @@
+/*
 div#Body_Wrapper {
   margin-top: 3rem;
   padding: 0 3rem;
   display: block;
 }
+*/
 
-
+/*
 div#Table_Body {
   margin: 0 auto;
-  /*  margin: 4rem 1rem 1rem 1rem; */
   width: 30rem;
   max-width: 80vw;
 }
+*/
 
 h1#Table_Date {
   display: block;
