@@ -119,10 +119,13 @@ class DBConnection {
       }
       if ($GLOBALS["Connection"] === null) {
         $Connection = new PDO(
-          sprintf("mysql:host=%s;dbname=%s;charset=utf8", 
-          $GLOBALS["DB_URL"], "schedulepost"), 
-          $GLOBALS["DB_Username"], 
-          $GLOBALS["DB_PassPhrase"], 
+          sprintf(
+            "mysql:host=%s;dbname=%s;charset=utf8",
+            $GLOBALS["DB_URL"],
+            "schedulepost"
+          ),
+          $GLOBALS["DB_Username"],
+          $GLOBALS["DB_PassPhrase"],
           array(
             PDO::MYSQL_ATTR_INIT_COMMAND => "SET CHARACTER SET 'utf8mb4'",
             PDO::MYSQL_ATTR_FOUND_ROWS => true
@@ -193,6 +196,7 @@ class UserAuth {
    */
   function SignInFromUserIDAndLongToken(string $UserID, string $LongToken) {
     $SessionToken = $this->GetSessionTokenFromLongToken($LongToken);
+
     if ($SessionToken !== false && $SessionToken !== NULL) {
       $this->UpdateLastActivity();
       $this->UserID = $UserID;
@@ -445,6 +449,10 @@ class UserAuth {
   }
 
   function GetSessionTokenFromLongToken(string $LongToken) {
+    if ($this->UserID === null || $LongToken === null) {
+      throw new UnexpectedValueException("Provide UserID or Longtoken.");
+    }
+
     $Connection = DBConnection::Connect();
     $PDOstt = $Connection->prepare("select LongTokenGenAt from schedulepost.accounts where UserID = :UserID AND LongToken = :LongToken");
     if ($PDOstt === false) {
@@ -455,7 +463,13 @@ class UserAuth {
     $PDOstt->execute();
 
     $Data = $PDOstt->fetch(PDO::FETCH_ASSOC);
-    if ($Data["LongTokenGenAt"] !== NULL) {
+    if ($Data === false) {
+      error_log("An error occurred in GetSessionTokenFromLongToken: ".print_r($PDOstt->errorinfo(), true));
+      throw new ConnectionException("Could not connect to the database.");
+      return false;
+    }
+
+    if (array_key_exists("LongTokenGenAt",$Data) && $Data["LongTokenGenAt"] !== NULL) {
       $CurrentTime = new DateTime();
       $Expiry = new DateTime($Data["LongTokenGenAt"]);
       $Expiry->add(DateInterval::createFromDateString($GLOBALS["LongTokenExpiry"]));
@@ -548,14 +562,16 @@ class Fetcher {
     //TODO: Need to verify things here, but ignoring for now
     $Base = $this->GetDefaultTimetable($GroupID, ((int)$Date->format("w")));
     $Diff = $this->GetTimetableDiff($GroupID, $Date, $Revision);
-    $Data = array_merge(array(
-      "Date" => $Date->format("d-m-Y"),
-      "Revision" => $Diff["Revision"],
-      "GroupID" => $GroupID
-    ),
-    $Base, 
-    $Diff["Body"]);
-    
+    $Data = array_merge(
+      array(
+        "Date" => $Date->format("d-m-Y"),
+        "Revision" => $Diff["Revision"],
+        "GroupID" => $GroupID
+      ),
+      $Base,
+      $Diff["Body"]
+    );
+
     return $Data;
   }
 
@@ -620,7 +636,7 @@ class Fetcher {
     );
 
     if ($Diff === false) {
-      throw new UnexpectedValueException("The JSON of the specified timetable is malformed.");
+      throw new InvalidArgumentException("The JSON of the specified timetable is malformed.");
     }
 
     return $Diff;
@@ -637,10 +653,13 @@ class Messages {
   );
 
   static function GenerateErrorJSON(string $Code, $Message = null) {
+    if ($Message === null) {
+      $Message = Messages::GetErrorMessage($Code);
+    }
     return array(
       "Result" => false,
       "ReasonCode" => $Code,
-      "ReasonText" => Messages::GetErrorMessage($Code)
+      "ReasonText" => $Message
     );
   }
 
@@ -651,7 +670,6 @@ class Messages {
       $Message = "Error information not provided.";
     }
   }
-
 }
 
 $Resp = Messages::GenerateErrorJSON("ERROR_UNKNOWN", "The API could not respond properly to your request.");
@@ -688,13 +706,13 @@ while (true) {
                   "UserID" => $User->GetUserID(),
                   "SessionToken" => $User->GetSessionToken(),
                   "LongToken" => $User->GetLongToken()
+                  //TODO: add "valid until"
                 );
                 break;
-              
+
               case false:
                 break;
             }
-
           } catch (ConnectionException $e) {
             $Resp = Messages::GenerateErrorJSON("INTERNAL_EXCEPTION", "There was an internal exception whlist trying to sign in:  " . $e->getMessage());
             error_log("SIGNIN: An error occurred whlist trying to sign in using passphrase. " . $e->getMessage() . " Stack trace:" . $e->getTraceAsString());
@@ -713,9 +731,9 @@ while (true) {
                 case true:
                   $Resp = array(
                     "Result" => true,
-                    "UserID" => $User->GetUserID(),
+                    "UserID" => $User->GetUserID(), // TODO: Is it necessary?
                     "SessionToken" => $User->GetSessionToken(),
-                    "LongToken" => $User->GetLongToken()
+                    "LongToken" => $User->GetLongToken() // TODO: Is it necessary?
                   );
                   break;
 
@@ -767,8 +785,8 @@ while (true) {
       }
 
     case "GET_SCHOOL_CONFIG": {
-      // Need to check permissions here.
-      $User = new UserAuth($Recv["Auth"]["UserID"], $Recv["Auth"]["SessionToken"]);
+        // Need to check permissions here.
+        $User = new UserAuth($Recv["Auth"]["UserID"], $Recv["Auth"]["SessionToken"]);
         if (!$User->SignIn()) {
           $Error = $User->GetError();
           $Resp = Messages::GenerateErrorJSON($User->GetError()["Code"], "Could not sign in with the provided credentials.");
@@ -798,30 +816,30 @@ while (true) {
           "Item" => null,
           "Content" => null
         );
-        
+
         switch ($Recv["Item"]) {
           case "Subjects": {
               $Resp["Item"] = "Subjects";
               if (array_key_exists("Subjects", $SchoolConfig)) {
-              
-              $Resp["Content"] = $SchoolConfig["Subjects"];
-            } else {
-              $Resp["Content"] = null;
+
+                $Resp["Content"] = $SchoolConfig["Subjects"];
+              } else {
+                $Resp["Content"] = null;
+              }
+              break;
             }
-            break;
-          }
 
           default: {
-            $Resp = array(
-              "Result" => false,
-              "ReasonCode" => "UNEXPECTED_ARGUMENT",
-              "ReasonText" => "The item type requested is not defined in the system. There might be a typo in your code!"
-            );
+              $Resp = array(
+                "Result" => false,
+                "ReasonCode" => "UNEXPECTED_ARGUMENT",
+                "ReasonText" => "The item type requested is not defined in the system. There might be a typo in your code!"
+              );
               break;
-          }
+            }
         }
         break;
-    }
+      }
 
     case "GET_USER_PROFILE": {
         $User = new UserAuth($Recv["Auth"]["UserID"], $Recv["Auth"]["SessionToken"]);
@@ -907,6 +925,6 @@ while (true) {
   break;
 }
 
-echo json_encode($Resp, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES||JSON_FORCE_OBJECT);
+echo json_encode($Resp, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_FORCE_OBJECT);
 
 exit;
