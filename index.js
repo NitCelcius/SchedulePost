@@ -26,7 +26,26 @@ async function InitPage(User) {
     } else {
       switch (Resp["ReasonCode"]) {
         case "ACCOUNT_SESSION_TOKEN_INVALID":
-        case "ACCOUNT_SESSION_TOKEN_EXPIRED":
+        case "ACCOUNT_SESSION_TOKEN_EXPIRED": {
+          LongToken = GetCookie("LongToken");
+          if (LongToken != null && User.GetUserID() != null) {
+            try {
+              UpdateRes = await UpdateSessionToken(LongToken);
+              if (UpdateRes) {
+                // We can continue
+                break;
+              } else {
+                // RIP, LongToken wasn't right
+                TransferLoginPage();
+                break;
+              }
+            } catch (e) {
+              // In fact this catch might not be necessary.
+                TransferLoginPage();
+                break;
+            }
+          }
+        }
         case "INVALID_CREDENTIALS": {
           TransferLoginPage();
           break;
@@ -60,6 +79,59 @@ async function InitPage(User) {
   } catch (e) {
     console.error(e);
   }
+}
+
+function UpdateTimeTable(TimeTable, SubjectsConfig) {
+  /* RIP global variables
+  if (SubjectsConfig === null) {
+    // Read from global settings - wait, is it available?
+    SubjectsConfig = UserSchool.GetConfig("Subjects", User)
+  }
+  */
+  var TargetTimeTable = document.getElementById("Table_Body");
+  var BaseRef = document.getElementById("Class_Base");
+  //Should be fetched before, though prepare for sudden re-loading
+  console.info(SubjectsConfig);
+  console.info(TimeTable);
+
+  Object.keys(TimeTable).sort(function (p, q) {
+    return p - q;
+  }).forEach(function (Key) {
+    ClassData = TimeTable[Key];
+    var BaseCopy = BaseRef.cloneNode(true);
+    with(BaseCopy) {
+      SubjectColorCode = SubjectsConfig[ClassData["ID"]]["Color"];
+      SubjectColorHex = "";
+      // Weird thing: converts HEX color code (w/o # in the beginning) to int then multiplies by 0.7 and converts it back to HEX. Calculates emphasizing color.
+      for (var i = 0; i <= 5; i += 2) {
+        EmpColor = Math.floor(parseInt(SubjectsConfig[ClassData["ID"]]["Color"].substring(i, i + 2), 16) * 0.7);
+        SubjectColorHex += ("00" + EmpColor.toString(16)).slice(-2);
+      }
+      style.setProperty("--subject-color", "#" + SubjectColorCode);
+      style.display = "block";
+      style.setProperty("--subject-emphasize-color", "#" + SubjectColorHex);
+      // Also delete its id.
+      id = "";
+    }
+
+    var CountDisp = Key;
+    // If there's any options specified, do these
+    if (ClassData["Options"]) {
+      var Options = ClassData["Options"];
+      if (Options["Important"]) {
+        BaseCopy.classList.add("important");
+      }
+      if (Options["DisplayCount"]) {
+        CountDisp = Options["DisplayCount"]
+      }
+    }
+    BaseCopy.getElementsByTagName("label")[0].textContent = CountDisp;
+    BaseCopy.getElementsByClassName("Class_Name")[0].textContent = SubjectsConfig[ClassData["ID"]]["DisplayName"];
+    BaseCopy.getElementsByClassName("Class_Note")[0].textContent = ClassData["Note"];
+
+    TargetTimeTable.appendChild(BaseCopy);
+  })
+
 }
 
 function Scroll_Update(Elements, Obj) {

@@ -1,55 +1,4 @@
-function UpdateTimeTable(TimeTable, SubjectsConfig) {
-  /* RIP global variables
-  if (SubjectsConfig === null) {
-    // Read from global settings - wait, is it available?
-    SubjectsConfig = UserSchool.GetConfig("Subjects", User)
-  }
-  */
-  var TargetTimeTable = document.getElementById("Table_Body");
-  var BaseRef = document.getElementById("Class_Base");
-  //Should be fetched before, though prepare for sudden re-loading
-  console.info(SubjectsConfig);
-  console.info(TimeTable);
 
-  Object.keys(TimeTable).sort(function (p, q) {
-    return p - q;
-  }).forEach(function (Key) {
-    ClassData = TimeTable[Key];
-    var BaseCopy = BaseRef.cloneNode(true);
-    with(BaseCopy) {
-      SubjectColorCode = SubjectsConfig[ClassData["ID"]]["Color"];
-      SubjectColorHex = "";
-      // Weird thing: converts HEX color code (w/o # in the beginning) to int then multiplies by 0.7 and converts it back to HEX. Calculates emphasizing color.
-      for (var i = 0; i <= 5; i += 2) {
-        EmpColor = Math.floor(parseInt(SubjectsConfig[ClassData["ID"]]["Color"].substring(i, i + 2), 16) * 0.7);
-        SubjectColorHex += ("00" + EmpColor.toString(16)).slice(-2);
-      }
-      style.setProperty("--subject-color", "#" + SubjectColorCode);
-      style.display = "block";
-      style.setProperty("--subject-emphasize-color", "#" + SubjectColorHex);
-      // Also delete its id.
-      id = "";
-    }
-
-    var CountDisp = Key;
-    // If there's any options specified, do these
-    if (ClassData["Options"]) {
-      var Options = ClassData["Options"];
-      if (Options["Important"]) {
-        BaseCopy.classList.add("important");
-      }
-      if (Options["DisplayCount"]) {
-        CountDisp = Options["DisplayCount"]
-      }
-    }
-    BaseCopy.getElementsByTagName("label")[0].textContent = CountDisp;
-    BaseCopy.getElementsByClassName("Class_Name")[0].textContent = SubjectsConfig[ClassData["ID"]]["DisplayName"];
-    BaseCopy.getElementsByClassName("Class_Note")[0].textContent = ClassData["Note"];
-
-    TargetTimeTable.appendChild(BaseCopy);
-  })
-
-}
 
 function AwaitAjaxy(URL, Content) {
   return new Promise(function (Resolve, Reject) {
@@ -118,6 +67,37 @@ class User {
     };
     this.UserID = InUserID;
     this.Credentials.SessionToken = InSessionToken;
+    this.Credentials.LongToken = null;
+  }
+
+  async UpdateSessionToken(LongToken = null, StoreLongToken = true) {
+    if (LongToken === null) {
+      LongToken = this.Credentials.LongToken;
+    }
+    if (!LongToken || !this.UserID) {
+      throw new InvalidCredentialsError("The longtoken is not set (Check User class instance or specify longtoken before!)");
+    }
+
+      Info = await AwaitAjaxy(API_URL, JSON.stringify({
+        "Auth": {
+          "UserID": this.UserID,
+          "LongToken": LongToken
+        },
+        "Action": "SIGN_IN"
+      }));
+    
+    console.info(Info["Content"]);
+    
+    var Resp = JSON.parse(Info["Content"]);
+    if (Resp["Result"] === true) {
+      if (StoreLongToken) {
+        this.Credentials.LongToken = LongToken;
+      }
+      this.SessionToken = Resp["SessionToken"];
+      return true;
+    } else {
+      return false;
+    }
   }
 
   GetUserID() {

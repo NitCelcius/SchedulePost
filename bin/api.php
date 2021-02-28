@@ -456,6 +456,8 @@ class UserAuth {
     $Connection = DBConnection::Connect();
     $PDOstt = $Connection->prepare("select LongTokenGenAt from schedulepost.accounts where UserID = :UserID AND LongToken = :LongToken");
     if ($PDOstt === false) {
+      // TODO: Is this error handling correct?
+      error_log("An error occurred in GetSessionTokenFromLongToken: " . print_r($Connection->errorinfo(), true));
       throw new ConnectionException("Could not connect to the database.", "Database: SchedulePost");
     }
     $PDOstt->bindValue(":UserID", $this->UserID);
@@ -464,8 +466,8 @@ class UserAuth {
 
     $Data = $PDOstt->fetch(PDO::FETCH_ASSOC);
     if ($Data === false) {
-      error_log("An error occurred in GetSessionTokenFromLongToken: ".print_r($PDOstt->errorinfo(), true));
-      throw new ConnectionException("Could not connect to the database.");
+      // TODO: Is this error handling correct?
+      throw new InvalidCredentialsException("The user ID or long token provided is invalid.");
       return false;
     }
 
@@ -726,7 +728,7 @@ while (true) {
         } else {
           if (array_key_exists("UserID", $Recv["Auth"]) && array_key_exists("LongToken", $Recv["Auth"])) {
             try {
-              $User = new UserAuth();
+              $User = new UserAuth($Recv["Auth"]["UserID"]);
               switch ($User->SignInFromUserIDAndLongToken($Recv["Auth"]["UserID"], $Recv["Auth"]["LongToken"])) {
                 case true:
                   $Resp = array(
