@@ -14,7 +14,7 @@ if (($GLOBALS["DefaultTimeZone"] = getenv("DefaultTimeZone")) === null) {
 }
 
 // TODO: Get rid of those. Let envilonment variables hold those.
-$GLOBALS["SessionTokenExpiry"] = "1000 minutes";
+$GLOBALS["SessionTokenExpiry"] = "30 minutes";
 $GLOBALS["LongTokenExpiry"] = "10 days";
 
 $GLOBALS["Connection"] = null;
@@ -29,6 +29,8 @@ define("ACCOUNT_SESSION_TOKEN_EXPIRED", -2);
 define("ACCOUNT_LONG_TOKEN_INVALID", -3);
 define("ACCOUNT_LONG_TOKEN_EXPIRED", -4);
 define("ACCOUNT_CREDENTIALS_INVALID", -5);
+define("ACCOUNT_INSUFFCIENT_PERMISSION", -10);
+
 
 define("INTERNAL_EXCEPTION", -100);
 
@@ -40,6 +42,9 @@ define("DAY_WEDNESDAY", 3);
 define("DAY_THURSDAY", 4);
 define("DAY_FRIDAY",   5);
 define("DAY_SATURDAY", 6);
+
+define("DEST_SCHOOL", 1);
+define("DEST_GROUP", 2);
 
 function ReplaceArgs(string $Basement, array $Args) {
   return str_replace(array_keys($Args), array_values($Args), $Basement);
@@ -76,14 +81,35 @@ class DayEnum {
   }
 }
 
-
 // This might be rewritten into JSON but do not want to be modified.
 class Permissions {
+  //Perhaps this is not really necessary.
   const Dic = array(
-    "School.Admin" => null,
-    "School.Timetable.View" => null,
-    "School.Timetable.CreateBase" => null,
-    "School.Timetable.Edit" => null
+    "Administration.Admin" => array(
+      "Default" => false,
+      "DefaultAllowRoles" => array("Admin")
+    ),
+    // SCHOOL
+    "Timetable.View" => array(
+      "Default" => true,
+      "DefaultAllowRoles" => array("Admin", "Teacher", "Student"),
+      "Elevation" => true
+    ),
+    "Timetable.ViewOthers" => array(
+      "Default" => false,
+      "DefaultAllowRoles" => array("Admin", "Teacher"),
+      "Elevation" => true
+    ),
+    "Timetable.CreateBase" => array(
+      "Default" => false,
+      "DefaultAllowRoles" => array("Admin", "Teacher"),
+      "Elevation" => true
+    ),
+    "Timetable.Edit" => array(
+      "Default" => false,
+      "DefaultAllowRoles" => array("Admin", "Teacher"),
+      "Elevation" => true
+    )
   );
 
   static function IsExist(string $Permission) {
@@ -102,6 +128,20 @@ class ConnectionException extends Exception {
 
   public function __toString() {
     return "Connection Error. Additional information: " . $this->Message . " Location: " . $this->Location;
+  }
+}
+
+class InsuffcientPermissionException extends Exception {
+  private $Message;
+
+  public function __construct($Message, $Location = null, $Prev = null) {
+    $this->Message = $Message;
+    $this->Location = $Location;
+    parent::__construct($Message, 0, null);
+  }
+
+  public function __toString() {
+    return "Insuffcient permission. Additional information: " . $this->Message . " Location: " . $this->Location;
   }
 }
 
@@ -323,7 +363,7 @@ class UserAuth {
       return false;
     } else {
       // Is expired?
-      $CurrentTime = new DateTime();
+      $CurrentTime = new DateTime("now", new DateTimeZone($GLOBALS["DefaultTimeZone"]));;
       $Expiry = new DateTime($Data["LastActivityAt"]);
       $Expiry->add(DateInterval::createFromDateString($GLOBALS["SessionTokenExpiry"]));
       if ($Expiry > new $CurrentTime) {
@@ -351,26 +391,190 @@ class UserAuth {
     return ($Data !== false && ($PDOstt->rowCount() > 0)) ? true : false;
   }
 
-  private function IsPermitted(string $Action) {
+  /**
+   * See if the user has the permission.
+   *
+   * @param string $Action - The action to look-up permission.
+   * @param integer $TargetType Group/School. Use DEST_GROUP or DEST_SCHOOL.
+   * @param string $TargetID The target UUID.
+   * @return bool If permitted, returns true. Otherwise false.
+   * @var Permissions::Dic
+   */
+  function IsPermitted(string $Action, int $TargetType, string $TargetID) {
+    // TODO: TO get rid of Permissions table, switch target table to lookup.
+    if ($TargetID === null) {
+      throw new InvalidArgumentException("The targetID is not correct.");
+      return null;
+    }
     $Connection = DBConnection::Connect();
-    $PDOstt = $Connection->prepare("select Permissions from schedulepost.permissions where UserID = :UserID");
+    switch ($TargetType) {
+      case DEST_SCHOOL: {
+          $PDOstt = $Connection->prepare("select Permissions from schedulepost.school_permissions where UserID = :UserID AND TargetSchoolID = :TargetID");
+          break;
+        }
+      case DEST_GROUP: {
+          $PDOstt = $Connection->prepare("select Permissions from schedulepost.group_permissions where UserID = :UserID AND TargetGroupID = :TargetID");
+          break;
+        }
+      default: {
+          throw new InvalidArgumentException("The targettype is not correct.");
+          return null;
+          break;
+        }
+    }
     $PDOstt->bindValue(":UserID", $this->UserID);
+    $PDOstt->bindValue(":TargetID", $TargetID);
+
     $PDOstt->execute();
     $Data = $PDOstt->fetch();
+    $Fetcher = new Fetcher();
+    $Permission = null;
     if ($Data === false) {
-      throw new Error("FATAL: The permission is not defined!");
+      // Nothing, use default.
+    } else {
+      $Permission = json_decode($Data["Permissions"], true);
     }
 
-    $Permission = json_decode($Data["Permissions"]);
-    if (Permissions::IsExist($Action)) {
-      if ($Permission[$Action]) {
-        return true;
+    if ($Permission === null) {
+      return false;
+    } else {
+      if (Permissions::IsExist($Action)) {
+        switch ($TargetType) {
+          case DEST_GROUP: {
+              $TargetSchoolID = $Fetcher->LookupSchoolID($TargetID);
+              if ($TargetSchoolID != null) {
+                switch ($this->IsPermitted($Action, DEST_SCHOOL, $TargetSchoolID)) {
+                  case true: {
+                      // The school says true so leave it to group.
+                      break;
+                    }
+                  case false: {
+                      // The school says no, so the group is denied.
+                      return false;
+                      break;
+                    }
+                  case null: { // Permission inherited or not specified
+
+                      // The school says nothing, so leave it to group.
+                      break;
+                    }
+                    // Passed.
+                    // NEGATIVE CONSENSUS: If group says no, it's no. just like that
+                }
+              }
+              if (array_key_exists($Action, $Permission)) {
+                if ($Permission[$Action] === true) {
+                  //The group says yes, so yes.
+                  return true;
+                } else if ($Permission[$Action] === false) {
+                  //The group says no, so no.
+                  return false;
+                }
+              }
+              // The permission isn't specified, go for default. Check roles.
+              $IdentityMatches = false;
+              foreach (Permissions::Dic[$Action]["DefaultAllowRoles"] as $AllowedIdentity) {
+                if ($Permission["Identity"] === $AllowedIdentity) {
+                  $IdentityMatches = true;
+                }
+              }
+
+              if ($IdentityMatches) {
+                return true;
+              } else {
+                // Really nothing.
+                die("default!");
+                return Permissions::Dic[$Action]["Default"];
+              }
+
+              break;
+            }
+          case DEST_SCHOOL: {
+              if (array_key_exists($Action, $Permission)) {
+                if ($Permission[$Action] === true) {
+                  return true;
+                } else if ($Permission[$Action] === false) {
+                  return false;
+                }
+                // If inherited, go for default permission.
+              }
+
+              // The permission isn't specified, go for default.
+              $IdentityMatches = false;
+              foreach (Permissions::Dic[$Action]["DefaultAllowRoles"] as $AllowedIdentity) {
+                if ($Permission["Identity"] === $AllowedIdentity) {
+                  $IdentityMatches = true;
+                }
+              }
+
+              if ($IdentityMatches) {
+                return true;
+              } else {
+                return null;
+              }
+              break;
+            }
+
+          default: {
+              throw new UnexpectedValueException("That target type is out of range.");
+              return null;
+            }
+        }
+        // Nothing returned, deny.
+        error_log("The permission $Action for $TargetID (Type: $TargetType) is invalid.");
+        return false;
       } else {
+        throw new UnexpectedValueException("The permission does not exist.");
         return false;
       }
-    } else {
-      throw new UnexpectedValueException("The permission does not exist.");
-      return false;
+
+      //TODO: Prioritize elevation.
+      /*
+    if (Permissions::IsExist($Action)) {
+      // Completely nothing.
+      if ($Permission === null) {
+        return false;
+      } else {
+        // If not specified in group, check elevation
+        if ($TargetType == DEST_GROUP) {
+          if (Permissions::Dic[$Action]["Elevation"]) {
+          if ($this->GetSchoolID() !== null) {
+            // If school says - 
+            switch ($this->IsPermitted($Action, DEST_SCHOOL, $this->GetSchoolID())) {
+              case true:
+                break;
+            }
+          } else {
+            return null; // Leave that to group.   
+          }
+        }
+        } else {
+
+        }
+        if (array_key_exists($Action, $Permission)) {
+          if ($Permission[$Action] === true) {
+            return true;
+          } else if ($Permission[$Action] === false) {
+            return false;
+          }
+        } else {
+          // If permission is not specified, search IDENTITY default from Dictionary.
+          // If the identity is allowed in default, approve action.
+          $IdentityMatches = false;
+          foreach (Permissions::Dic[$Action]["Default"] as $AllowedIdentity) {
+            if ($Permission["Identity"] === $AllowedIdentity) {
+              $IdentityMatches = true;
+            }
+          }
+          if ($IdentityMatches) {
+            return true;
+          } else {
+            
+            }
+            // No elevation
+            return false;
+          }
+        */
     }
   }
 
@@ -509,7 +713,7 @@ class UserAuth {
     }
 
     if (array_key_exists("LongTokenGenAt", $Data) && $Data["LongTokenGenAt"] !== NULL) {
-      $CurrentTime = new DateTime();
+      $CurrentTime = new DateTime("now", new DateTimeZone($GLOBALS["DefaultTimeZone"]));;
       $Expiry = new DateTime($Data["LongTokenGenAt"]);
       $Expiry->add(DateInterval::createFromDateString($GLOBALS["LongTokenExpiry"]));
       if ($CurrentTime < $Expiry) {
@@ -648,6 +852,14 @@ class Fetcher {
     return $DefaultTimeTable[$DayStr];
   }
 
+  /**
+   * Get timetale DIFF string.
+   *
+   * @param string Target group.
+   * @param DateTime Target date.
+   * @param integer Target revision. If unset(null), get the latest version.
+   * @return array Keys: "Revision" and "Body"
+   */
   function GetTimetableDiff(string $GroupID, DateTime $Date, int $Revision = null) {
     $PDO = DBConnection::Connect();
     if ($Revision === null) {
@@ -676,6 +888,23 @@ class Fetcher {
 
     return $Diff;
   }
+
+  function LookupSchoolID(string $GroupID) {
+    $PDO = DBConnection::Connect();
+    $PDOstt = $PDO->prepare("select BelongSchoolID from schedulepost.group_profile where GroupID = :GroupID");
+    $PDOstt->bindValue(":GroupID", $GroupID);
+    $PDOstt->execute();
+    $Result = $PDOstt->fetch();
+
+    if ($Result === false) {
+      throw new ConnectionException("Could not connect to the database.");
+      return false;
+    } else if ($Result === null) {
+      return null;
+    }
+
+    return $Result["BelongSchoolID"];
+  }
 }
 
 class Messages {
@@ -684,7 +913,8 @@ class Messages {
     "INPUT_MALFORMED" => "The provided input or argument or both is malformed.",
     "UNEXPECTED_ARGUMENT" => "The input data contains unexpected value.",
     "INTERNAL_EXCEPTION" => "There was an internal exception occurred. Please try again.",
-    "INVALID_CREDENTIALS" => "The provided credential is invalid."
+    "INVALID_CREDENTIALS" => "The provided credential is invalid.",
+    "INSUFFCIENT_PERMISSION" => "You do not have sufficient permission to do that."
   );
 
   static function GenerateErrorJSON(string $Code, $Message = null) {
@@ -787,8 +1017,70 @@ while (true) {
         }
         break;
       }
+    // Could be a problem: ACTIVITY CHECK may not be necessary as it only checks token validity.
+      case "ACTIVITY_CHECK": {
+        $User = new UserAuth($Recv["Auth"]["UserID"], $Recv["Auth"]["SessionToken"]);
+        if (!$User->SignIn()) {
+          $Error = $User->GetError();
+          $Resp = array(
+            "Result" => false,
+            "ReasonCode" => $Error["Code"],
+            "ReasonText" => "Could not sign in with the provided credentials. " . ", " . $Error["Code"]
+          );
+          break;
+        } else {
+          $Resp = array(
+            "Result" => true
+          );
+        }
+        break;
+    }
 
     case "GET_SCHEDULE": {
+        try {
+          $User = new UserAuth($Recv["Auth"]["UserID"], $Recv["Auth"]["SessionToken"]);
+          if (!$User->SignIn()) {
+            $Error = $User->GetError();
+            $Resp = array(
+              "Result" => false,
+              "ReasonCode" => $Error["Code"],
+              "ReasonText" => "Could not sign in with the provided credentials. " . ", " . $Error["Code"]
+            );
+            break;
+          }
+          $Date = new DateTime($Recv["Date"]);
+          $Fetcher = new Fetcher($User);
+
+          if (array_key_exists("GroupID", $Recv)) {
+          } else {
+            $TargetGroupID = $User->GetGroupID();
+          }
+
+          if ($User->IsPermitted("Timetable.View", DEST_GROUP, $TargetGroupID)) {
+          } else {
+            throw new InsuffcientPermissionException("You cannot view the timetable of that group.");
+          }
+
+          $Fetcher->GetDefaultTimetable(
+            $User->GetGroupID(),
+            // Note here: Because PHP Datetime::format() format character "w" follows ISO-8601, DayEnum corresponds to it.
+            (int)$Date->format("w")
+          );
+          $Result = json_encode($Fetcher->GetTimetable($User->GetGroupID(), $Date), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_FORCE_OBJECT);
+
+          if ($Result != false) {
+            $Resp = array(
+              "Result" => true,
+              "ReasonCode" => "",
+              "Body" => $Result
+            );
+          }
+        } catch (InsuffcientPermissionException $e) {
+          $Resp = Messages::GenerateErrorJSON("INSUFFCIENT_PERMISSION", $e->getMessage());
+        }
+        break;
+      }
+    case "GET_TIMETABLE_RAW": {
         $User = new UserAuth($Recv["Auth"]["UserID"], $Recv["Auth"]["SessionToken"]);
         if (!$User->SignIn()) {
           $Error = $User->GetError();
@@ -800,27 +1092,79 @@ while (true) {
           break;
         }
 
-        //TODO: permission here
-
-        $Date = new DateTime($Recv["Date"]);
+        $Date = null;
+        if (array_key_exists("Date", $Recv)) {
+          $Date = new DateTime($Recv["Date"]);
+        }
         $Fetcher = new Fetcher($User);
-        $Fetcher->GetDefaultTimetable(
-          $User->GetGroupID(),
-          // Note here: Because PHP Datetime::format() format character "w" follows ISO-8601, DayEnum corresponds to it.
-          (int)$Date->format("w")
-        );
+
+        if (array_key_exists("GroupID", $Recv)) {
+        } else {
+          $TargetGroupID = $User->GetGroupID();
+        }
+
+        switch ($Recv["Type"]) {
+          case "Base": {
+              if ($User->IsPermitted("Timetable.View", DEST_GROUP, $TargetGroupID)) {
+                // NOT DAY OF THE WEEK, REALLY?
+                $IndexOfTheWeek = null;
+                if (array_key_exists("Date",$Recv)) {
+                  $IndexOfTheWeek = (int)$Date->format("w");
+                } else if (array_key_exists("DayOfTheWeek", $Recv)) {
+                  $IndexOfTheWeek = DayEnum::StrToEnum($Recv["DayOfTheDate"]);
+                } else {
+                  $Resp = Messages::GenerateErrorJSON("UNEXPECTED_ARGUMENT", "Specify at least one of DATE or DayOfTheWeek.");
+                  break;
+                }
+                $Timetable = $Fetcher->GetDefaultTimetable(
+                  $TargetGroupID,
+                  // Note here: Because PHP Datetime::format() format character "w" follows ISO-8601, DayEnum corresponds to it.
+                  $IndexOfTheWeek
+                );
+                $Resp = array(
+                  "Result" => true,
+                  "Body" => $Timetable
+                );
+              } else {
+                $Resp = Messages::GenerateErrorJSON("INSUFFCIENT_PERMISSION");
+                break;
+              }
+              break;
+            }
+          case "Diff": {
+              if ($User->IsPermitted("Timetable.View", DEST_GROUP, $TargetGroupID)) {
+
+                $Target_Revision = null;
+                if (array_key_exists("Revision", $Recv)) {
+                  $Target_Revision = $Recv["Revision"];
+                }
+                $Diff = $Fetcher->GetTimetableDiff($TargetGroupID, $Date, $Target_Revision);
+
+                $Resp = array(
+                  "Result" => true,
+                  "Body" => $Diff["Body"],
+                  "Revision" => $Diff["Revision"]
+                );
+
+                break;
+              }
+            }
+          default: {
+              break;
+            }
+        }
+
+
         $Result = json_encode($Fetcher->GetTimetable($User->GetGroupID(), $Date), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_FORCE_OBJECT);
 
         if ($Result != false) {
           $Resp = array(
             "Result" => true,
-            "ReasonCode" => "",
             "Body" => $Result
           );
         }
         break;
       }
-
     case "GET_SCHOOL_CONFIG": {
         // Need to check permissions here.
         $User = new UserAuth($Recv["Auth"]["UserID"], $Recv["Auth"]["SessionToken"]);
@@ -879,6 +1223,7 @@ while (true) {
       }
 
     case "GET_USER_PROFILE": {
+
         $User = new UserAuth($Recv["Auth"]["UserID"], $Recv["Auth"]["SessionToken"]);
         if (!$User->SignIn()) {
           $Error = $User->GetError();
@@ -939,8 +1284,8 @@ while (true) {
             )
           )
         );
+        break;
       }
-
       /*
       case "REFRESH_SESSION_TOKEN": {
         $User = new UserAuth($Recv["Auth"]["UserID"], $Recv["Auth"]["SessionToken"]);
@@ -958,6 +1303,7 @@ while (true) {
         );
       }
       */
+  
   }
   break;
 }
