@@ -7,7 +7,6 @@ const InterSectObs = new IntersectionObserver(Scroll_Update, {
   rootMargin: "10px",
   threshold: [0.0, 1.0]
 })
-const API_URL = "/bin/api.php"
 
 for (var i = 0; i < InterSectNodes.length; i++) {
   InterSectIDs.push(InterSectNodes[i].id);
@@ -15,14 +14,19 @@ for (var i = 0; i < InterSectNodes.length; i++) {
 }
 
 async function InitPage(User) {
+  DeployLoadAnim();
   try {
-    var Prof = await FetchPersonalInfo(User);
+    var Prof = await User.FetchPersonalInfo();
+    console.info(Prof.Content);
 
     var Resp = JSON.parse(Prof.Content);
     if (Resp["Result"]) {
-      document.getElementById("Group_Label").innerHTML = Resp.Profile.Group.DisplayName;
-      document.getElementById("Group_Label").innerHTML = Resp.Profile.School.DisplayName;
+      document.addEventListener("load", function () {
+        document.getElementById("Group_Label").innerHTML = Resp.Profile.Group.DisplayName;
+        document.getElementById("Group_Label").innerHTML = Resp.Profile.School.DisplayName;
+      });
     } else {
+      // May need to copy these
       switch (Resp["ReasonCode"]) {
         case "ACCOUNT_SESSION_TOKEN_INVALID":
         case "ACCOUNT_SESSION_TOKEN_EXPIRED": {
@@ -68,7 +72,8 @@ async function InitPage(User) {
 
     var Tb = await User.GetTimeTable();
 
-    var DayData = JSON.parse(JSON.parse(Tb.Content).Body);
+    console.info(Tb);
+    var DayData = JSON.parse(Tb.Body);
 
     UpdateTimeTable(
       DayData["TimeTable"],
@@ -78,6 +83,7 @@ async function InitPage(User) {
   } catch (e) {
     console.error(e);
   }
+  DestructLoadAnim();
 }
 
 function UpdateTimeTable(TimeTable, SubjectsConfig) {
@@ -223,45 +229,6 @@ function Scroller() {
 */
 
 
-function TransferLoginPage() {
-  // NOTE: Depending on the last-update time, automatically redirect or recommend to redirect.
-  // Referer problem occurs here, but ignoring
-  console.warn("The account session token has expired. Redirecting to the sign-in page.");
-
-  OverlayDiv = document.createElement("div");
-  with(OverlayDiv.style) {
-    display = "flex"
-    position = "absolute";
-    top = 0;
-    left = 0;
-    width = "100%";
-    height = "100%";
-    zIndex = 32;
-    backgroundColor = "#fffe";
-    alignItems = "center";
-    flexDirection = "column";
-    placeContent = "center";
-  }
-  document.getElementsByTagName("Body")[0].appendChild(OverlayDiv);
-  LoadTitle = document.createElement("h1");
-  LoadTitle.innerHTML = "REDIRECTING";
-  with(LoadTitle.style) {
-    justifyContent = "center";
-    color = "#666";
-    letterSpacing = "0.3em";
-    fontSize = "1.5rem";
-    margin = 0;
-  }
-  LoadText = document.createElement("p");
-  LoadText.innerHTML = "ログインページに移動しています...";
-  with(LoadText.style) {}
-  with(OverlayDiv) {
-    appendChild(LoadTitle);
-    appendChild(LoadText);
-  }
-  location.href = "/login.html";
-}
-
 /*
 var Potato = 0;
 
@@ -273,6 +240,7 @@ setInterval(function () {
 */
 
 // Temporary credentials
+
 
 var UserID = GetCookie("UserID");
 var SessionToken = GetCookie("SessionToken");
