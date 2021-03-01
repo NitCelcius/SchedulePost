@@ -39,7 +39,9 @@
     setcookie("SessionToken",  $RespObj["SessionToken"], time()+60*10, "/");
     setcookie("LongToken",  $RespObj["LongToken"], time()+60*60*24*30, "/");
 
-    header("Location: ". "/index.html", true);
+    // not sure if it's okay
+    var_dump($_GET);
+    header("Location: ". $_GET["auth_callback"], true);
   } else {
     var_dump($api_resp);
   }

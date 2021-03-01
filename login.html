@@ -10,11 +10,14 @@
 
 <body>
   <h1>SchedulePost</h1>
-  <form action="bin/sign_in.php" method="POST">
+  <form action="bin/sign_in.php" name="login" method="POST">
     Mail: <input type="text" name="Mail"><br>
     PassPhrase: <input type="password" name="PassPhrase">
-    <input type="submit" value="GO">
+    <input id="LoginButton" type="button" value="GO">
   </form>
 </body>
+
+<script src="bin/lib.js"></script>
+<script src="login.js" async></script>
 
 </html>

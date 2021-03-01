@@ -444,5 +444,5 @@ function TransferLoginPage() {
     appendChild(LoadTitle);
     appendChild(LoadText);
   }
-  location.href = "/login.html";
+  location.href = encodeURI("/login.html?auth_callback="+location.pathname);
 }
