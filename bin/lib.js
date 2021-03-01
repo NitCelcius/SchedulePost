@@ -1,3 +1,5 @@
+const API_URL = "/bin/api.php"
+
 function AwaitLoady(URL) {
   return new Promise(function (Resolve, Reject) {
     let Req = new XMLHttpRequest();
@@ -59,15 +61,9 @@ function AwaitAjaxy(URL, Content) {
   });
 }
 
-async function FetchPersonalInfo(UserClass) {
-  Info = await AwaitAjaxy(API_URL, JSON.stringify({
-    "Auth": {
-      "UserID": UserClass.UserID,
-      "SessionToken": UserClass.Credentials.SessionToken
-    },
-    "Action": "GET_USER_PROFILE"
-  }));
-  return Info;
+function SqlizeDate(TargetDate) {
+  // What the heck, convert!
+  return "" + (TargetDate.getDate()) + "-" + (TargetDate.getMonth() + 1) + "-" + TargetDate.getFullYear() + " 00:00:00";
 }
 
 class User {
@@ -96,6 +92,35 @@ class User {
     this.UserID = InUserID;
     this.Credentials.SessionToken = InSessionToken;
     this.Credentials.LongToken = null;
+
+    this.PersonalRaw = null;
+  }
+
+  async FetchPersonalInfo() {
+    if (this.PersonalRaw === null) {
+      // Might be making 2 requests.
+      this.PersonalRaw = false;
+      var Info = await AwaitAjaxy(API_URL, JSON.stringify({
+        "Auth": {
+          "UserID": this.UserID,
+          "SessionToken": this.Credentials.SessionToken
+        },
+        "Action": "GET_USER_PROFILE"
+      }));
+
+      this.PersonalRaw = Info;
+    } else if (this.PersonalRaw === false) {
+      /*      
+      while (this.PersonalRaw === false) {
+        // Well, there were no way to actually observe var change.
+        // TODO: implement callback later
+        console.info("Waiting...");
+        setTimeout(100);
+        break;
+      }
+      */
+    }
+    return this.PersonalRaw;
   }
 
   async UpdateSessionToken(LongToken = null, StoreLongToken = true) {
@@ -106,16 +131,14 @@ class User {
       throw new InvalidCredentialsError("The longtoken is not set (Check User class instance or specify longtoken before!)");
     }
 
-      Info = await AwaitAjaxy(API_URL, JSON.stringify({
-        "Auth": {
-          "UserID": this.UserID,
-          "LongToken": LongToken
-        },
-        "Action": "SIGN_IN"
-      }));
-    
-    console.info(Info["Content"]);
-    
+    Info = await AwaitAjaxy(API_URL, JSON.stringify({
+      "Auth": {
+        "UserID": this.UserID,
+        "LongToken": LongToken
+      },
+      "Action": "SIGN_IN"
+    }));
+
     var Resp = JSON.parse(Info["Content"]);
     if (Resp["Result"] === true) {
       if (StoreLongToken) {
@@ -160,6 +183,7 @@ class User {
       switch (Resp["ReasonCode"]) {
         case "ACCOUNT_SESSION_TOKEN_EXPIRED":
         case "INVALID_CREDENTIALS": {
+          console.warn("The account session token has expired. Redirecting to the sign-in page.");
           TransferLoginPage();
           break;
         }
@@ -170,13 +194,13 @@ class User {
 
   async GetTimeTable(TargetDate = null) {
     if (!TargetDate) {
+      //TODO: Just fix this. Normalize.
       TargetDate = new Date("2021-01-25");
     }
     // mm-dd-YY
-    var TargetDateString = "" + (TargetDate.getMonth() + 1) + "-" + (TargetDate.getDate()) + "-" + TargetDate.getFullYear() + " 00:00:00";
-    TargetDateString = "" + (TargetDate.getDate()) + "-" + (TargetDate.getMonth() + 1) + "-" + TargetDate.getFullYear() + " 00:00:00";
+    var TargetDateString = SqlizeDate(TargetDate);
 
-    var Info = AwaitAjaxy(API_URL, JSON.stringify({
+    var Info = await AwaitAjaxy(API_URL, JSON.stringify({
       "Auth": {
         "UserID": this.UserID,
         "SessionToken": this.Credentials.SessionToken
@@ -185,7 +209,70 @@ class User {
       "Date": TargetDateString
     }));
 
-    return Info;
+    //TODO: error handling
+    if (!(Info["status"] >= 200 && Info["status"] < 300)) {
+      console.info(Info);
+      throw new Error("There seems to be an error occurred while fetching timetable. " + Info.toString());
+    }
+
+    return JSON.parse(Info["Content"]);
+  }
+
+  async GetTimeTableBase(TargetDate = null) {
+    if (!TargetDate) {
+      //TODO: Just fix this. Normalize.
+      TargetDate = new Date();
+    }
+    var TargetDateString = SqlizeDate(TargetDate);
+
+    // TODO: Casually using DATE, not day of the week
+    var Info = await AwaitAjaxy(API_URL, JSON.stringify({
+      "Auth": {
+        "UserID": this.UserID,
+        "SessionToken": this.Credentials.SessionToken
+      },
+      "Action": "GET_TIMETABLE_RAW",
+      "Date": TargetDateString,
+      "Type": "Base"
+    }));
+
+    //TODO: error handling
+    if (!(Info["status"] >= 200 && Info["status"] < 300)) {
+      throw new Error("There seems to be an error occurred while fetching timetable. " + Info.toString());
+    }
+
+    return JSON.parse(Info["Content"]);
+  }
+
+  async GetTimeTableDiff(TargetDate = null, Revision = null) {
+    if (!TargetDate) {
+      //TODO: Just fix this. Normalize.
+      TargetDate = new Date();
+    }
+    var TargetDateString = SqlizeDate(TargetDate);
+
+    var Dt = {
+      "Auth": {
+        "UserID": this.UserID,
+        "SessionToken": this.Credentials.SessionToken
+      },
+      "Action": "GET_TIMETABLE_RAW",
+      "Date": TargetDateString,
+      "Type": "Diff"
+    }
+
+    if (Revision !== null) {
+      Dt["Revision"] = parseInt(Revision);
+    }
+
+    var Info = await AwaitAjaxy(API_URL, JSON.stringify(Dt));
+
+    //TODO: error handling
+    if (!(Info["status"] >= 200 && Info["status"] < 300)) {
+      throw new Error("There seems to be an error occurred while fetching timetable. " + stringify(Info));
+    }
+
+    return JSON.parse(Info["Content"]);
   }
 }
 
@@ -278,4 +365,84 @@ function Sidebar_Open() {
 function Sidebar_Close() {
   document.getElementsByTagName("nav")[0].style.display = "none";
   document.getElementById("Nav_Overlay").style.display = "none";
+}
+
+async function DeployLoadAnim() {
+  OverlayDiv = document.createElement("div");
+  OverlayDiv.id = "LoadIndiWrapper";
+  with(OverlayDiv.style) {
+    display = "flex"
+    position = "absolute";
+    top = 0;
+    left = 0;
+    width = "100%";
+    height = "100%";
+    zIndex = 32;
+    backgroundColor = "#fffe";
+    alignItems = "center";
+    flexDirection = "column";
+    placeContent = "center";
+  }
+  document.getElementsByTagName("Body")[0].appendChild(OverlayDiv);
+  LoadTitle = document.createElement("h1");
+  LoadTitle.id = "LoadIndiTitle";
+  LoadTitle.innerHTML = "LOADING";
+  with(LoadTitle.style) {
+    justifyContent = "center";
+    color = "#666";
+    letterSpacing = "0.3em";
+    fontSize = "1.5rem";
+    margin = 0;
+  }
+  LoadText = document.createElement("p");
+  LoadText.id = "LoadIndiMessage"
+  LoadText.innerHTML = "読み込んでいます...";
+  with(LoadText.style) {}
+  with(OverlayDiv) {
+    appendChild(LoadTitle);
+    appendChild(LoadText);
+  }
+}
+
+async function DestructLoadAnim() {
+  // Want some animation, but skip.
+  document.getElementById("LoadIndiWrapper").remove();
+}
+
+function TransferLoginPage() {
+  // NOTE: Depending on the last-update time, automatically redirect or recommend to redirect.
+  // Referer problem occurs here, but ignoring
+
+  OverlayDiv = document.createElement("div");
+  with(OverlayDiv.style) {
+    display = "flex"
+    position = "absolute";
+    top = 0;
+    left = 0;
+    width = "100%";
+    height = "100%";
+    zIndex = 32;
+    backgroundColor = "#fffe";
+    alignItems = "center";
+    flexDirection = "column";
+    placeContent = "center";
+  }
+  document.getElementsByTagName("Body")[0].appendChild(OverlayDiv);
+  LoadTitle = document.createElement("h1");
+  LoadTitle.innerHTML = "REDIRECTING";
+  with(LoadTitle.style) {
+    justifyContent = "center";
+    color = "#666";
+    letterSpacing = "0.3em";
+    fontSize = "1.5rem";
+    margin = 0;
+  }
+  LoadText = document.createElement("p");
+  LoadText.innerHTML = "ログインページに移動しています...";
+  with(LoadText.style) {}
+  with(OverlayDiv) {
+    appendChild(LoadTitle);
+    appendChild(LoadText);
+  }
+  location.href = "/login.html";
 }
