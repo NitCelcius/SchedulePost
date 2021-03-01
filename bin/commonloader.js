@@ -1,3 +1,9 @@
+async function Delay(duration) {
+  return new Promise(
+    resolve => setTimeout(resolve, duration)
+  );
+}
+
 async function LoadCommonNodes() {
   // Load until successful attempt - is this correct, or no?
   var CommonRaw;
@@ -9,7 +15,8 @@ async function LoadCommonNodes() {
         break;
       }
     } catch (e) {
-      setTimeout(2000);
+      console.info("Could not load common nodes");
+      await Delay(2000);
       // Do nothing, retry!
     }
   }
@@ -26,30 +33,42 @@ async function LoadCommonNodes() {
     Target.appendChild(Field.children[i]);
   }
   */
-  
-  Field = document.createElement("div");
-  Field.innerHTML = CommonRaw["Content"];
+      Field = document.createElement("div");
+      Field.innerHTML = CommonRaw["Content"];
 
-  for (var i = 0; i < Field.childNodes.length; i++) {
-    switch (Field.childNodes[i].tagName) {
-      case "NAV": {
-        // NAV needs some space.
-        Nav = document.getElementsByTagName("nav")[0];
-        console.info(Field.childNodes[i].childNodes);
-        Field.childNodes[i].childNodes.forEach( function(Node) {
-          cp = Node.cloneNode(true);
-          Nav.appendChild(cp);
-        })
-        break;
+      for (var i = 0; i < Field.childNodes.length; i++) {
+        switch (Field.childNodes[i].tagName) {
+          case "NAV": {
+            // NAV needs some space.
+            Nav = document.getElementsByTagName("nav")[0];
+            console.info(Field.childNodes[i].childNodes);
+            Field.childNodes[i].childNodes.forEach(function (Node) {
+              cp = Node.cloneNode(true);
+              Nav.appendChild(cp);
+            })
+            break;
+          }
+          default: {
+            cp = Field.childNodes[i].cloneNode(true);
+            Target.appendChild(cp);
+            break;
+          }
+        }
       }
-      default: {
-        cp = Field.childNodes[i].cloneNode(true);
-        Target.appendChild(cp);
-        break;
-      }
+}
+
+async function LoadSidebarProfile() {
+
+
+    // May be waste. Already loaded
+    var Prof = await User.FetchPersonalInfo();
+    console.info(Prof.Content);
+
+    var Resp = JSON.parse(Prof.Content);
+    if (Resp["Result"]) {
+      document.getElementById("Group_Label").innerHTML = Resp.Profile.Group.DisplayName;
+      document.getElementById("Group_Label").innerHTML = Resp.Profile.School.DisplayName;
     }
-  }
-
 }
 
 LoadCommonNodes();
