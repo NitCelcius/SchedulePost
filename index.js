@@ -16,14 +16,14 @@ for (var i = 0; i < InterSectNodes.length; i++) {
 async function InitPage(User) {
   DeployLoadAnim();
   try {
-    var Prof = await User.FetchPersonalInfo();
+    var Prof = await User.UpdateProfile();
     console.info(Prof.Content);
 
-    var Resp = JSON.parse(Prof.Content);
+    var Resp = Prof;
     if (Resp["Result"]) {
       document.addEventListener("load", function () {
-        document.getElementById("Group_Label").innerHTML = Resp.Profile.Group.DisplayName;
-        document.getElementById("Group_Label").innerHTML = Resp.Profile.School.DisplayName;
+        document.getElementById("Group_Label").innerHTML = User.GetGroupProfile().DisplayName;
+        document.getElementById("School_Label").innerHTML = User.GetSchoolProfile().DisplayName;
       });
     } else {
       // May need to copy these
@@ -56,7 +56,7 @@ async function InitPage(User) {
       }
     }
 
-    UserSchool = new School();
+    UserSchool = new School(User.GetSchoolProfile().ID);
     var Res = false;
     for (var i = 0; i < 3; i++) {
       Res = await UserSchool.FetchConfig(User, "Subjects");
@@ -74,69 +74,19 @@ async function InitPage(User) {
 
     console.info(Tb);
     var DayData = JSON.parse(Tb.Body);
+    var SubjectsConfig = await UserSchool.GetConfig("Subjects", User);
 
     UpdateTimeTable(
       DayData["TimeTable"],
-      UserSchool.GetConfig("Subjects", User)
+      SubjectsConfig,
+      document.getElementById("Table_Body"),
+      document.getElementById("Class_Base")
     );
 
   } catch (e) {
     console.error(e);
   }
   DestructLoadAnim();
-}
-
-function UpdateTimeTable(TimeTable, SubjectsConfig) {
-  /* RIP global variables
-  if (SubjectsConfig === null) {
-    // Read from global settings - wait, is it available?
-    SubjectsConfig = UserSchool.GetConfig("Subjects", User)
-  }
-  */
-  var TargetTimeTable = document.getElementById("Table_Body");
-  var BaseRef = document.getElementById("Class_Base");
-  //Should be fetched before, though prepare for sudden re-loading
-  console.info(SubjectsConfig);
-  console.info(TimeTable);
-
-  Object.keys(TimeTable).sort(function (p, q) {
-    return p - q;
-  }).forEach(function (Key) {
-    ClassData = TimeTable[Key];
-    var BaseCopy = BaseRef.cloneNode(true);
-    with(BaseCopy) {
-      SubjectColorCode = SubjectsConfig[ClassData["ID"]]["Color"];
-      SubjectColorHex = "";
-      // Weird thing: converts HEX color code (w/o # in the beginning) to int then multiplies by 0.7 and converts it back to HEX. Calculates emphasizing color.
-      for (var i = 0; i <= 5; i += 2) {
-        EmpColor = Math.floor(parseInt(SubjectsConfig[ClassData["ID"]]["Color"].substring(i, i + 2), 16) * 0.7);
-        SubjectColorHex += ("00" + EmpColor.toString(16)).slice(-2);
-      }
-      style.setProperty("--subject-color", "#" + SubjectColorCode);
-      style.display = "block";
-      style.setProperty("--subject-emphasize-color", "#" + SubjectColorHex);
-      // Also delete its id.
-      id = "";
-    }
-
-    var CountDisp = Key;
-    // If there's any options specified, do these
-    if (ClassData["Options"]) {
-      var Options = ClassData["Options"];
-      if (Options["Important"]) {
-        BaseCopy.classList.add("important");
-      }
-      if (Options["DisplayCount"]) {
-        CountDisp = Options["DisplayCount"]
-      }
-    }
-    BaseCopy.getElementsByTagName("label")[0].textContent = CountDisp;
-    BaseCopy.getElementsByClassName("Class_Name")[0].textContent = SubjectsConfig[ClassData["ID"]]["DisplayName"];
-    BaseCopy.getElementsByClassName("Class_Note")[0].textContent = ClassData["Note"];
-
-    TargetTimeTable.appendChild(BaseCopy);
-  })
-
 }
 
 function Scroll_Update(Elements, Obj) {

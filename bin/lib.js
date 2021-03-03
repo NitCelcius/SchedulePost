@@ -6,6 +6,7 @@ function AwaitLoady(URL) {
     Req.open("GET", URL, true);
 
     Req.onload = function (LoadData) {
+      //console.debug(LoadData.target.responseText);
       if (LoadData.target.status >= 200 && LoadData.target.status < 300) {
         Resolve({
           "status": LoadData.target.status,
@@ -37,6 +38,7 @@ function AwaitAjaxy(URL, Content) {
     Req.setRequestHeader("Content-Type", "application/json");
 
     Req.onload = function (LoadData) {
+      //console.debug(LoadData.target.responseText);
       if (LoadData.target.status >= 200 && LoadData.target.status < 300) {
         Resolve({
           "status": LoadData.target.status,
@@ -81,12 +83,13 @@ class User {
     //   anything else = itself.
     this.Profile = {
       Self: {
-        DisplayName: null
+        ID: false,
+        DisplayName: false
       },
       School: new School(),
       Group: {
-        ID: null,
-        DisplayName: null
+        ID: false,
+        DisplayName: false
       }
     };
     this.UserID = InUserID;
@@ -109,6 +112,7 @@ class User {
       }));
 
       this.PersonalRaw = Info;
+      return Info;
     } else if (this.PersonalRaw === false) {
       /*      
       while (this.PersonalRaw === false) {
@@ -119,8 +123,9 @@ class User {
         break;
       }
       */
+      return null;
     }
-    return this.PersonalRaw;
+    return false;
   }
 
   async UpdateSessionToken(LongToken = null, StoreLongToken = true) {
@@ -151,18 +156,38 @@ class User {
     }
   }
 
+
+  //Deprecated
   GetUserID() {
     return this.UserID;
   }
 
-  GetSchoolProfile() {
-    if (this.School.ID === null) {
+  GetUserProfile() {
+    if (this.Profile.Self.ID === null) {
       this.UpdateProfile();
     }
+
+    return this.Profile.Self;
   }
 
-  UpdateProfile() {
-    Info = AwaitAjaxy(API_URL, JSON.stringify({
+  GetGroupProfile() {
+    if (this.Profile.Group.ID === null) {
+      this.UpdateProfile();
+    }
+
+    return this.Profile.Group;
+  }
+
+  GetSchoolProfile() {
+    if (this.Profile.School.ID === null) {
+      this.UpdateProfile();
+    }
+
+    return this.Profile.School;
+  }
+
+  async UpdateProfile() {
+    var Info = await AwaitAjaxy(API_URL, JSON.stringify({
       "Auth": {
         "UserID": this.UserID,
         "SessionToken": this.Credentials.SessionToken
@@ -170,15 +195,15 @@ class User {
       "Action": "GET_USER_PROFILE"
     }));
 
-    Resp = JSON.parse(Info.Content);
+    var Resp = JSON.parse(Info.Content);
     if (Resp["Result"]) {
       // LITERALLY PRIVATE.
       // This weird code may well be removed
-      this.Profile.Self.DisplayName = Resp.Profile.User.DisplayName || false;
-      this.Profile.School.ID = Resp.Profile.School || false;
-      this.Profile.School.DisplayName = Resp.Profile.School.DisplayName || false;
-      this.Profile.Group.ID = Resp.Profile.Group.ID || false;
-      this.Profile.Group.DisplayName = Resp.Profile.Group.DisplayName || false;
+      this.Profile.Self.DisplayName = Resp.Profile.User.DisplayName || null;
+      this.Profile.School.ID = Resp.Profile.School || null;
+      this.Profile.School.DisplayName = Resp.Profile.School.DisplayName || null;
+      this.Profile.Group.ID = Resp.Profile.Group.ID || null;
+      this.Profile.Group.DisplayName = Resp.Profile.Group.DisplayName || null;
     } else {
       switch (Resp["ReasonCode"]) {
         case "ACCOUNT_SESSION_TOKEN_EXPIRED":
@@ -189,7 +214,7 @@ class User {
         }
       }
     }
-    return Info;
+    return Resp;
   }
 
   async GetTimeTable(TargetDate = null) {
@@ -241,7 +266,12 @@ class User {
       throw new Error("There seems to be an error occurred while fetching timetable. " + Info.toString());
     }
 
-    return JSON.parse(Info["Content"]);
+
+    try {
+      return JSON.parse(JSON.parse(Info["Content"])["Body"]);
+    } catch (e) {
+      return false;
+    }
   }
 
   async GetTimeTableDiff(TargetDate = null, Revision = null) {
@@ -272,7 +302,11 @@ class User {
       throw new Error("There seems to be an error occurred while fetching timetable. " + stringify(Info));
     }
 
-    return JSON.parse(Info["Content"]);
+    try {
+      return JSON.parse(JSON.parse(Info["Content"])["Body"]);
+    } catch (e) {
+      return false;
+    }
   }
 }
 
@@ -285,9 +319,10 @@ class InvalidCredentialsError extends Error {
 class School {
   // May need to capsulize these. But wait for now, I'll get some idea...
   ID = null;
-  DisplayName = null;
+  DisplayName = false;
 
-  constructor() {
+  constructor(id = null) {
+    this.ID = id;
     this.Config = {};
   }
 
@@ -295,13 +330,13 @@ class School {
     return this.Config[Key] === undefined ? false : true;
   }
 
-  GetConfig(Key, User = null) {
+  async GetConfig(Key, User = null) {
     if (this.Config[Key] === undefined) {
       // Super Lazy.
       if (User === null) {
         return false;
       } else {
-        this.FetchConfig(User, Key);
+        await this.FetchConfig(User, Key);
         return this.Config[Key];
       }
     } else {
@@ -444,5 +479,55 @@ function TransferLoginPage() {
     appendChild(LoadTitle);
     appendChild(LoadText);
   }
-  location.href = encodeURI("/login.html?auth_callback="+location.pathname);
+  location.href = encodeURI("/login.html?auth_callback=" + location.pathname);
+}
+
+function UpdateTimeTable(TimeTable, SubjectsConfig, TargetNode, BaseNode) {
+  Object.keys(TimeTable).sort(function (p, q) {
+    return p - q;
+  }).forEach(function (Key) {
+    console.info(TargetNode);
+    Elem = ConstructClassElement(TimeTable[Key], SubjectsConfig, BaseNode, Key);
+    Elem.style.setProperty("--Key", Key);
+    TargetNode.appendChild(Elem);
+  })
+}
+
+function ConstructClassElement(ClassData, SubjectsConfig, BaseNode, LabelText = null) {
+  var BaseCopy = BaseNode.cloneNode(true);
+
+  with (BaseCopy) {
+    SubjectColorCode = "eeeeee";
+    if (SubjectsConfig[ClassData.ID]) {
+      SubjectColorCode = SubjectsConfig[ClassData.ID]["Color"];
+    }
+    SubjectColorHex = "";
+    // Weird thing: converts HEX color code (w/o # in the beginning) to int then multiplies by 0.7 and converts it back to HEX. Calculates emphasizing color.
+    for (var i = 0; i <= 5; i += 2) {
+      EmpColor = Math.floor(parseInt(SubjectColorCode.substring(i, i + 2), 16) * 0.7);
+      SubjectColorHex += ("00" + EmpColor.toString(16)).slice(-2);
+    }
+    style.setProperty("--subject-color", "#" + SubjectColorCode);
+    style.display = "flex";
+    style.setProperty("--subject-emphasize-color", "#" + SubjectColorHex);
+    // Also delete its id.
+    id = "";
+  }
+
+  // If there's any options specified, do these
+  if (ClassData["Options"]) {
+    var Options = ClassData["Options"];
+    if (Options["Important"]) {
+      BaseCopy.classList.add("important");
+    }
+    if (Options["DisplayCount"]) {
+      LabelText = Options["DisplayCount"]
+    }
+  }
+  BaseCopy.getElementsByTagName("label")[0].textContent = LabelText;
+  BaseCopy.getElementsByClassName("Class_Name")[0].textContent = SubjectsConfig[ClassData["ID"]]["DisplayName"];
+  BaseCopy.getElementsByClassName("Class_Note")[0].textContent = ClassData["Note"];
+
+  console.info(BaseCopy);
+  return BaseCopy;
 }

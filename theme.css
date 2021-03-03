@@ -5,6 +5,9 @@ body {
   margin: 0rem auto;
   /* If unnecessary, remove this */
   background-image: url("Resources/Web/Grid.png");
+  
+  display: flex;
+  flex-direction: row-reverse;
 }
 
 body>* {
@@ -90,9 +93,9 @@ article>* {
 }
 
 article {
-  margin-top: 3rem;
   display: flex;
-  flex-direction: row-reverse;
+  flex-direction: column;
+  margin-top: 3rem;
   justify-content: center;
 }
 
@@ -248,6 +251,84 @@ footer img {
   width: 2rem;
 }
 
+div.Class_Block {
+  display: flex;
+  flex-direction: row;
+  /*  box-shadow: 0 0 1px 0px black; */
+  margin: 0.5rem 0rem;
+  /*padding: 0.5rem;*/
+  border: 1px solid #aaa
+}
+
+/*
+div.Class_Block > label::before {
+  content: "|";
+  text-align: left;
+  position: relative;
+  left: -4px;
+  width: 1.5em;
+  background-color: var(--subject-color);
+}
+*/
+
+label.Class_Label {
+  display: flex;
+  border-right: 1px solid #aaa;
+  font-size: 3.5rem;
+  padding: .5rem 0.4rem .5rem 0.2rem;
+  vertical-align: middle;
+  text-align: right;
+
+  background-color: var(--subject-color);
+}
+
+div.Class_Block.important label{
+  color: white;
+  background-color: var(--subject-emphasize-color);
+}
+
+.Class_Emphasizer {
+  display: flex;
+  content: "";
+  height: 100%;
+  width: 2em;
+  background-color: var(--subject-color);
+}
+
+div.Class_Block.important>.Class_Emphasizer {
+  background-color: var(--subject-color);
+}
+
+div.Class_Block_Side {
+  display: flex;
+  flex-direction: row;
+  width: 100%;
+  padding: .5rem 0;
+  padding-left: 0.6rem;
+  vertical-align: top;
+  text-align: center;
+}
+
+div.Class_Block_Label {
+  display: flex;
+  
+}
+
+.Class_Name {
+  margin: 0;
+  font-size: 1.5rem;
+  text-align: left;
+}
+
+.Class_Note {
+  /* 折返し */
+  width: calc( 100% - 1rem);
+  word-wrap: break-word;
+  overflow-wrap: anywhere;
+  text-align: left;
+  margin: 0rem 1rem;
+}
+
 @media (max-width: 55rem) {
   nav {
     display: none;
@@ -297,3 +378,4 @@ footer img {
     display: block;
   }
 }
+
