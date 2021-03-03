@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+  <title>EDITOR</title>
+  <link href="/theme.css" rel="stylesheet">
+  <link href="/editor/timetable.css" rel="stylesheet">
+  <meta lang="ja">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,minimum-scale=1.0">
+</head>
+
+<body>
+
+  <article>
+    <h1>時間割の編集</h1>
+    <div id="Control">
+    <a id="Update_Status">変更点はまだありません</a>
+    <button id="Force_Update">保存</button>
+    </div>
+
+    <hr>
+
+    <h2 id="Edit_Date"><span id="Date_Year">----</span><span id="Date_YMSplit">年</span><span id="Date_Month">--</span><span
+      id="Date_MDSplit">月</span><span id="Date_Day">--</span><span id="Date_DSplit">日</span><span
+      id="Date_The_Day">-</span><span id="Date_TDSplit">曜日</span></h2>
+
+    <section id="Table_Body">      
+      
+    </section>
+    <div id="Class_Base" class="Class_Block" style="display:none;">
+      <div class="Class_Block_Label">
+        <span class="Class_Emphasizer"></span>
+        <label class="Class_Label">0</label>
+      </div>
+    
+      <div class="Class_Block_Side">
+        <div class="Class_Block_Detail">
+          <!-- I'm not that smart, I'll forcebly make it  -->
+          <label>
+            <h3 class="Class_Name">AAA</h3>
+            <textarea class="Class_Note Class_Note_Input" type="text" placeholder="メモを編集"></textarea>
+          </label>
+        </div>
+      </div>
+      <button class="Class_Edit" onclick="Class_Edit(this)">変更</button>
+    </div>
+      <button id="Add_Class" onclick="AddClass()">授業を追加</button>
+
+
+    <div id="Edit_Page_Wrapper" style="display: none;">
+      <div id="Edit_Page">
+        <div id="Edit_Control">
+          <h2 id="Edit_Title">授業の編集</h2>
+          <button id="Edit_DelAndClose" onclick="Edit_DelAndCloseConfirm()">破棄</button>
+          <button id="Edit_Close" onclick="Edit_Apply()">決定</button>
+        </div>
+        <hr>
+        <h2 id="Edit_ClassLabelTitle"><span id="Edit_ClassLabel"></span>時間目</h2>
+        <div id="Edit_ClassSel">
+          <!-- TODO: use label instead of span-->
+          <span class="Edit_Desc">教科</span><select id="Edit_ClassType" name="Class_Type">
+            <option value="None">選択</option>
+          </select>
+        </div>
+        <div id="Edit_NoteSel">
+        <p class="Edit_Desc">メモ</p>
+        <textarea id="Edit_Note" type="text" placeholder="メモを編集"></textarea>
+        </div>
+        <div id="Edit_Options">
+          <h3>オプション</h3>
+          <div id="Edit_ClassLabelSel">
+            <span class="Edit_Desc">時数(教科名の左に表示)</span><input id="Edit_ClassLabel type="text" placeholder="1, 2, 3 ...">
+          </div>
+        </div>
+      </div>
+    </div>
+  </article>
+    
+  <nav></nav>
+</body>
+
+<script src="/bin/lib.js"></script>
+<script src="/bin/commonloader.js" async></script>
+  <script src="/editor/timetable.js" async></script>
+
+</html>
