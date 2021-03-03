@@ -109,6 +109,10 @@ class Permissions {
       "Default" => false,
       "DefaultAllowRoles" => array("Admin", "Teacher"),
       "Elevation" => true
+    ),
+    "Config.Subjects.View" => array(
+      "Default" => true,
+      "DefaultAllowRoles" => array("Admin", "Teacher", "Students"),
     )
   );
 
@@ -400,7 +404,7 @@ class UserAuth {
    * @return bool If permitted, returns true. Otherwise false.
    * @var Permissions::Dic
    */
-  function IsPermitted(string $Action, int $TargetType, string $TargetID) {
+  function IsPermitted(string $Action, int $TargetType, string $TargetID, bool $Elevated = false) {
     // TODO: TO get rid of Permissions table, switch target table to lookup.
     if ($TargetID === null) {
       throw new InvalidArgumentException("The targetID is not correct.");
@@ -443,7 +447,7 @@ class UserAuth {
           case DEST_GROUP: {
               $TargetSchoolID = $Fetcher->LookupSchoolID($TargetID);
               if ($TargetSchoolID != null) {
-                switch ($this->IsPermitted($Action, DEST_SCHOOL, $TargetSchoolID)) {
+                switch ($this->IsPermitted($Action, DEST_SCHOOL, $TargetSchoolID, true)) {
                   case true: {
                       // The school says true so leave it to group.
                       break;
@@ -483,7 +487,6 @@ class UserAuth {
                 return true;
               } else {
                 // Really nothing.
-                die("default!");
                 return Permissions::Dic[$Action]["Default"];
               }
 
@@ -510,7 +513,11 @@ class UserAuth {
               if ($IdentityMatches) {
                 return true;
               } else {
-                return null;
+                if ($Elevated) {
+                  return null;
+                } else {
+                  return Permissions::Dic[$Action]["Default"];
+                }
               }
               break;
             }
@@ -937,12 +944,12 @@ class Messages {
   }
 }
 
-$Resp = Messages::GenerateErrorJSON("ERROR_UNKNOWN", "The API could not respond properly to your request.");
-
 // BASICではよくある、 while(true) -> break. try~catch(exception e)~finally ができるやり方。
 
 while (true) {
+
   $Recv = json_decode(file_get_contents("php://input"), true);
+  
 
   if ($Recv === null) {
     $Resp["ReasonCode"] = "INPUT_MALFORMED";
@@ -950,6 +957,7 @@ while (true) {
     break;
   }
 
+  $Resp = Messages::GenerateErrorJSON("ERROR_UNKNOWN", "The API could not respond properly to your request. " . serialize($Recv));
   /* Please note that SchedulePost API does not support any GET method. */
 
   //Authenticate here
@@ -1080,6 +1088,8 @@ while (true) {
         }
         break;
       }
+
+
     case "GET_TIMETABLE_RAW": {
         $User = new UserAuth($Recv["Auth"]["UserID"], $Recv["Auth"]["SessionToken"]);
         if (!$User->SignIn()) {
@@ -1103,6 +1113,8 @@ while (true) {
           $TargetGroupID = $User->GetGroupID();
         }
 
+        $Resp = Messages::GenerateErrorJSON("UNEXPECTED_ARGUMENT", "The type specified is invalid.");
+
         switch ($Recv["Type"]) {
           case "Base": {
               if ($User->IsPermitted("Timetable.View", DEST_GROUP, $TargetGroupID)) {
@@ -1125,6 +1137,7 @@ while (true) {
                   "Result" => true,
                   "Body" => $Timetable
                 );
+                break;
               } else {
                 $Resp = Messages::GenerateErrorJSON("INSUFFCIENT_PERMISSION");
                 break;
@@ -1154,8 +1167,7 @@ while (true) {
             }
         }
 
-
-        $Result = json_encode($Fetcher->GetTimetable($User->GetGroupID(), $Date), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_FORCE_OBJECT);
+        $Result = json_encode($Resp, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_FORCE_OBJECT);
 
         if ($Result != false) {
           $Resp = array(
@@ -1165,7 +1177,8 @@ while (true) {
         }
         break;
       }
-    case "GET_SCHOOL_CONFIG": {
+
+      case "GET_SCHOOL_CONFIG": {
         // Need to check permissions here.
         $User = new UserAuth($Recv["Auth"]["UserID"], $Recv["Auth"]["SessionToken"]);
         if (!$User->SignIn()) {
@@ -1174,10 +1187,36 @@ while (true) {
           break;
         }
 
+        $TargetSchoolID = null;
+        if (array_key_exists("SchoolID", $Recv)) {
+          $TargetSchoolID = $Recv["SchoolID"];
+        } else {
+          $TargetSchoolID = $User->GetSchoolID();
+        }
+        if ($TargetSchoolID === null) {
+          if (!$User->GetSchoolID()) {
+            $Resp = Messages::GenerateErrorJSON("UNEXPECTED_ARGUMENT","The user does not belong to any school.");
+          } else {
+            $Resp = Messages::GenerateErrorJSON("UNEXPECTED_ARGUMENT", "Specify school ID.");
+          }
+        }
+
+        $Permitted = false;
+        if ($User->IsPermitted("Config.Subjects.View", DEST_SCHOOL, $TargetSchoolID)) {
+          $Permitted = true;
+        } else {
+          $Permitted = false;
+        }
+
+        if (!$Permitted) {
+          $Resp = Messages::GenerateErrorJSON("INSUFFCIENT_PERMISSION", "You do not have sufficient permission for that config.");
+          break;
+        }
+
         // Fetch school profile(raw)
         $Connection = DBConnection::Connect();
-        $PDOstt = $Connection->prepare("select DisplayName, Config from school_profile where SchoolID = :SchoolID");
-        $PDOstt->bindValue(":SchoolID", $User->GetSchoolID());
+        $PDOstt = $Connection->prepare("select DisplayName, Config from schedulepost.school_profile where SchoolID = :SchoolID");
+        $PDOstt->bindValue(":SchoolID", $TargetSchoolID);
         $PDOstt->execute();
         $Data = $PDOstt->fetch();
         if ($Data === false || $Data === null) {
