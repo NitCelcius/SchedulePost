@@ -59,7 +59,12 @@ async function InitPage(User) {
     AttemptFunc(await User.GetTimeTableDiff(EditDate)),
   ]);
 
-  
+  // Todo: keep working.
+  /*
+  First of all implement EDITOR.
+   - Create outline of website, then just modify those w/ jS.
+  */
+
   /*
   TTBase = await User.GetTimeTableBase(EditDate);
   if (TTBase.Result) {
