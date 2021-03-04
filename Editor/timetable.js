@@ -10,7 +10,6 @@ async function InitPage(User) {
         try {
           UpdateRes = await UpdateSessionToken(LongToken);
           console.warn(UpdateRes);
-          throw new Error("Stop!!!!");
 
           if (UpdateRes) {
             // We can continue
@@ -21,7 +20,6 @@ async function InitPage(User) {
             break;
           }
         } catch (e) {
-          throw new Error("Stop!!!!");
           // In fact this catch might not be necessary.
           TransferLoginPage();
           break;
@@ -66,7 +64,7 @@ async function PrepareEditor(User) {
   //Timetable_Group
 
   UserSchool = new School(User.GetSchoolProfile().ID);
-  EditDate = new Date("2021-01-25");
+  EditDate = new Date();
 
   // So weird but it actually works.
   FetchCfg = async function () {
@@ -127,7 +125,14 @@ async function PrepareEditor(User) {
   SubjectsConfig = await UserSchool.GetConfig("Subjects", User);
 
   UpdateTimeTable(Timetable, SubjectsConfig, document.getElementById("Table_Body"), document.getElementById("Class_Base"));
-
+  /* メモを編集 のところ、考える
+  document.getElementsByClassName("Class_Block").forEach(function (Element) {
+    Element.getElementsByClassName("Class_Note_Input")[0].addEventListener(onchange, function (UpElem) {
+      UpElem.
+    })
+  });
+  */
+  
   Classes = Timetable;
 
   DestructLoadAnim();
@@ -135,6 +140,7 @@ async function PrepareEditor(User) {
 
 function MergeTimetable(Base, Diff) {
   Timetable = Base;
+  if (Diff === null) { return Base; }
   Object.keys(Diff).forEach(Key => {
     Timetable[ClassData.Key] = Diff.Key;
   });
@@ -209,22 +215,39 @@ function Edit_CompleteConfirm() {
   Flag = confirm("この時間割を確定してもよろしいですか？");
 
   if (Flag === true) {
-    
+    Edit_Upload(Classes);
   } else {
     // Do nothing !!!
   }
 }
 
 // BLOCKED.
-function Edit_Upload(ClassList) {
+async function Edit_Upload(ClassList) {
+  DeployLoadAnim();
+  console.debug(JSON.stringify({
+    "TimeTable": ClassList
+  }));
+
   var Info = await AwaitAjaxy(API_URL, JSON.stringify({
     "Auth": {
       "UserID": User.UserID,
       "SessionToken": User.Credentials.SessionToken
     },
     "Action": "GET_EDIT_STASH",
-    "GroupID": User.Profile.Group.ID
+    "GroupID": User.Profile.Group.ID,
+    "Body": JSON.stringify({
+      "TimeTable": ClassList
+    })
   }));
+
+  var Data = JSON.parse(Info.Content);
+  DestructLoadAnim();
+
+  if (Data["Result"]) {
+    alert("更新しました。");
+  } else {
+    alert("更新に失敗しました。\n\n"+Data["ReasonCode"]+","+Data["ReasonText"]);
+  }
 }
 
 function Edit_Apply() {
@@ -311,7 +334,7 @@ async function DownloadStash() {
   
   var Data = JSON.parse(Info.Content);
   if (Data["Result"]) {
-    if (Data[Revision] === -1) {
+    if (Data["Revision"] === -1) {
       // It's brand new!
       return null;
     } else {
