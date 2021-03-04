@@ -34,7 +34,7 @@
 }
 
 #Update_Status {
-  font-size: 80%;
+  font-size: 100%;
   color: #666;
   margin: 0;
   width: 100%;
@@ -88,7 +88,6 @@ span#Date_DSplit {
 }
 
 div#Edit_Page_Wrapper {
-  display: flex;
   position: fixed;
   top: 0;
   left: 0;
@@ -98,6 +97,8 @@ div#Edit_Page_Wrapper {
 
   padding: 1rem;
   background-color: #222222d0;
+  vertical-align: middle;
+  justify-content: center;
 }
 
 #Add_Class {
@@ -108,10 +109,12 @@ div#Edit_Page_Wrapper {
 #Edit_Page {
   width: calc(100% - 3rem);
   height: calc(100% - 3rem);
-  background-color: #eee;
+  background-color: #fff;
   padding: 0.5rem;
   max-width: 60rem;
   max-height: 60rem;
+    vertical-align: middle;
+    justify-content: center;
 }
 
 
@@ -136,7 +139,9 @@ h2#Edit_Title {
   background-color: #afa;
 }
 
+/* Not implemented yet !!! */
 #Edit_DelAndClose {
+  display: none;
   white-space: nowrap;
   min-width: 3rem;
   border: 2px #aaa solid;
@@ -194,6 +199,63 @@ span.Edit_Desc {
     border-bottom: 1px #333 solid;
     background: inherit;
 }
+
+#Edit_Important {
+  appearance: none;
+  height: 1.5rem;
+  width: 1.5rem;
+  background-color: #888;
+}
+
+#Edit_Important:checked {
+  background-color: #7f7;
+}
+
+#Edit_Important::after {
+  content: "off";
+}
+
+#Edit_Important:checked:after {
+  content: "on";
+}
+
+#Edit_Date {
+  font-size: 120%;
+}
+
+#Timetable_GroupText {
+  text-align: center;
+}
+
+/*
+#Edit_Important::before {
+  appearance: none;
+  content: "off";
+  width: 3rem;
+  height: 1.2rem;
+  visibility: hidden;
+}
+
+#Edit_Important::after {
+  content: "on";
+  width: 3rem;
+  height: 1.2rem;
+  visibility: visible;
+}
+
+#Edit_Important:checked {
+  appearance: none;
+  background: red;
+}
+
+#Edit_Important:checked::before {
+  visibility: visible;
+}
+
+#Edit_Important:checked::after {
+  visibility: hidden;
+}
+*/
 
 #Edit_ClassLabelTitle {
   margin: 0;

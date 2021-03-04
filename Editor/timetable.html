@@ -15,7 +15,7 @@
     <h1>時間割の編集</h1>
     <div id="Control">
     <a id="Update_Status">変更点はまだありません</a>
-    <button id="Force_Update">保存</button>
+    <button id="Edit_Accept" onclick="Edit_CompleteConfirm()">確定</button>
     </div>
 
     <hr>
@@ -23,6 +23,14 @@
     <h2 id="Edit_Date"><span id="Date_Year">----</span><span id="Date_YMSplit">年</span><span id="Date_Month">--</span><span
       id="Date_MDSplit">月</span><span id="Date_Day">--</span><span id="Date_DSplit">日</span><span
       id="Date_The_Day">-</span><span id="Date_TDSplit">曜日</span></h2>
+
+    <p id="Timetable_GroupText">編集対象のグループ: <span id="Timetable_Group"></span></p>
+
+    <section id="Timetable_Options">
+      <form name="Timetable_Options">
+        <span class="Edit_Desc">日付</span><input type="date" name="Edit_Date" id="Edit_Date">
+      </form>
+    </section>
 
     <section id="Table_Body">      
       
@@ -55,11 +63,11 @@
           <button id="Edit_Close" onclick="Edit_Apply()">決定</button>
         </div>
         <hr>
-        <h2 id="Edit_ClassLabelTitle"><span id="Edit_ClassLabel"></span>時間目</h2>
+        <h2 id="Edit_ClassLabelTitle"><span id="Edit_ClassLabelDisp"></span>時間目</h2>
         <div id="Edit_ClassSel">
           <!-- TODO: use label instead of span-->
           <span class="Edit_Desc">教科</span><select id="Edit_ClassType" name="Class_Type">
-            <option value="None">選択</option>
+            <option value="None" id="Edit_ClassNone">選択</option>
           </select>
         </div>
         <div id="Edit_NoteSel">
@@ -68,9 +76,22 @@
         </div>
         <div id="Edit_Options">
           <h3>オプション</h3>
-          <div id="Edit_ClassLabelSel">
-            <span class="Edit_Desc">時数(教科名の左に表示)</span><input id="Edit_ClassLabel type="text" placeholder="1, 2, 3 ...">
+          <div id="Edit_ImportantSel">
+            <label class="Edit_Desc">重要としてマーク</label><input id="Edit_Important" type="checkbox">
           </div>
+          <div id="Edit_ClassLabelSel">
+            <span class="Edit_Desc">時数(教科名の左に表示)</span><input id="Edit_ClassLabel" type="text" placeholder="1, 2, 3 ...">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="Edit_DialogWrapper" style="display: none;">
+      <div id="Edit_Dialog">
+        <h2 id="EditD_Title"></h2>
+        <hr>
+        <div id="EditD_Body">
+
         </div>
       </div>
     </div>
