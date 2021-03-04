@@ -220,7 +220,7 @@ class User {
   async GetTimeTable(TargetDate = null) {
     if (!TargetDate) {
       //TODO: Just fix this. Normalize.
-      TargetDate = new Date("2021-01-25");
+      TargetDate = new Date();
     }
     // mm-dd-YY
     var TargetDateString = SqlizeDate(TargetDate);
@@ -240,6 +240,7 @@ class User {
       throw new Error("There seems to be an error occurred while fetching timetable. " + Info.toString());
     }
 
+    console.info(Info);
     return JSON.parse(Info["Content"]);
   }
 

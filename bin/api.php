@@ -370,7 +370,7 @@ class UserAuth {
       $CurrentTime = new DateTime("now", new DateTimeZone($GLOBALS["DefaultTimeZone"]));;
       $Expiry = new DateTime($Data["LastActivityAt"]);
       $Expiry->add(DateInterval::createFromDateString($GLOBALS["SessionTokenExpiry"]));
-      if ($Expiry > new $CurrentTime) {
+      if ($Expiry > $CurrentTime) {
         if ($Record_Activity) {
           $this->UpdateLastActivity();
         }
@@ -808,6 +808,7 @@ class Fetcher {
     //TODO: Need to verify things here, but ignoring for now
     $Base = $this->GetDefaultTimetable($GroupID, ((int)$Date->format("w")));
     $Diff = $this->GetTimetableDiff($GroupID, $Date, $Revision);
+    if ($Diff["Revision"] !== -1) {
     $Data = array_merge(
       array(
         "Date" => $Date->format("d-m-Y"),
@@ -817,6 +818,16 @@ class Fetcher {
       $Base,
       $Diff["Body"]
     );
+    } else {
+      $Data = array_merge(
+      array(
+        "Date" => $Date->format("d-m-Y"),
+        "Revision" => $Diff["Revision"],
+        "GroupID" => $GroupID
+      ),
+      $Base
+    );
+    }
 
     return $Data;
   }
@@ -884,10 +895,18 @@ class Fetcher {
       throw new ConnectionException("Could not connect to the database properly.");
       return false;
     }
-    $Diff = array(
+
+    if (empty($Result)) {
+      $Diff = array(
+        "Revision" => -1,
+        "Body" => null
+      );
+    } else {
+      $Diff = array(
       "Revision" => $Result["0"]["Revision"],
       "Body" => json_decode($Result["0"]["Body"], true, 512, JSON_FORCE_OBJECT)
     );
+    }
 
     if ($Diff === false) {
       throw new InvalidArgumentException("The JSON of the specified timetable is malformed.");
@@ -1109,6 +1128,7 @@ while (true) {
         $Fetcher = new Fetcher($User);
 
         if (array_key_exists("GroupID", $Recv)) {
+          $TargetGroupID = $Recv["GroupID"];
         } else {
           $TargetGroupID = $User->GetGroupID();
         }
@@ -1397,7 +1417,7 @@ while (true) {
 
           $Resp = array(
             "Result" => true,
-            "Revision" => $ReturnData["Revision"],
+            "Revision" => intval($ReturnData["Revision"]),
             "CreatedAt" => $ReturnData["CreatedAt"],
             "Body" => $ReturnData["StashData"]
           );
@@ -1436,7 +1456,7 @@ while (true) {
 
         $NewRevision = null;
         $Connection = DBConnection::Connect();
-        $PDOstt = $Connection->prepare("select Revision from schedulepost.edit_stash where BelongGroupID = :GroupID AND Date = :Date");
+        $PDOstt = $Connection->prepare("select Revision, StashData, CreatedAt from schedulepost.edit_stash where UserID = :UserID AND DestGroupID = :GroupID");
         $PDOstt->bindValue(":UserID", $User->GetUserID());
         $PDOstt->bindValue(":GroupID", $TargetGroupID);
         $PDOstt->execute();
@@ -1504,14 +1524,23 @@ while (true) {
 
         if ($User->IsPermitted("Timetable.Edit", DEST_GROUP, $TargetGroupID)) {
         } else {
-          throw new InsuffcientPermissionException("You cannot view the timetable of that group.");
+          $Resp = Messages::GenerateErrorJSON("INSUFFCIENT_PERMISSION", "You cannot edit the timetable of that group.");
+          break;
+        }
+
+        $Date = null;
+        try {
+          $Date = new DateTime($Recv["Date"]);
+        } catch (Exception $e) {
+          $Resp = Messages::GenerateErrorJSON("UNEXPECTED_ARGUMENT", "The specified date is invalid.");
+          break;
         }
 
         $NewRevision = null;
         $Connection = DBConnection::Connect();
-        $PDOstt = $Connection->prepare("select Revision, StashData, CreatedAt from schedulepost.edit_stash where UserID = :UserID AND DestGroupID = :GroupID");
-        $PDOstt->bindValue(":UserID", $User->GetUserID());
+        $PDOstt = $Connection->prepare("select Revision from schedulepost.timetable where BelongGroupID = :GroupID AND Date = :Date");
         $PDOstt->bindValue(":GroupID", $TargetGroupID);
+        $PDOstt->bindValue(":Date", $Date->format("Y-m-d"));
         $PDOstt->execute();
         $Data = $PDOstt->fetchAll();
 
@@ -1532,11 +1561,11 @@ while (true) {
           $NewRevision = $SegRev + 1;
         }
 
-        $PDOstt = $Connection->prepare("insert into edit_stash (`UserID`, `Revision`, `StashData`, `DestGroupID`) VALUES (:UserID, :Revision, :StashData, :GroupID)");
-        $PDOstt->bindValue(":UserID", $User->GetUserID());
+        $PDOstt = $Connection->prepare("insert into schedulepost.timetable (`BelongGroupID`, `Date`, `Revision`, `Body`) VALUES (:GroupID, :Date, :Revision, :Body)");
         $PDOstt->bindValue(":GroupID", $TargetGroupID);
+        $PDOstt->bindValue(":Date", $Date->format("Y-m-d"));
         $PDOstt->bindValue(":Revision", $NewRevision);
-        $PDOstt->bindValue(":StashData", $Recv["Body"]);
+        $PDOstt->bindValue(":Body", $Recv["Body"]);
         $Result = $PDOstt->execute();
 
         if ($Result) {
@@ -1546,7 +1575,7 @@ while (true) {
           );
         } else {
           $Resp = Messages::GenerateErrorJSON("INTERNAL_EXCEPTION", "There was an internal error occurred while connecting to the database.");
-          error_log("There was an error while trying to add stash data: " . $PDOstt->errorCode());
+          error_log("There was an error while trying to update timetable: " . $PDOstt->errorCode());
         }
         break;
       }
