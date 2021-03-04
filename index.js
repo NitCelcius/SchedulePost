@@ -21,9 +21,9 @@ async function InitPage(User) {
 
     var Resp = Prof;
     if (Resp["Result"]) {
-      document.addEventListener("load", function () {
-        document.getElementById("Group_Label").innerHTML = User.GetGroupProfile().DisplayName;
-        document.getElementById("School_Label").innerHTML = User.GetSchoolProfile().DisplayName;
+      document.addEventListener("load", async function () {
+        document.getElementById("Group_Label").innerHTML = await User.GetGroupProfile().DisplayName;
+        document.getElementById("School_Label").innerHTML = await User.GetSchoolProfile().DisplayName;
       });
     } else {
       // May need to copy these
@@ -56,7 +56,8 @@ async function InitPage(User) {
       }
     }
 
-    UserSchool = new School(User.GetSchoolProfile().ID);
+    var SchoolID = await User.GetSchoolProfile();
+    UserSchool = new School(SchoolID.ID);
     var Res = false;
     for (var i = 0; i < 3; i++) {
       Res = await UserSchool.FetchConfig(User, "Subjects");
