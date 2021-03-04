@@ -162,25 +162,25 @@ class User {
     return this.UserID;
   }
 
-  GetUserProfile() {
-    if (this.Profile.Self.ID === null) {
-      this.UpdateProfile();
+  async GetUserProfile() {
+    if (this.Profile.Self.ID === false) {
+      await this.UpdateProfile();
     }
 
     return this.Profile.Self;
   }
 
-  GetGroupProfile() {
-    if (this.Profile.Group.ID === null) {
-      this.UpdateProfile();
+  async GetGroupProfile() {
+    if (this.Profile.Group.ID === false) {
+      await this.UpdateProfile()
     }
 
     return this.Profile.Group;
   }
 
-  GetSchoolProfile() {
-    if (this.Profile.School.ID === null) {
-      this.UpdateProfile();
+  async GetSchoolProfile() {
+    if (this.Profile.School.ID === false) {
+      await this.UpdateProfile();
     }
 
     return this.Profile.School;
@@ -483,10 +483,10 @@ function TransferLoginPage() {
 }
 
 function UpdateTimeTable(TimeTable, SubjectsConfig, TargetNode, BaseNode) {
+  TargetNode.innerHTML = "";
   Object.keys(TimeTable).sort(function (p, q) {
     return p - q;
   }).forEach(function (Key) {
-    console.info(TargetNode);
     Elem = ConstructClassElement(TimeTable[Key], SubjectsConfig, BaseNode, Key);
     Elem.style.setProperty("--Key", Key);
     TargetNode.appendChild(Elem);
@@ -528,6 +528,5 @@ function ConstructClassElement(ClassData, SubjectsConfig, BaseNode, LabelText = 
   BaseCopy.getElementsByClassName("Class_Name")[0].textContent = SubjectsConfig[ClassData["ID"]]["DisplayName"];
   BaseCopy.getElementsByClassName("Class_Note")[0].textContent = ClassData["Note"];
 
-  console.info(BaseCopy);
   return BaseCopy;
 }

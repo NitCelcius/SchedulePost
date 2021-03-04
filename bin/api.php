@@ -949,7 +949,7 @@ class Messages {
 while (true) {
 
   $Recv = json_decode(file_get_contents("php://input"), true);
-  
+
 
   if ($Recv === null) {
     $Resp["ReasonCode"] = "INPUT_MALFORMED";
@@ -1025,8 +1025,8 @@ while (true) {
         }
         break;
       }
-    // Could be a problem: ACTIVITY CHECK may not be necessary as it only checks token validity.
-      case "ACTIVITY_CHECK": {
+      // Could be a problem: ACTIVITY CHECK may not be necessary as it only checks token validity.
+    case "ACTIVITY_CHECK": {
         $User = new UserAuth($Recv["Auth"]["UserID"], $Recv["Auth"]["SessionToken"]);
         if (!$User->SignIn()) {
           $Error = $User->GetError();
@@ -1042,7 +1042,7 @@ while (true) {
           );
         }
         break;
-    }
+      }
 
     case "GET_SCHEDULE": {
         try {
@@ -1120,7 +1120,7 @@ while (true) {
               if ($User->IsPermitted("Timetable.View", DEST_GROUP, $TargetGroupID)) {
                 // NOT DAY OF THE WEEK, REALLY?
                 $IndexOfTheWeek = null;
-                if (array_key_exists("Date",$Recv)) {
+                if (array_key_exists("Date", $Recv)) {
                   $IndexOfTheWeek = (int)$Date->format("w");
                 } else if (array_key_exists("DayOfTheWeek", $Recv)) {
                   $IndexOfTheWeek = DayEnum::StrToEnum($Recv["DayOfTheDate"]);
@@ -1178,7 +1178,7 @@ while (true) {
         break;
       }
 
-      case "GET_SCHOOL_CONFIG": {
+    case "GET_SCHOOL_CONFIG": {
         // Need to check permissions here.
         $User = new UserAuth($Recv["Auth"]["UserID"], $Recv["Auth"]["SessionToken"]);
         if (!$User->SignIn()) {
@@ -1195,7 +1195,7 @@ while (true) {
         }
         if ($TargetSchoolID === null) {
           if (!$User->GetSchoolID()) {
-            $Resp = Messages::GenerateErrorJSON("UNEXPECTED_ARGUMENT","The user does not belong to any school.");
+            $Resp = Messages::GenerateErrorJSON("UNEXPECTED_ARGUMENT", "The user does not belong to any school.");
           } else {
             $Resp = Messages::GenerateErrorJSON("UNEXPECTED_ARGUMENT", "Specify school ID.");
           }
@@ -1262,7 +1262,6 @@ while (true) {
       }
 
     case "GET_USER_PROFILE": {
-
         $User = new UserAuth($Recv["Auth"]["UserID"], $Recv["Auth"]["SessionToken"]);
         if (!$User->SignIn()) {
           $Error = $User->GetError();
@@ -1325,6 +1324,232 @@ while (true) {
         );
         break;
       }
+
+    case "GET_EDIT_STASH": {
+        $User = new UserAuth($Recv["Auth"]["UserID"], $Recv["Auth"]["SessionToken"]);
+        if (!$User->SignIn()) {
+          $Error = $User->GetError();
+          $Resp = Messages::GenerateErrorJSON($User->GetError()["Code"], "Could not sign in with the provided credentials.");
+          break;
+        }
+
+        $TargetGroupID = "";
+        if (array_key_exists("GroupID", $Recv)) {
+          $TargetGroupID = $Recv["GroupID"];
+        } else {
+          $TargetGroupID = $User->GetGroupID();
+        }
+
+        if ($TargetGroupID == null) {
+          $Resp = Messages::GenerateErrorJSON("UNEXPECTED_ARGUMENT", "The group ID is not found.");
+          break;
+        }
+
+        if ($User->IsPermitted("Timetable.Edit", DEST_GROUP, $TargetGroupID)) {
+        } else {
+          throw new InsuffcientPermissionException("You cannot view the timetable of that group.");
+        }
+
+        $TargetRevision = null;
+        $ReturnData = null;
+        if (array_key_exists("Revision", $Recv)) {
+          if (is_int($Recv["Revision"])) {
+            $TargetRevision = intval($Recv["Revision"]);
+          } else {
+            $Resp = Messages::GenerateErrorJSON("INPUT_MALFORMED", "The revision is not integer or out of range.");
+            break;
+          }
+        }
+        $Connection = DBConnection::Connect();
+        $PDOstt = $Connection->prepare("select Revision, StashData, CreatedAt from schedulepost.edit_stash where UserID = :UserID AND DestGroupID = :GroupID ORDER BY 'Revision' DESC");
+        $PDOstt->bindValue(":UserID", $User->GetUserID());
+        $PDOstt->bindValue(":GroupID", $TargetGroupID);
+        $PDOstt->execute();
+        $Data = $PDOstt->fetchAll();
+
+        if ($Data === false) {
+          $Resp = Messages::GenerateErrorJSON("INTERNAL_EXCEPTION", "There was an internal error while trying to fetch user profile. Group ID might be invalid!");
+          break;
+        } else if (empty($Data)) {
+          $Resp = array(
+            "Result" => true,
+            "Revision" => -1,
+            "Content" => null
+          );
+        } else {
+          // It's damn inefficient
+          if ($TargetRevision === null) {
+            $TargetRevision = 0;
+            foreach ($Data as $Segment) {
+              $SegRev = intval($Segment["Revision"]);
+              if ($SegRev > $TargetRevision) {
+                $TargetRevision = $SegRev;
+              }
+            }
+          }
+
+          foreach ($Data as $Entry) {
+            if (intval($Entry["Revision"]) === $TargetRevision) {
+              $ReturnData = $Entry;
+              break;
+            }
+          }
+
+          $Resp = array(
+            "Result" => true,
+            "Revision" => $ReturnData["Revision"],
+            "CreatedAt" => $ReturnData["CreatedAt"],
+            "Body" => $ReturnData["StashData"]
+          );
+        }
+        break;
+      }
+
+    case "SET_EDIT_STASH": {
+        if ($Recv["Body"] === null) {
+          $Resp = Messages::GenerateErrorJSON("INPUT_MALFORMED", "Specify 'Body' to save.");
+        }
+
+        $User = new UserAuth($Recv["Auth"]["UserID"], $Recv["Auth"]["SessionToken"]);
+        if (!$User->SignIn()) {
+          $Error = $User->GetError();
+          $Resp = Messages::GenerateErrorJSON($User->GetError()["Code"], "Could not sign in with the provided credentials.");
+          break;
+        }
+
+        $TargetGroupID = "";
+        if (array_key_exists("GroupID", $Recv)) {
+          $TargetGroupID = $Recv["GroupID"];
+        } else {
+          $TargetGroupID = $User->GetGroupID();
+        }
+
+        if ($TargetGroupID == null) {
+          $Resp = Messages::GenerateErrorJSON("UNEXPECTED_ARGUMENT", "The group ID is not found.");
+          break;
+        }
+
+        if ($User->IsPermitted("Timetable.Edit", DEST_GROUP, $TargetGroupID)) {
+        } else {
+          throw new InsuffcientPermissionException("You cannot view the timetable of that group.");
+        }
+
+        $NewRevision = null;
+        $Connection = DBConnection::Connect();
+        $PDOstt = $Connection->prepare("select Revision from schedulepost.edit_stash where BelongGroupID = :GroupID AND Date = :Date");
+        $PDOstt->bindValue(":UserID", $User->GetUserID());
+        $PDOstt->bindValue(":GroupID", $TargetGroupID);
+        $PDOstt->execute();
+        $Data = $PDOstt->fetchAll();
+
+        // Not really efficient, but due to ORDER BY Revision not really working
+        if ($Data === false) {
+          $Resp = Messages::GenerateErrorJSON("INTERNAL_EXCEPTION", "There was an internal error while trying to fetch stashed data. The group ID might be invalid!");
+          break;
+        } else if (empty($Data)) {
+          $NewRevision = 0;
+        } else {
+          $NewRevision = -1;
+          foreach ($Data as $Segment) {
+            $SegRev = intval($Segment["Revision"]);
+            if ($SegRev > $NewRevision) {
+              $NewRevision = $SegRev;
+            }
+          }
+          $NewRevision = $SegRev + 1;
+        }
+
+        $PDOstt = $Connection->prepare("insert into edit_stash (`UserID`, `Revision`, `StashData`, `DestGroupID`) VALUES (:UserID, :Revision, :StashData, :GroupID)");
+        $PDOstt->bindValue(":UserID", $User->GetUserID());
+        $PDOstt->bindValue(":GroupID", $TargetGroupID);
+        $PDOstt->bindValue(":Revision", $NewRevision);
+        $PDOstt->bindValue(":StashData", $Recv["Body"]);
+        $Result = $PDOstt->execute();
+
+        if ($Result) {
+          $Resp = array(
+            "Result" => true,
+            "Revision" => $NewRevision,
+          );
+        } else {
+          $Resp = Messages::GenerateErrorJSON("INTERNAL_EXCEPTION", "There was an internal error occurred while connecting to the database.");
+          error_log("There was an error while trying to add stash data: " . $PDOstt->errorCode());
+        }
+        break;
+      }
+
+      case "SET_TIMETABLE": {
+        if ($Recv["Body"] === null) {
+          $Resp = Messages::GenerateErrorJSON("INPUT_MALFORMED", "Specify 'Body' to save as stash.");
+        }
+
+        $User = new UserAuth($Recv["Auth"]["UserID"], $Recv["Auth"]["SessionToken"]);
+        if (!$User->SignIn()) {
+          $Error = $User->GetError();
+          $Resp = Messages::GenerateErrorJSON($User->GetError()["Code"], "Could not sign in with the provided credentials.");
+          break;
+        }
+
+        $TargetGroupID = "";
+        if (array_key_exists("GroupID", $Recv)) {
+          $TargetGroupID = $Recv["GroupID"];
+        } else {
+          $TargetGroupID = $User->GetGroupID();
+        }
+
+        if ($TargetGroupID == null) {
+          $Resp = Messages::GenerateErrorJSON("UNEXPECTED_ARGUMENT", "The group ID is not found.");
+          break;
+        }
+
+        if ($User->IsPermitted("Timetable.Edit", DEST_GROUP, $TargetGroupID)) {
+        } else {
+          throw new InsuffcientPermissionException("You cannot view the timetable of that group.");
+        }
+
+        $NewRevision = null;
+        $Connection = DBConnection::Connect();
+        $PDOstt = $Connection->prepare("select Revision, StashData, CreatedAt from schedulepost.edit_stash where UserID = :UserID AND DestGroupID = :GroupID");
+        $PDOstt->bindValue(":UserID", $User->GetUserID());
+        $PDOstt->bindValue(":GroupID", $TargetGroupID);
+        $PDOstt->execute();
+        $Data = $PDOstt->fetchAll();
+
+        // Not really efficient, but due to ORDER BY Revision not really working
+        if ($Data === false) {
+          $Resp = Messages::GenerateErrorJSON("INTERNAL_EXCEPTION", "There was an internal error while trying to fetch stashed data. The group ID might be invalid!");
+          break;
+        } else if (empty($Data)) {
+          $NewRevision = 0;
+        } else {
+          $NewRevision = -1;
+          foreach ($Data as $Segment) {
+            $SegRev = intval($Segment["Revision"]);
+            if ($SegRev > $NewRevision) {
+              $NewRevision = $SegRev;
+            }
+          }
+          $NewRevision = $SegRev + 1;
+        }
+
+        $PDOstt = $Connection->prepare("insert into edit_stash (`UserID`, `Revision`, `StashData`, `DestGroupID`) VALUES (:UserID, :Revision, :StashData, :GroupID)");
+        $PDOstt->bindValue(":UserID", $User->GetUserID());
+        $PDOstt->bindValue(":GroupID", $TargetGroupID);
+        $PDOstt->bindValue(":Revision", $NewRevision);
+        $PDOstt->bindValue(":StashData", $Recv["Body"]);
+        $Result = $PDOstt->execute();
+
+        if ($Result) {
+          $Resp = array(
+            "Result" => true,
+            "Revision" => $NewRevision,
+          );
+        } else {
+          $Resp = Messages::GenerateErrorJSON("INTERNAL_EXCEPTION", "There was an internal error occurred while connecting to the database.");
+          error_log("There was an error while trying to add stash data: " . $PDOstt->errorCode());
+        }
+        break;
+      }
       /*
       case "REFRESH_SESSION_TOKEN": {
         $User = new UserAuth($Recv["Auth"]["UserID"], $Recv["Auth"]["SessionToken"]);
@@ -1342,7 +1567,6 @@ while (true) {
         );
       }
       */
-  
   }
   break;
 }
