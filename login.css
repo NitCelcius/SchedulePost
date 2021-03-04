@@ -1,0 +1,14 @@
+body {
+  display: flex;
+  margin: auto;
+  flex-direction: column;
+  justify-content: center;
+}
+
+#Login {
+  text-align: center;
+}
+
+#LoginForm {
+  text-align: center;
+}

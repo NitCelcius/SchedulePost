@@ -31,7 +31,7 @@ async function InitPage(User) {
   }
 
   UserSchool = new School();
-  EditDate = new Date("2021-01-25");
+  EditDate = new Date();
 
   // So weird but it actually works.
   FetchCfg = async function () {
