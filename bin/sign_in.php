@@ -4,7 +4,6 @@
   $API_URL = getenv("API_URL");
 
   // Even now, I use localhost - cause it's cool. 5 ports in use.
-  $API_URL = "localhost:84/bin/api.php";
   // 実際はクライアントから送信されるが...テストとして json のやつを使う。
   $api_getter = curl_init();
   $post = json_encode(array(
