@@ -199,7 +199,7 @@ class DBConnection {
       }
     } catch (Exception $e) {
       throw new ConnectionException("Could not connect to the database: " . " Could not connect to the database using provided credentials.");
-      error_log("Could not connect to the database with provided credentials: ".$e->getMessage());
+      error_log("Could not connect to the database with provided credentials: " . $e->getMessage());
       return false;
     }
 
@@ -649,12 +649,15 @@ class UserAuth {
     $VerifyHash = null;
     if ($this->UserID === null) {
       $this->Error = INTERNAL_EXCEPTION;
+      error_log("Error in GetLongTokenFromPassPhrase(): function was called without UserID specified (Check User instance!)");
       throw new UnexpectedValueException("The UserID is not set. This is possibly a bug!");
+      return false;
     }
 
     try {
       $PDOstt = $Connection->prepare("select PassHash from accounts where UserID = :UserID");
       if ($PDOstt === false) {
+        error_log("Error whlist trying to fetch from table 'accounts'. UserID:'$this->UserID'");
         throw new ConnectionException("Could not connect to the database.", "Database: SchedulePost");
       }
       $PDOstt->bindValue(":UserID", $this->UserID);
@@ -662,7 +665,8 @@ class UserAuth {
       $Data = $PDOstt->fetch(PDO::FETCH_ASSOC);
       $VerifyHash = $Data["PassHash"];
     } catch (Exception $e) {
-      throw new ConnectionException("Could not process connection properly: " . $e->getMessage(), "Internal function");
+      error_log("Error whlist trying to fetch from table 'accounts'. UserID:'$this->UserID', Info:" . implode(",", $PDOstt->errorInfo()));
+      throw new ConnectionException("Could not process connection properly.", "Internal function");
       return false;
     }
 
@@ -689,7 +693,8 @@ class UserAuth {
         throw $e;
         return false;
       } catch (Exception $e) {
-        throw new ConnectionException("Could not process connection properly: " . $e->getMessage(), "Internal function");
+        error_log("Error whlist trying to sign-in. UserID:'$this->UserID', Exception: " . $e->getCode() . " : " . $e->getMessage());
+        throw new ConnectionException("Could not process connection properly.", "Internal function");
         return false;
       }
     } else {
@@ -707,7 +712,7 @@ class UserAuth {
     $PDOstt = $Connection->prepare("select LongTokenGenAt from accounts where UserID = :UserID AND LongToken = :LongToken");
     if ($PDOstt === false) {
       // TODO: Is this error handling correct?
-      error_log("An error occurred in GetSessionTokenFromLongToken: " . print_r($Connection->errorinfo(), true));
+      error_log("An error occurred in GetSessionTokenFromLongToken: Could not prepare SQL. Info:" . implode(",", $Connection->errorinfo()));
       throw new ConnectionException("Could not connect to the database.", "Database: SchedulePost");
     }
     $PDOstt->bindValue(":UserID", $this->UserID);
@@ -739,6 +744,7 @@ class UserAuth {
   }
 
   function UpdateSessionToken() {
+    // TODO: May have to fix this kind of error handling.
     try {
       $Connection = DBConnection::Connect();
       $Updater = $Connection->prepare("Update `accounts` set `LastSigninAt` = :LoginDateTime,`SessionToken` = :SessionToken WHERE UserID = :UserID");
@@ -749,11 +755,14 @@ class UserAuth {
       $Updater->bindValue(":UserID", $this->UserID, PDO::PARAM_STR);
       $Data = $Updater->execute();
       if ($Data === false) {
+        error_log("An error occurred in UpdateSessionToken(): The table `accounts` was not updated. TargetUserID: $this->UserID" . ", " . implode(",", $Updater->errorinfo()));
+
         throw new ConnectionException("Database refused to update.", "Database: SchedulePost");
       }
       $this->Token = $Token;
       return true;
     } catch (Exception $e) {
+      error_log("An error occurred in UpdateSessionToken(): " . $e->getMessage() . " TargetUserID: $this->UserID" . ", " . implode(",", $Updater->errorinfo()));
       throw new ConnectionException("Could not update database: " . $e->getMessage(), "Internal function");
       return false;
     }
@@ -792,6 +801,7 @@ class Fetcher {
     $Connection = DBConnection::Connect();
     $PDOstt = $Connection->prepare("select UserID from accounts where Mail = :Mail");
     if ($PDOstt === false) {
+      error_log("Could not prepare SQL for `accounts`: this is possibly a bug!");
       throw new ConnectionException("Could not connect to the database.", "Database: SchedulePost");
     }
     $PDOstt->bindValue(":Mail", $Email);
@@ -811,24 +821,24 @@ class Fetcher {
     $Base = $this->GetDefaultTimetable($GroupID, ((int)$Date->format("w")));
     $Diff = $this->GetTimetableDiff($GroupID, $Date, $Revision);
     if ($Diff["Revision"] !== -1) {
-    $Data = array_merge(
-      array(
-        "Date" => $Date->format("d-m-Y"),
-        "Revision" => $Diff["Revision"],
-        "GroupID" => $GroupID
-      ),
-      $Base,
-      $Diff["Body"]
-    );
+      $Data = array_merge(
+        array(
+          "Date" => $Date->format("d-m-Y"),
+          "Revision" => $Diff["Revision"],
+          "GroupID" => $GroupID
+        ),
+        $Base,
+        $Diff["Body"]
+      );
     } else {
       $Data = array_merge(
-      array(
-        "Date" => $Date->format("d-m-Y"),
-        "Revision" => $Diff["Revision"],
-        "GroupID" => $GroupID
-      ),
-      $Base
-    );
+        array(
+          "Date" => $Date->format("d-m-Y"),
+          "Revision" => $Diff["Revision"],
+          "GroupID" => $GroupID
+        ),
+        $Base
+      );
     }
 
     return $Data;
@@ -856,6 +866,8 @@ class Fetcher {
     $Result = $PDOstt->fetch();
 
     if ($Result === null || $Result === false) {
+      error_log("An error occurred in GetDefaultTimetable(): trying to fetch column Body in `default_timetable`. TargetGroupID: $GroupID" . ", " . implode(",", $PDOstt->errorinfo()));
+
       throw new ConnectionException("Could not connect to the database properly.");
       return false;
     }
@@ -864,8 +876,11 @@ class Fetcher {
     $DayStr = DayEnum::EnumToStr($Day_Of_The_Date);
 
     if ($DefaultTimeTable === false || $DefaultTimeTable === null) {
+      error_log("An error occurred in GetDefaultTimetable(): The JSON of default timetable of GroupID $GroupID is invalid or not defined!");
       throw new UnexpectedValueException("The JSON of default timetable is malformed.");
     } else if (!array_key_exists($DayStr, $DefaultTimeTable)) {
+      error_log("An error occurred in GetDefaultTimetable(): The JSON of default timetable of GroupID $GroupID does not have index $DayStr !");
+
       throw new OutOfBoundsException("The default timetable does not contain the index: \"" . $DayStr . "\"");
     }
 
@@ -894,6 +909,7 @@ class Fetcher {
     $Result = $PDOstt->fetchAll();
 
     if ($Result === null || $Result === false) {
+      error_log("An error occurred in GetTimetableDiff(): Could not fetch data from table `timetable`. TargetGroupID:$GroupID, Date:" . $Date->format("Y-m-d") . ", Revision: $Revision, Info: " . implode(',', $PDOstt));
       throw new ConnectionException("Could not connect to the database properly.");
       return false;
     }
@@ -905,12 +921,14 @@ class Fetcher {
       );
     } else {
       $Diff = array(
-      "Revision" => $Result["0"]["Revision"],
-      "Body" => json_decode($Result["0"]["Body"], true, 512, JSON_FORCE_OBJECT)
-    );
+        "Revision" => $Result["0"]["Revision"],
+        "Body" => json_decode($Result["0"]["Body"], true, 512, JSON_FORCE_OBJECT)
+      );
     }
 
     if ($Diff === false) {
+      error_log("An error occurred in GetTimetableDiff(): The JSON data for timetable diff of GroupID $GroupID is invalid! Date:" . $Date->format("Y-m-d") . ", Revision: $Revision");
+
       throw new InvalidArgumentException("The JSON of the specified timetable is malformed.");
     }
 
@@ -925,6 +943,8 @@ class Fetcher {
     $Result = $PDOstt->fetch();
 
     if ($Result === false) {
+      error_log("An error occurred in LookupSchoolID(): Error whlist trying to fetch from `group_profile`. TargetGroupID:$GroupID,  Info:" . implode(",", $PDOstt));
+
       throw new ConnectionException("Could not connect to the database.");
       return false;
     } else if ($Result === null) {
@@ -971,10 +991,11 @@ while (true) {
 
   $Recv = json_decode(file_get_contents("php://input"), true);
 
-
-  if ($Recv === null) {
-    $Resp["ReasonCode"] = "INPUT_MALFORMED";
-    $Resp["ReasonText"] = "The provided JSON was malformed so the API could not recognize.";
+  if ($Recv === null || $Recv === false) {
+    $Resp = array(
+      "ReasonCode" => "INPUT_MALFORMED",
+      "ReasonText" => "The provided JSON is malformed."
+    );
     break;
   }
 
@@ -986,6 +1007,7 @@ while (true) {
   //var_dump($Recv);
 
   switch ($Recv["Action"]) {
+
     case "SIGN_IN": {
         $UserID = null;
         $Resp = Messages::GenerateErrorJSON("UNEXPECTED_ARGUMENT", "The information provided to signin is insuffcient.");
@@ -1299,6 +1321,7 @@ while (true) {
         $Data = $PDOstt->fetch();
         if ($Data === false || $Data === null) {
           $Resp = Messages::GenerateErrorJSON("INTERNAL_EXCEPTION", "There was an internal error while trying to fetch user profile.");
+          error_log("Error whlist trying to fetch from table 'user_profile'. TargetID:'$User->GetUserID()', Info:" . implode(",", $PDOstt->errorInfo()));
           break;
         }
         $UserDisplayName = $Data["DisplayName"];
@@ -1312,6 +1335,7 @@ while (true) {
         $Data = $PDOstt->fetch();
         if ($Data === false || $Data === null) {
           $Resp = Messages::GenerateErrorJSON("INTERNAL_EXCEPTION", "There was an internal error while trying to fetch user profile.");
+          error_log("Error whlist trying to fetch from table 'school_profile'. TargetID:'$SchoolID', Info:" . implode(",", $PDOstt->errorInfo()));
           break;
         }
         $SchoolDisplayName = $Data["DisplayName"];
@@ -1323,6 +1347,7 @@ while (true) {
         $Data = $PDOstt->fetch();
         if ($Data === false || $Data === null) {
           $Resp = Messages::GenerateErrorJSON("INTERNAL_EXCEPTION", "There was an internal error while trying to fetch user profile.");
+          error_log("Error whlist trying to fetch from table 'group_profile'. TargetID:'$GroupID', Info:" . implode(",", $PDOstt->errorInfo()));
           break;
         }
         $GroupDisplayName = $Data["DisplayName"];
@@ -1500,7 +1525,7 @@ while (true) {
         break;
       }
 
-      case "SET_TIMETABLE": {
+    case "SET_TIMETABLE": {
         if ($Recv["Body"] === null) {
           $Resp = Messages::GenerateErrorJSON("INPUT_MALFORMED", "Specify 'Body' to save as stash.");
         }
@@ -1581,8 +1606,9 @@ while (true) {
         }
         break;
       }
+
       /*
-      case "REFRESH_SESSION_TOKEN": {
+    case "REFRESH_SESSION_TOKEN": {
         $User = new UserAuth($Recv["Auth"]["UserID"], $Recv["Auth"]["SessionToken"]);
         if (!$User->SignIn()) {
           $Resp = array(
@@ -1596,9 +1622,16 @@ while (true) {
         $Resp = array(
           "Result" => true
         );
+    }
+    */
+
+    default: {
+        error_log("An error occurred in API: Undefined action " . $Recv["Action"] . ". Is this API old?");
+        $Resp = Messages::GenerateErrorJSON("UNEXPECTED_ARGUMENT", "That action is invalid.");
+        break;
       }
-      */
   }
+
   break;
 }
 
