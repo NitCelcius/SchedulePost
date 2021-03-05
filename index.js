@@ -21,10 +21,7 @@ async function InitPage(User) {
 
     var Resp = Prof;
     if (Resp["Result"]) {
-      document.addEventListener("load", async function () {
-        document.getElementById("Group_Label").innerHTML = await User.GetGroupProfile().DisplayName;
-        document.getElementById("School_Label").innerHTML = await User.GetSchoolProfile().DisplayName;
-      });
+      
     } else {
       // May need to copy these
       switch (Resp["ReasonCode"]) {
