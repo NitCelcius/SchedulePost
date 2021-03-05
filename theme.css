@@ -4,7 +4,7 @@ body {
   max-width: 80rem;
   margin: 0rem auto;
   /* If unnecessary, remove this */
-  background-image: url("Resources/Web/Grid.png");
+  background-image: url("/resources/images/grid.png");
   
   display: flex;
   flex-direction: row-reverse;

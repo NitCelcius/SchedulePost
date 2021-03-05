@@ -1,4 +1,5 @@
-const API_URL = "/bin/api.php"
+// Set here too.
+const API_URL = "/bin/api.php";
 
 function AwaitLoady(URL) {
   return new Promise(function (Resolve, Reject) {

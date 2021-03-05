@@ -1,7 +1,6 @@
 <?php
   $API_URL = getenv("API_URL");
 
-  $API_URL = "localhost:84/bin/api.php";
   $RawPost = file_get_contents("./test_data.json");
   // 実際はクライアントから送信されるが...テストとして json のやつを使う。
   $api_getter = curl_init();

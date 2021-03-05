@@ -9,13 +9,13 @@ async function LoadCommonNodes() {
   var CommonRaw;
   while (true) {
     try {
-      CommonRaw = await AwaitLoady("/Resources/Common/Navs.html");
+      CommonRaw = await AwaitLoady("/resources/common/navs.html");
 
       if (CommonRaw["Content"] != null) {
         break;
       }
     } catch (e) {
-      console.info("Could not load common nodes");
+      console.warn("Could not load common nodes.");
       await Delay(2000);
       // Do nothing, retry!
     }
