@@ -21,12 +21,6 @@ RewriteEngine on
 RewriteCond %{HTTP:X-Forwarded-Proto} ^http$
 RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [R,L]
 RewriteCond %{HTTP_HOST} ^(www\.schedulepost\.herokuapp\.com)(:80)? [NC]
-<<<<<<< HEAD
-RewriteRule ^(.*) https://schedulepost\.herokuapp\.com/$1 [R=302,L]
-RewriteCond %{HTTP_HOST} ^www\.schedulepost\.herokuapp\.com\.jp$
-RewriteRule ^(.*)$ https://schedulepost\.herokuapp\.com/$1 [R=302,L]
-=======
 RewriteRule ^(.*) https://schedulepost\.herokuapp\.com/$1 [R=301,L]
 RewriteCond %{HTTP_HOST} ^www\.schedulepost\.herokuapp\.com\.jp$
 RewriteRule ^(.*)$ https://schedulepost\.herokuapp\.com/$1 [R=301,L]
->>>>>>> 32788bfe17e3ef5e0aff4dab723f065e5712daeb
