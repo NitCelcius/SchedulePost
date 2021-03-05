@@ -8,6 +8,7 @@
 $GLOBALS["DB_URL"] = getenv("DB_URL");
 $GLOBALS["DB_Username"] = getenv("DB_UserName");
 $GLOBALS["DB_PassPhrase"] = getenv("DB_PassPhrase");
+$GLOBALS["DB_NAME"] = getenv("DB_NAME");
 
 if (($GLOBALS["DefaultTimeZone"] = getenv("DefaultTimeZone")) === null) {
   $GLOBALS["DefaultTimeZone"] = "UTC";
@@ -181,7 +182,7 @@ class DBConnection {
           sprintf(
             "mysql:host=%s;dbname=%s;charset=utf8",
             $GLOBALS["DB_URL"],
-            "schedulepost"
+            $GLOBALS["DB_NAME"]
           ),
           $GLOBALS["DB_Username"],
           $GLOBALS["DB_PassPhrase"],
@@ -197,7 +198,8 @@ class DBConnection {
         return $GLOBALS["Connection"];
       }
     } catch (Exception $e) {
-      throw new ConnectionException("Could not connect to the database: " . $e->getMessage() . " Could not connect to the database using provided credentials.");
+      throw new ConnectionException("Could not connect to the database: " . " Could not connect to the database using provided credentials.");
+      error_log("Could not connect to the database with provided credentials: ".$e->getMessage());
       return false;
     }
 
