@@ -1,0 +1,26 @@
+AddDefaultCharset utf-8
+DefaultLanguage ja-JP
+
+<Files ~ "^\.(htaccess|htpasswd)$">
+deny from all
+</Files>
+<Files ~ "^composer\.*$">
+deny from all
+</Files>
+<Files ~ "^Notes/*$">
+deny from all
+</Files>
+<Files ~ "^\.git*$">
+deny from all
+</Files>
+
+Options -Indexes
+order deny,allow
+
+RewriteEngine on
+RewriteCond %{HTTP:X-Forwarded-Proto} ^http$
+RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [R,L]
+RewriteCond %{HTTP_HOST} ^(www\.schedulepost\.herokuapp\.com)(:80)? [NC]
+RewriteRule ^(.*) https://schedulepost\.herokuapp\.com/$1 [R=301,L]
+RewriteCond %{HTTP_HOST} ^www\.schedulepost\.herokuapp\.com\.jp$
+RewriteRule ^(.*)$ https://schedulepost\.herokuapp\.com/$1 [R=301,L]
