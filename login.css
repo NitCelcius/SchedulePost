@@ -1,5 +1,5 @@
 body {
-  display: flex;
+  display: block;
   margin: auto;
   flex-direction: column;
   justify-content: center;
@@ -9,6 +9,52 @@ body {
   text-align: center;
 }
 
-#LoginForm {
+h1 {
   text-align: center;
+}
+
+#LoginForm {
+  flex-direction: column;
+  text-align: center;
+}
+
+#LoginForm input {
+  font-family: inherit;
+  font-size: 1rem;
+  appearance: none;
+  border: 1px #bbb solid;
+  border-bottom: 2px #888 solid;
+  margin: 0.5rem;
+  padding: 0.5rem;
+  width: 80%;
+  max-width: 20rem;
+  line-height: 2;
+  border-radius: 2px;
+}
+
+#LoginForm input:focus {
+  border: 2px #888 solid;
+}
+
+label {
+  text-align: left;
+}
+
+#LoginButton {
+  max-width: 10rem;
+  height: 3rem;
+  border: 1px #aaa solid !important;
+  border-radius: 10px !important;
+  background-color: #cfc;
+  transition: 0.3s linear;
+  transition-property: color, background;
+}
+
+#LoginButton:active {
+  background-color: #3a3;
+  color: white;
+}
+
+#LoginButton:hover {
+  background-color: #6f6;
 }

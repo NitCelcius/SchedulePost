@@ -11,11 +11,14 @@
 </head>
 
 <body>
-  <div id="Login">
   <h1>SchedulePost</h1>
-  <form action="bin/sign_in.php" name="login" method="POST" id="LoginForm">
-    Mail: <input type="text" name="Mail"><br>
-    PassPhrase: <input type="password" name="PassPhrase">
+  <hr>
+  <div id="Login">
+    <form action="bin/sign_in.php" name="login" method="POST" id="LoginForm">
+      <label>メールアドレス/ID <br><input type="text" name="Mail"></label>
+      <br>
+      <label>パスワード<br><input type="password" name="PassPhrase"></label>
+      <br>
     <input id="LoginButton" type="button" value="GO">
   </form>
   </div>
