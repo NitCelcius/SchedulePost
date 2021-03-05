@@ -657,7 +657,7 @@ class UserAuth {
     try {
       $PDOstt = $Connection->prepare("select PassHash from accounts where UserID = :UserID");
       if ($PDOstt === false) {
-        error_log("Error whlist trying to fetch from table 'accounts'. UserID:'$this->UserID'");
+        error_log("Error whilst trying to fetch from table 'accounts'. UserID:'$this->UserID'");
         throw new ConnectionException("Could not connect to the database.", "Database: SchedulePost");
       }
       $PDOstt->bindValue(":UserID", $this->UserID);
@@ -665,7 +665,7 @@ class UserAuth {
       $Data = $PDOstt->fetch(PDO::FETCH_ASSOC);
       $VerifyHash = $Data["PassHash"];
     } catch (Exception $e) {
-      error_log("Error whlist trying to fetch from table 'accounts'. UserID:'$this->UserID', Info:" . implode(",", $PDOstt->errorInfo()));
+      error_log("Error whilst trying to fetch from table 'accounts'. UserID:'$this->UserID', Info:" . implode(",", $PDOstt->errorInfo()));
       throw new ConnectionException("Could not process connection properly.", "Internal function");
       return false;
     }
@@ -693,7 +693,7 @@ class UserAuth {
         throw $e;
         return false;
       } catch (Exception $e) {
-        error_log("Error whlist trying to sign-in. UserID:'$this->UserID', Exception: " . $e->getCode() . " : " . $e->getMessage());
+        error_log("Error whilst trying to sign-in. UserID:'$this->UserID', Exception: " . $e->getCode() . " : " . $e->getMessage());
         throw new ConnectionException("Could not process connection properly.", "Internal function");
         return false;
       }
@@ -943,7 +943,7 @@ class Fetcher {
     $Result = $PDOstt->fetch();
 
     if ($Result === false) {
-      error_log("An error occurred in LookupSchoolID(): Error whlist trying to fetch from `group_profile`. TargetGroupID:$GroupID,  Info:" . implode(",", $PDOstt));
+      error_log("An error occurred in LookupSchoolID(): Error whilst trying to fetch from `group_profile`. TargetGroupID:$GroupID,  Info:" . implode(",", $PDOstt));
 
       throw new ConnectionException("Could not connect to the database.");
       return false;
@@ -1030,14 +1030,14 @@ while (true) {
                 break;
             }
           } catch (ConnectionException $e) {
-            $Resp = Messages::GenerateErrorJSON("INTERNAL_EXCEPTION", "There was an internal exception whlist trying to sign in:  " . $e->getMessage());
-            error_log("SIGNIN: An error occurred whlist trying to sign in using passphrase. " . $e->getMessage() . " Stack trace:" . $e->getTraceAsString());
+            $Resp = Messages::GenerateErrorJSON("INTERNAL_EXCEPTION", "There was an internal exception whilst trying to sign in:  " . $e->getMessage());
+            error_log("SIGNIN: An error occurred whilst trying to sign in using passphrase. " . $e->getMessage() . " Stack trace:" . $e->getTraceAsString());
           } catch (InvalidCredentialsException $e) {
             $Resp = Messages::GenerateErrorJSON("INVALID_CREDENTIALS", "The passphrase provided is invalid. " . $e->getMessage());
           } catch (InvalidArgumentException $e) {
             $Resp = Messages::GenerateErrorJSON("INVALID_CREDENTIALS", "The Email address provided is invalid. " . $e->getMessage());
           } catch (Exception $e) {
-            $Resp = Messages::GenerateErrorJSON("INTERNAL_EXCEPTION", "There was an internal exception whlist trying to sign in. " . $e->getMessage());
+            $Resp = Messages::GenerateErrorJSON("INTERNAL_EXCEPTION", "There was an internal exception whilst trying to sign in. " . $e->getMessage());
           }
         } else {
           if (array_key_exists("UserID", $Recv["Auth"]) && array_key_exists("LongToken", $Recv["Auth"])) {
@@ -1057,12 +1057,12 @@ while (true) {
                   break;
               }
             } catch (ConnectionException $e) {
-              $Resp = Messages::GenerateErrorJSON("INTERNAL_EXCEPTION", "There was an internal exception whlist trying to sign in:  " . $e->getMessage());
-              error_log("SIGNIN: An error occurred whlist trying to sign in using long token. " . $e->getMessage() . " Stack trace:" . $e->getTraceAsString());
+              $Resp = Messages::GenerateErrorJSON("INTERNAL_EXCEPTION", "There was an internal exception whilst trying to sign in:  " . $e->getMessage());
+              error_log("SIGNIN: An error occurred whilst trying to sign in using long token. " . $e->getMessage() . " Stack trace:" . $e->getTraceAsString());
             } catch (InvalidCredentialsException $e) {
               $Resp = Messages::GenerateErrorJSON("INVALID_CREDENTIALS", "The long token provided is invalid. " . $e->getMessage());
             } catch (Exception $e) {
-              $Resp = Messages::GenerateErrorJSON("INTERNAL_EXCEPTION", "There was an internal exception whlist trying to sign in. " . $e->getMessage());
+              $Resp = Messages::GenerateErrorJSON("INTERNAL_EXCEPTION", "There was an internal exception whilst trying to sign in. " . $e->getMessage());
             }
           }
         }
@@ -1321,36 +1321,55 @@ while (true) {
         $Data = $PDOstt->fetch();
         if ($Data === false || $Data === null) {
           $Resp = Messages::GenerateErrorJSON("INTERNAL_EXCEPTION", "There was an internal error while trying to fetch user profile.");
-          error_log("Error whlist trying to fetch from table 'user_profile'. TargetID:'$User->GetUserID()', Info:" . implode(",", $PDOstt->errorInfo()));
+          error_log("Error whilst trying to fetch from table 'user_profile'. TargetID:'$User->GetUserID()', Info:" . implode(",", $PDOstt->errorInfo()));
           break;
         }
         $UserDisplayName = $Data["DisplayName"];
         $GroupID = $Data["BelongGroupID"];
         $SchoolID = $Data["BelongSchoolID"];
 
-        // Fetch school name
-        $PDOstt = $Connection->prepare("select DisplayName from school_profile where SchoolID = :SchoolID");
-        $PDOstt->bindValue(":SchoolID", $SchoolID);
-        $PDOstt->execute();
-        $Data = $PDOstt->fetch();
-        if ($Data === false || $Data === null) {
-          $Resp = Messages::GenerateErrorJSON("INTERNAL_EXCEPTION", "There was an internal error while trying to fetch user profile.");
-          error_log("Error whlist trying to fetch from table 'school_profile'. TargetID:'$SchoolID', Info:" . implode(",", $PDOstt->errorInfo()));
-          break;
-        }
-        $SchoolDisplayName = $Data["DisplayName"];
+        if ($SchoolID !== null) {
+          // Fetch school name
+          $PDOstt = $Connection->prepare("select DisplayName from school_profile where SchoolID = :SchoolID");
+          $PDOstt->bindValue(":SchoolID", $SchoolID);
+          $PDOstt->execute();
+          $Data = $PDOstt->fetch();
+          if ($Data === false) {
+            $Resp = Messages::GenerateErrorJSON("INTERNAL_EXCEPTION", "There was an internal error while trying to fetch user profile.");
+            error_log("Error whilst trying to fetch from table 'school_profile'. TargetID:'$SchoolID', Info:" . implode(",", $PDOstt->errorInfo()));
+            break;
+          }
 
-        // Fetch group name
-        $PDOstt = $Connection->prepare("select DisplayName from group_profile where GroupID = :GroupID");
-        $PDOstt->bindValue(":GroupID", $GroupID);
-        $PDOstt->execute();
-        $Data = $PDOstt->fetch();
-        if ($Data === false || $Data === null) {
-          $Resp = Messages::GenerateErrorJSON("INTERNAL_EXCEPTION", "There was an internal error while trying to fetch user profile.");
-          error_log("Error whlist trying to fetch from table 'group_profile'. TargetID:'$GroupID', Info:" . implode(",", $PDOstt->errorInfo()));
-          break;
+          if ($Data === null) {
+            $SchoolDisplayName = null;
+            error_log("Warning in action GET_USER_PROFILE: SchoolID $SchoolID is defined but its DisplayName is null!");
+          } else {
+            $SchoolDisplayName = $Data["DisplayName"];
+          }
+        } else {
+          $SchoolDisplayName = null;
         }
-        $GroupDisplayName = $Data["DisplayName"];
+
+        if ($GroupID !== null) {
+          // Fetch group name
+          $PDOstt = $Connection->prepare("select DisplayName from group_profile where GroupID = :GroupID");
+          $PDOstt->bindValue(":GroupID", $GroupID);
+          $PDOstt->execute();
+          $Data = $PDOstt->fetch();
+          if ($Data === false) {
+            $Resp = Messages::GenerateErrorJSON("INTERNAL_EXCEPTION", "There was an internal error while trying to fetch user profile.");
+            error_log("Error whilst trying to fetch from table 'group_profile'. TargetID:'$GroupID', Info:" . implode(",", $PDOstt->errorInfo()));
+            break;
+          }
+          if ($Data === null) {
+            $GroupDisplayName = null;
+            error_log("Warning in action GET_USER_PROFILE: GroupID $GroupID is defined but its DisplayName is null!");
+          } else {
+            $GroupDisplayName = $Data["DisplayName"];
+          }
+        } else {
+          $GroupDisplayName = null;
+        }
 
         $Resp = array(
           "Result" => true,
