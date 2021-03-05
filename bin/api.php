@@ -352,7 +352,7 @@ class UserAuth {
   function SignIn(bool $Record_Activity = true) {
     $Connection = DBConnection::Connect();
     try {
-      $PDOstt = $Connection->prepare("select SessionToken,LastActivityAt from schedulepost.accounts where UserID = :UserID");
+      $PDOstt = $Connection->prepare("select SessionToken,LastActivityAt from accounts where UserID = :UserID");
       $PDOstt->bindValue(":UserID", $this->UserID);
       $PDOstt->execute();
       $Data = $PDOstt->fetch();
@@ -415,11 +415,11 @@ class UserAuth {
     $Connection = DBConnection::Connect();
     switch ($TargetType) {
       case DEST_SCHOOL: {
-          $PDOstt = $Connection->prepare("select Permissions from schedulepost.school_permissions where UserID = :UserID AND TargetSchoolID = :TargetID");
+          $PDOstt = $Connection->prepare("select Permissions from school_permissions where UserID = :UserID AND TargetSchoolID = :TargetID");
           break;
         }
       case DEST_GROUP: {
-          $PDOstt = $Connection->prepare("select Permissions from schedulepost.group_permissions where UserID = :UserID AND TargetGroupID = :TargetID");
+          $PDOstt = $Connection->prepare("select Permissions from group_permissions where UserID = :UserID AND TargetGroupID = :TargetID");
           break;
         }
       default: {
@@ -653,7 +653,7 @@ class UserAuth {
     }
 
     try {
-      $PDOstt = $Connection->prepare("select PassHash from schedulepost.accounts where UserID = :UserID");
+      $PDOstt = $Connection->prepare("select PassHash from accounts where UserID = :UserID");
       if ($PDOstt === false) {
         throw new ConnectionException("Could not connect to the database.", "Database: SchedulePost");
       }
@@ -704,7 +704,7 @@ class UserAuth {
     }
 
     $Connection = DBConnection::Connect();
-    $PDOstt = $Connection->prepare("select LongTokenGenAt from schedulepost.accounts where UserID = :UserID AND LongToken = :LongToken");
+    $PDOstt = $Connection->prepare("select LongTokenGenAt from accounts where UserID = :UserID AND LongToken = :LongToken");
     if ($PDOstt === false) {
       // TODO: Is this error handling correct?
       error_log("An error occurred in GetSessionTokenFromLongToken: " . print_r($Connection->errorinfo(), true));
@@ -790,7 +790,7 @@ class Fetcher {
 
   function Mail2UserID(string $Email) {
     $Connection = DBConnection::Connect();
-    $PDOstt = $Connection->prepare("select UserID from schedulepost.accounts where Mail = :Mail");
+    $PDOstt = $Connection->prepare("select UserID from accounts where Mail = :Mail");
     if ($PDOstt === false) {
       throw new ConnectionException("Could not connect to the database.", "Database: SchedulePost");
     }
@@ -919,7 +919,7 @@ class Fetcher {
 
   function LookupSchoolID(string $GroupID) {
     $PDO = DBConnection::Connect();
-    $PDOstt = $PDO->prepare("select BelongSchoolID from schedulepost.group_profile where GroupID = :GroupID");
+    $PDOstt = $PDO->prepare("select BelongSchoolID from group_profile where GroupID = :GroupID");
     $PDOstt->bindValue(":GroupID", $GroupID);
     $PDOstt->execute();
     $Result = $PDOstt->fetch();
@@ -1237,7 +1237,7 @@ while (true) {
 
         // Fetch school profile(raw)
         $Connection = DBConnection::Connect();
-        $PDOstt = $Connection->prepare("select DisplayName, Config from schedulepost.school_profile where SchoolID = :SchoolID");
+        $PDOstt = $Connection->prepare("select DisplayName, Config from school_profile where SchoolID = :SchoolID");
         $PDOstt->bindValue(":SchoolID", $TargetSchoolID);
         $PDOstt->execute();
         $Data = $PDOstt->fetch();
@@ -1383,7 +1383,7 @@ while (true) {
           }
         }
         $Connection = DBConnection::Connect();
-        $PDOstt = $Connection->prepare("select Revision, StashData, CreatedAt from schedulepost.edit_stash where UserID = :UserID AND DestGroupID = :GroupID ORDER BY 'Revision' DESC");
+        $PDOstt = $Connection->prepare("select Revision, StashData, CreatedAt from edit_stash where UserID = :UserID AND DestGroupID = :GroupID ORDER BY 'Revision' DESC");
         $PDOstt->bindValue(":UserID", $User->GetUserID());
         $PDOstt->bindValue(":GroupID", $TargetGroupID);
         $PDOstt->execute();
@@ -1458,7 +1458,7 @@ while (true) {
 
         $NewRevision = null;
         $Connection = DBConnection::Connect();
-        $PDOstt = $Connection->prepare("select Revision, StashData, CreatedAt from schedulepost.edit_stash where UserID = :UserID AND DestGroupID = :GroupID");
+        $PDOstt = $Connection->prepare("select Revision, StashData, CreatedAt from edit_stash where UserID = :UserID AND DestGroupID = :GroupID");
         $PDOstt->bindValue(":UserID", $User->GetUserID());
         $PDOstt->bindValue(":GroupID", $TargetGroupID);
         $PDOstt->execute();
@@ -1540,7 +1540,7 @@ while (true) {
 
         $NewRevision = null;
         $Connection = DBConnection::Connect();
-        $PDOstt = $Connection->prepare("select Revision from schedulepost.timetable where BelongGroupID = :GroupID AND Date = :Date");
+        $PDOstt = $Connection->prepare("select Revision from timetable where BelongGroupID = :GroupID AND Date = :Date");
         $PDOstt->bindValue(":GroupID", $TargetGroupID);
         $PDOstt->bindValue(":Date", $Date->format("Y-m-d"));
         $PDOstt->execute();
@@ -1563,7 +1563,7 @@ while (true) {
           $NewRevision = $SegRev + 1;
         }
 
-        $PDOstt = $Connection->prepare("insert into schedulepost.timetable (`BelongGroupID`, `Date`, `Revision`, `Body`) VALUES (:GroupID, :Date, :Revision, :Body)");
+        $PDOstt = $Connection->prepare("insert into timetable (`BelongGroupID`, `Date`, `Revision`, `Body`) VALUES (:GroupID, :Date, :Revision, :Body)");
         $PDOstt->bindValue(":GroupID", $TargetGroupID);
         $PDOstt->bindValue(":Date", $Date->format("Y-m-d"));
         $PDOstt->bindValue(":Revision", $NewRevision);
