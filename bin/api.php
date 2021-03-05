@@ -366,6 +366,9 @@ class UserAuth {
       return false;
     }
     if ($Data === null || $Data === false) {
+      if ($Data === null) {
+        error_log("Error in SignIn(): While signin $this->UserID was specified as UserID but it did not exist!");
+      }
       return false;
     } else {
       // Is expired?
@@ -1319,11 +1322,16 @@ while (true) {
         $PDOstt->bindValue(":UserID", $User->GetUserID());
         $PDOstt->execute();
         $Data = $PDOstt->fetch();
-        if ($Data === false || $Data === null) {
-          $Resp = Messages::GenerateErrorJSON("INTERNAL_EXCEPTION", "There was an internal error while trying to fetch user profile.");
+        if ($Data === false) {
           error_log("Error whilst trying to fetch from table 'user_profile'. TargetID:'$User->GetUserID()', Info:" . implode(",", $PDOstt->errorInfo()));
+          $Resp = Messages::GenerateErrorJSON("INTERNAL_EXCEPTION", "There was an internal error while trying to fetch user profile.");
+          break;
+        } else if ($Data === null) {
+          error_log("Error whilst trying to fetch from table 'user_profile'. No data matched UserID: ".$User->GetUserID()." , Info: " . implode(",", $PDOstt->errorInfo()));
+          $Resp = Messages::GenerateErrorJSON("UNEXPECTED_ARGUMENT", "That user does not exist.");
           break;
         }
+        
         $UserDisplayName = $Data["DisplayName"];
         $GroupID = $Data["BelongGroupID"];
         $SchoolID = $Data["BelongSchoolID"];
@@ -1335,8 +1343,9 @@ while (true) {
           $PDOstt->execute();
           $Data = $PDOstt->fetch();
           if ($Data === false) {
+            // might not be an error, though
+            error_log("Error whilst trying to fetch from table 'school_profile'. No data matched SchoolID:'$SchoolID', Info:" . implode(",", $PDOstt->errorInfo()));
             $Resp = Messages::GenerateErrorJSON("INTERNAL_EXCEPTION", "There was an internal error while trying to fetch user profile.");
-            error_log("Error whilst trying to fetch from table 'school_profile'. TargetID:'$SchoolID', Info:" . implode(",", $PDOstt->errorInfo()));
             break;
           }
 
@@ -1358,7 +1367,7 @@ while (true) {
           $Data = $PDOstt->fetch();
           if ($Data === false) {
             $Resp = Messages::GenerateErrorJSON("INTERNAL_EXCEPTION", "There was an internal error while trying to fetch user profile.");
-            error_log("Error whilst trying to fetch from table 'group_profile'. TargetID:'$GroupID', Info:" . implode(",", $PDOstt->errorInfo()));
+            error_log("Error whilst trying to fetch from table 'group_profile'. GroupID $GroupID specified but its DisplayName was not found. Info:" . implode(",", $PDOstt->errorInfo()));
             break;
           }
           if ($Data === null) {
@@ -1434,7 +1443,8 @@ while (true) {
         $Data = $PDOstt->fetchAll();
 
         if ($Data === false) {
-          $Resp = Messages::GenerateErrorJSON("INTERNAL_EXCEPTION", "There was an internal error while trying to fetch user profile. Group ID might be invalid!");
+          error_log("An error occurred in action GET_EDIT_STASH: Could not fetch data from `edit_stash`. TargetUserID: ".$User->GetUserID().", DestGroupID: $TargetGroupID. This GroupID might not exist.");
+          $Resp = Messages::GenerateErrorJSON("INTERNAL_EXCEPTION", "There was an internal error while trying to fetch stash. Group ID might be invalid!");
           break;
         } else if (empty($Data)) {
           $Resp = array(
