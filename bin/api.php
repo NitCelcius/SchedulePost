@@ -214,6 +214,8 @@ class UserAuth {
   private $GroupID;
   private $SchoolID;
   private $Error;
+  private $SessionTokenExpiry;
+  private $LongTokenExpiry;
 
   // これ基本のコンストラクタ
   function __construct($UserID = null, $SessionToken = null) {
@@ -283,6 +285,71 @@ class UserAuth {
   // Read-only.
   function GetLongToken() {
     return $this->LongToken;
+  }
+
+  function GetSessionTokenExpiry(bool $Force_Update = false) {
+    if ($Force_Update) { $this->SessionTokenExpiry = null; }
+    if ($this->SessionTokenExpiry !== null) {
+      return $this->SessionTokenExpiry;
+    } else {
+      $Connection = DBConnection::Connect();
+      $PDOstt = $Connection->prepare("select LastActivityAt from accounts where UserID = :UserID");
+      if ($PDOstt === false) {
+        // TODO: Is this error handling correct?
+        error_log("An error occurred in GetSessionTokenExpiry: Could not prepare SQL. Info:" . implode(",", $Connection->errorinfo()));
+        throw new ConnectionException("Could not connect to the database.", "Database: SchedulePost");
+        return false;
+      }
+      $PDOstt->bindValue(":UserID", $this->UserID);
+      $PDOstt->execute();
+
+      $Data = $PDOstt->fetch(PDO::FETCH_ASSOC);
+      if ($Data === false) {
+        // TODO: Is this error handling correct?
+        throw new InvalidCredentialsException("An error occurred in GetSessionTokenExpiry: Could not fetch LastActivityAt column. The specified user ID $this->UserID may be invalid!");
+        return false;
+      }
+
+      if (array_key_exists("LastActivityAt", $Data) && $Data["LastActivityAt"] !== NULL) {
+        $Expiry = new DateTime($Data["LastActivityAt"]);
+        $Expiry->add(DateInterval::createFromDateString($GLOBALS["SessionTokenExpiry"]));
+        $this->SessionTokenExpiry = $Expiry;
+        return $Expiry;
+      }
+    }
+  }
+
+  function GetLongTokenExpiry(bool $Force_Update = false) {
+    if ($Force_Update) { $this->LongTokenExpiry = null; }
+    if ($this->LongTokenExpiry !== null) {
+      return $this->LongTokenExpiry;
+    } else {
+      $Connection = DBConnection::Connect();
+      $PDOstt = $Connection->prepare("select LastSigninAt from accounts where UserID = :UserID");
+      if ($PDOstt === false) {
+        // TODO: Is this error handling correct?
+        error_log("An error occurred in GetSessionTokenExpiry: Could not prepare SQL. Info:" . implode(",", $Connection->errorinfo()));
+        throw new ConnectionException("Could not connect to the database.", "Database: SchedulePost");
+        return false;
+      }
+      $PDOstt->bindValue(":UserID", $this->UserID);
+      $PDOstt->execute();
+
+      $Data = $PDOstt->fetch(PDO::FETCH_ASSOC);
+      if ($Data === false) {
+        // TODO: Is this error handling correct?
+        throw new InvalidCredentialsException("An error occurred in GetLongTokenExpiry: Could not fetch LastSigninAt column. The specified user ID $this->UserID may be invalid!");
+        return false;
+      }
+
+      if (array_key_exists("LastSigninAt", $Data) && $Data["LastSigninAt"] !== NULL) {
+        $Expiry = new DateTime($Data["LastSigninAt"]);
+        $Expiry->add(DateInterval::createFromDateString($GLOBALS["LongTokenExpiry"]));
+        $this->LongTokenExpiry = $Expiry;
+
+        return $Expiry;
+      }
+    }
   }
 
   // Returns the group UUID that the user belongs to.
@@ -762,7 +829,10 @@ class UserAuth {
 
         throw new ConnectionException("Database refused to update.", "Database: SchedulePost");
       }
+
+      $Expiry = $LoginDateTime->add(DateInterval::createFromDateString($GLOBALS["SessionTokenExpiry"]));
       $this->Token = $Token;
+      $this->SessionTokenExpiry = $Expiry;
       return true;
     } catch (Exception $e) {
       error_log("An error occurred in UpdateSessionToken(): " . $e->getMessage() . " TargetUserID: $this->UserID" . ", " . implode(",", $Updater->errorinfo()));
@@ -1035,8 +1105,10 @@ while (true) {
                   "Result" => true,
                   "UserID" => $User->GetUserID(),
                   "SessionToken" => $User->GetSessionToken(),
-                  "LongToken" => $User->GetLongToken()
-                  //TODO: add "valid until"
+                  "LongToken" => $User->GetLongToken(),
+                  // Literally based on W3C, to supply this to JS
+                  "SessionTokenExpiry" => $User->GetSessionTokenExpiry()->format("Y-m-d\TH:i:sP"),
+                  "LongTokenExpiry" => $User->GetLongTokenExpiry()->format("Y-m-d\TH:i:sP")
                 );
                 break;
 
@@ -1063,7 +1135,10 @@ while (true) {
                     "Result" => true,
                     "UserID" => $User->GetUserID(), // TODO: Is it necessary?
                     "SessionToken" => $User->GetSessionToken(),
-                    "LongToken" => $User->GetLongToken() // TODO: Is it necessary?
+                    "LongToken" => $User->GetLongToken(), // TODO: Is it necessary?
+                    // Literally based on W3C, to supply this to JS
+                    "SessionTokenExpiry" => $User->GetSessionTokenExpiry()->format("Y-m-d\TH:i:sP"),
+                    "LongTokenExpiry" => $User->GetLongTokenExpiry()->format("Y-m-d\TH:i:sP")
                   );
                   break;
 
