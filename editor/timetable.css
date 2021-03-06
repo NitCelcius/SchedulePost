@@ -34,6 +34,7 @@
 }
 
 #Update_Status {
+  display: inline-block;
   font-size: 100%;
   color: #666;
   margin: 0;
@@ -49,6 +50,11 @@
 }
 
 #Control {
+  display: flex;
+  flex-direction: column;
+}
+
+#Control>div {
   display: flex;
   flex-direction: row;
 }
@@ -87,6 +93,11 @@ span#Date_DSplit {
   color: #666;
 }
 
+#Add_Class {
+  width: 100%;
+  min-height: 4rem;
+}
+
 div#Edit_Page_Wrapper {
   position: fixed;
   top: 0;
@@ -94,32 +105,29 @@ div#Edit_Page_Wrapper {
   width: 100%;
   height: 100%;
   z-index: 20;
-
-  padding: 1rem;
   background-color: #222222d0;
-  vertical-align: middle;
+  align-items: center;
   justify-content: center;
-}
-
-#Add_Class {
-  width: 100%;
-  min-height: 4rem;
+  display: flex;
 }
 
 #Edit_Page {
-  width: calc(100% - 3rem);
-  height: calc(100% - 3rem);
+  width: calc(100% - 2rem);
+  height: calc(100% - 2rem);
   background-color: #fff;
   padding: 0.5rem;
   max-width: 60rem;
   max-height: 60rem;
-    vertical-align: middle;
-    justify-content: center;
+  vertical-align: middle;
+  justify-content: center;
+  border: .1rem #666 solid;
+  box-sizing: border-box;
+  overflow-y: scroll;
 }
 
 
 #Edit_Page div {
-  margin-bottom: 1rem;
+  margin-bottom: 0.5rem;
 }
 
 #Edit_Control {
@@ -132,22 +140,31 @@ h2#Edit_Title {
   margin: 0;
 }
 
-#Edit_Close {
+#Edit_Accept {
+  min-width: 4rem;
+  padding: 0.5rem;
+}
+
+.Edit_ActBtn {
   white-space: nowrap;
-  min-width: 5rem;
-  border: 2px #aaa solid;
-  background-color: #afa;
+  min-width: 4rem;
+  margin-left: 0.5rem;
+  border-radius: 8px;
+  border: 1px #666 solid;
+  overflow: hidden;
+}
+
+#Edit_Close {
+  background-color: palegreen;
 }
 
 /* Not implemented yet !!! */
-#Edit_DelAndClose {
-  display: none;
-  white-space: nowrap;
-  min-width: 3rem;
-  border: 2px #aaa solid;
-  background-color: #faa;
-  margin-right: 1rem;
-  overflow: hidden;
+#Edit_Discard {
+  background-color: #ebb1f0;
+}
+
+#Edit_Delete {
+  background: #f0b890;
 }
 
 #Edit_ClassSel {
@@ -260,3 +277,4 @@ span.Edit_Desc {
 #Edit_ClassLabelTitle {
   margin: 0;
 }
+

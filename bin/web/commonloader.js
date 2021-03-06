@@ -9,7 +9,7 @@ async function LoadCommonNodes() {
   var CommonRaw;
   while (true) {
     try {
-      CommonRaw = await AwaitLoady("/resources/common/navs.html");
+      CommonRaw = await AwaitLoady("/bin/web/navs.html");
 
       if (CommonRaw["Content"] != null) {
         break;

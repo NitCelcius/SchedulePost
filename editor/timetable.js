@@ -74,53 +74,50 @@ async function PrepareEditor(User) {
     };
   }
 
-  var Local = LoadLocalStash();
-  if (Local !== null) {
-    Timetable = JSON.parse(Local);
-    // Well we may need something to update status text.
-    document.getElementById("Update_Status").innerText = "一時保存した内容を読み込みました";
-    setTimeout(() => {
-      document.getElementById("Update_Status").innerText = "変更があります。確定 を押すと時間割に反映します";
-    }, 5000);
-  } else {
-    var UploadedStash = await DownloadStash();
-    if (UploadedStash !== null) {
-      Timetable = JSON.parse(UploadedStash["Body"]);
-      Global["Revision"] = UploadedStash["Revision"];
-      document.getElementById("Update_Status").innerText = "アップロードした内容を読み込みました";
-      setTimeout(() => {
-        document.getElementById("Update_Status").innerText = "変更があります。確定 を押すと時間割に反映します";
-      }, 5000);
-    } else {
-      // No local, neither cloud saves!
-      AttemptFunc = async (Tryer) => {
-        for (var i = 0; i < 3; i++) {
-          Data = await Tryer;
-          if (Tryer) {
-            return Tryer;
-          } else {
-            await Delay(2000);
-          }
-          if (i == 2) {
-            return false;
-          }
+    // No local, neither cloud saves!
+    AttemptFunc = async (Tryer) => {
+      for (var i = 0; i < 3; i++) {
+        Data = await Tryer;
+        if (Tryer) {
+          return Tryer;
+        } else {
+          await Delay(2000);
+        }
+        if (i == 2) {
+          return false;
         }
       }
+    }
 
-      //Wait, are they necessary?
-      var CfgState, TTBase, TTDiff;
-      [CfgState, TTBase, TTDiff] = await Promise.all([
-        AttemptFunc(await FetchCfg()),
-        AttemptFunc(await User.GetTimeTableBase(EditDate)),
-        AttemptFunc(await User.GetTimeTableDiff(EditDate))
-      ]);
+    //Wait, are they necessary?
+    var CfgState, TTBase, TTDiff;
+    [CfgState, TTBase, TTDiff] = await Promise.all([
+      AttemptFunc(await FetchCfg()),
+      AttemptFunc(await User.GetTimeTableBase(EditDate)),
+      AttemptFunc(await User.GetTimeTableDiff(EditDate))
+    ]);
 
-      Timetable = TTBase["Body"]["TimeTable"];
-      Global["Revision"] = TTDiff.Revision;
-      // merge
+  console.info(TTBase);
+  console.info(TTDiff);
+
+  if (TTBase["Result"] === true) {
+    Timetable = TTBase["Body"]["TimeTable"];
+    //ClassesOption["Revision"] = TTDiff.Revision;
+    // merge
+    if (TTDiff["Override"] === true) {
+      Timetable = TTDiff["Body"];
+    } else {
       Timetable = MergeTimetable(TTBase["Body"]["TimeTable"], TTDiff["Body"]);
     }
+  } else {
+    Timetable = TTDiff["Body"];
   }
+
+  if (Timetable === null) {
+    Timetable = {};
+  }
+   
+    //TODO: apply some options
     
   SubjectsConfig = await UserSchool.GetConfig("Subjects", User);
 
@@ -134,7 +131,6 @@ async function PrepareEditor(User) {
   */
   
   Classes = Timetable;
-
   DestructLoadAnim();
 }
 
@@ -206,21 +202,6 @@ async function ClassEdit_Setup(EditingClassKey) {
   document.getElementById("Edit_ClassLabel").value = EditingClassKey ?? null;
 }
 
-function Edit_DelAndCloseConfirm() {
-  // ...
-}
-
-function Edit_CompleteConfirm() {
-  // Somehow make this non-dialog.
-  Flag = confirm("この時間割を確定してもよろしいですか？");
-
-  if (Flag === true) {
-    Edit_Upload(Classes);
-  } else {
-    // Do nothing !!!
-  }
-}
-
 // BLOCKED.
 async function Edit_Upload(ClassList) {
   DeployLoadAnim();
@@ -252,9 +233,6 @@ async function Edit_Upload(ClassList) {
 
 function Edit_Apply() {
 // TODO: if KEY duplicates, that's not approved
-
-  document.getElementById("Edit_Page_Wrapper").style.display = "none";
-
   var IsTimetableUpdated = false;
   var NewClassData = Classes[EditingKey]; // Copy that
 
@@ -294,13 +272,56 @@ function Edit_Apply() {
     UpdateTimeTable(Classes, SubjectsConfig, document.getElementById("Table_Body"), document.getElementById("Class_Base"));
     StartAutoStash();
   }
+
+  Edit_Close();
 }
 
-function AddClass() {
+function Edit_DiscardConfirm() {
+  // Somehow make this non-dialog.
+  Flag = confirm("この編集を取り消しますか？");
+
+  if (Flag === true) {
+    Edit_Close();
+  } else {
+    // Do nothing !!!
+  }
+}
+
+function Edit_DeleteClassConfirm() {
+  Flag = confirm(EditingKey+"時間目 の授業を削除しますか？");
+
+  if (Flag === true) {
+    Edit_DeleteClass(EditingKey);
+    Edit_Close();
+  } else {
+    // Do nothing !!!
+  }
+}
+
+function Edit_CompleteConfirm() {
+  // Somehow make this non-dialog.
+  Flag = confirm("この時間割を確定してもよろしいですか？");
+
+  if (Flag === true) {
+    Edit_Upload(Classes);
+  } else {
+    // Do nothing !!!
+  }
+}
+
+function Edit_Close() {
+  document.getElementById("Edit_Page_Wrapper").style.display = "none";
+}
+
+function Edit_AddClass() {
   var ClassKey = 0;
-  for (ClassKey = Object.keys(Classes).length; true; ClassKey++) {
-    if (!Classes[ClassKey]) {
-      break;
+  if (Object.keys(Classes).length === 0) {
+    ClassKey = 1;
+  } else {
+    for (ClassKey = Object.keys(Classes).length; true; ClassKey++) {
+      if (!Classes[ClassKey]) {
+        break;
+      }
     }
   }
 
@@ -312,6 +333,57 @@ function AddClass() {
   StartAutoStash();
 }
 
+function Edit_DeleteClass(ClassKey) {
+  Classes[ClassKey] = null;
+  UpdateTimeTable(Classes, SubjectsConfig, document.getElementById("Table_Body"), document.getElementById("Class_Base"));
+
+  StartAutoStash();
+}
+
+// Not necessarily async
+async function Edit_ApplyStashConfirm() {
+  // Somehow make this non-dialog.
+  Flag = confirm("一時保存した内容を読み込みますか？");
+
+  if (Flag === true) {
+    DeployLoadAnim();
+    await Edit_LoadStash();
+    UpdateTimeTable(Timetable, SubjectsConfig, document.getElementById("Table_Body"), document.getElementById("Class_Base"));
+    DestructLoadAnim();
+  } else {
+    // Do nothing !!!
+  }
+}
+
+async function Edit_LoadStash() {
+  var Local = LoadLocalStash();
+  if (Local !== null) {
+    Timetable = JSON.parse(Local);
+    // Well we may need something to update status text.
+    document.getElementById("Update_Status").innerText = "一時保存した内容を読み込みました";
+    setTimeout(() => {
+      document.getElementById("Update_Status").innerText = "変更があります。確定 を押すと時間割に反映します";
+    }, 5000);
+    return true;
+  } else {
+    var UploadedStash = await DownloadStash();
+    if (UploadedStash !== null) {
+      Timetable = JSON.parse(UploadedStash["Body"]);
+      ClassesOption["Revision"] = UploadedStash["Revision"];
+      document.getElementById("Update_Status").innerText = "アップロードした内容を読み込みました";
+      setTimeout(() => {
+        document.getElementById("Update_Status").innerText = "変更があります。確定 を押すと時間割に反映します";
+      }, 5000);
+      return true;
+    } else {
+      document.getElementById("Update_Status").innerText = "一時保存した内容が見つかりません";
+      setTimeout(() => {
+        document.getElementById("Update_Status").innerText = "";
+      }, 5000);
+      return null;
+    }
+  }
+}
 
 function LoadLocalStash() {
   var LocalStash = localStorage.getItem("Timetable_Stash");
@@ -419,6 +491,7 @@ const SavePeriod = 30000;
 
 Global = {};
 Classes = {};
+ClassesOption = {};
 
 if (UserID == null || SessionToken == null) {
   TransferLoginPage();

@@ -320,6 +320,10 @@ div.Class_Block_Label {
   text-align: left;
 }
 
+.Timetable_Desc {
+  text-align: center;
+}
+
 .Class_Note {
   /* 折返し */
   width: calc( 100% - 1rem);

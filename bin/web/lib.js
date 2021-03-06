@@ -486,13 +486,22 @@ function TransferLoginPage() {
 
 function UpdateTimeTable(TimeTable, SubjectsConfig, TargetNode, BaseNode) {
   TargetNode.innerHTML = "";
-  Object.keys(TimeTable).sort(function (p, q) {
-    return p - q;
-  }).forEach(function (Key) {
-    Elem = ConstructClassElement(TimeTable[Key], SubjectsConfig, BaseNode, Key);
-    Elem.style.setProperty("--Key", Key);
-    TargetNode.appendChild(Elem);
-  })
+  if (Object.keys(TimeTable).length === 0) {
+    EmptyDesc = document.createElement("p");
+    EmptyDesc.class = "Timetable_Desc";
+    EmptyDesc.innerHTML = "時間割はまだ入力されていません";
+    TargetNode.appendChild(EmptyDesc);
+  } else {
+    Object.keys(TimeTable).sort(function (p, q) {
+      return p - q;
+    }).forEach(function (Key) {
+      if (TimeTable[Key] === null) { } else {
+        Elem = ConstructClassElement(TimeTable[Key], SubjectsConfig, BaseNode, Key);
+        Elem.style.setProperty("--Key", Key);
+        TargetNode.appendChild(Elem);
+      }
+    });
+  }
 }
 
 function ConstructClassElement(ClassData, SubjectsConfig, BaseNode, LabelText = null) {

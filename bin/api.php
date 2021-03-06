@@ -824,15 +824,26 @@ class Fetcher {
     $Base = $this->GetDefaultTimetable($GroupID, ((int)$Date->format("w")));
     $Diff = $this->GetTimetableDiff($GroupID, $Date, $Revision);
     if ($Diff["Revision"] !== -1) {
-      $Data = array_merge(
-        array(
-          "Date" => $Date->format("d-m-Y"),
-          "Revision" => $Diff["Revision"],
-          "GroupID" => $GroupID
-        ),
-        $Base,
-        $Diff["Body"]
-      );
+      if ($Diff["Override"] === true) {
+        $Data = array_merge(
+          array(
+            "Date" => $Date->format("d-m-Y"),
+            "Revision" => $Diff["Revision"],
+            "GroupID" => $GroupID
+          ),
+          $Diff["Body"]
+        );
+      } else {
+        $Data = array_merge(
+          array(
+            "Date" => $Date->format("d-m-Y"),
+            "Revision" => $Diff["Revision"],
+            "GroupID" => $GroupID
+          ),
+          $Base,
+          $Diff["Body"]
+        );
+      }
     } else {
       $Data = array_merge(
         array(
@@ -1115,11 +1126,6 @@ while (true) {
             throw new InsuffcientPermissionException("You cannot view the timetable of that group.");
           }
 
-          $Fetcher->GetDefaultTimetable(
-            $User->GetGroupID(),
-            // Note here: Because PHP Datetime::format() format character "w" follows ISO-8601, DayEnum corresponds to it.
-            (int)$Date->format("w")
-          );
           $Result = json_encode($Fetcher->GetTimetable($User->GetGroupID(), $Date), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_FORCE_OBJECT);
 
           if ($Result != false) {
@@ -1178,21 +1184,20 @@ while (true) {
                   break;
                 }
                 try {
-                $Timetable = $Fetcher->GetDefaultTimetable(
-                  $TargetGroupID,
-                  // Note here: Because PHP Datetime::format() format character "w" follows ISO-8601, DayEnum corresponds to it.
-                  $IndexOfTheWeek
-                );
+                  $Timetable = $Fetcher->GetDefaultTimetable(
+                    $TargetGroupID,
+                    // Note here: Because PHP Datetime::format() format character "w" follows ISO-8601, DayEnum corresponds to it.
+                    $IndexOfTheWeek
+                  );
                   $Resp = array(
                     "Result" => true,
                     "Body" => $Timetable
                   );
                   break;
-                } catch (OutOfBoundsException $e ) {
+                } catch (OutOfBoundsException $e) {
                   $Resp = Messages::GenerateErrorJSON("INTERNAL_EXCEPTION", "The default timetable that corresponds to the specified day-of-the-week does not contain any data. Please contact administrator.");
                   break;
                 }
-                
               } else {
                 $Resp = Messages::GenerateErrorJSON("INSUFFCIENT_PERMISSION");
                 break;
@@ -1335,11 +1340,11 @@ while (true) {
           $Resp = Messages::GenerateErrorJSON("INTERNAL_EXCEPTION", "There was an internal error while trying to fetch user profile.");
           break;
         } else if ($Data === null) {
-          error_log("Error whilst trying to fetch from table 'user_profile'. No data matched UserID: ".$User->GetUserID()." , Info: " . implode(",", $PDOstt->errorInfo()));
+          error_log("Error whilst trying to fetch from table 'user_profile'. No data matched UserID: " . $User->GetUserID() . " , Info: " . implode(",", $PDOstt->errorInfo()));
           $Resp = Messages::GenerateErrorJSON("UNEXPECTED_ARGUMENT", "That user does not exist.");
           break;
         }
-        
+
         $UserDisplayName = $Data["DisplayName"];
         $GroupID = $Data["BelongGroupID"];
         $SchoolID = $Data["BelongSchoolID"];
@@ -1451,7 +1456,7 @@ while (true) {
         $Data = $PDOstt->fetchAll();
 
         if ($Data === false) {
-          error_log("An error occurred in action GET_EDIT_STASH: Could not fetch data from `edit_stash`. TargetUserID: ".$User->GetUserID().", DestGroupID: $TargetGroupID. This GroupID might not exist.");
+          error_log("An error occurred in action GET_EDIT_STASH: Could not fetch data from `edit_stash`. TargetUserID: " . $User->GetUserID() . ", DestGroupID: $TargetGroupID. This GroupID might not exist.");
           $Resp = Messages::GenerateErrorJSON("INTERNAL_EXCEPTION", "There was an internal error while trying to fetch stash. Group ID might be invalid!");
           break;
         } else if (empty($Data)) {
