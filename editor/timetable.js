@@ -74,28 +74,28 @@ async function PrepareEditor(User) {
     };
   }
 
-    // No local, neither cloud saves!
-    AttemptFunc = async (Tryer) => {
-      for (var i = 0; i < 3; i++) {
-        Data = await Tryer;
-        if (Tryer) {
-          return Tryer;
-        } else {
-          await Delay(2000);
-        }
-        if (i == 2) {
-          return false;
-        }
+  // No local, neither cloud saves!
+  AttemptFunc = async (Tryer) => {
+    for (var i = 0; i < 3; i++) {
+      Data = await Tryer;
+      if (Tryer) {
+        return Tryer;
+      } else {
+        await Delay(2000);
+      }
+      if (i == 2) {
+        return false;
       }
     }
+  }
 
-    //Wait, are they necessary?
-    var CfgState, TTBase, TTDiff;
-    [CfgState, TTBase, TTDiff] = await Promise.all([
-      AttemptFunc(await FetchCfg()),
-      AttemptFunc(await User.GetTimeTableBase(EditDate)),
-      AttemptFunc(await User.GetTimeTableDiff(EditDate))
-    ]);
+  //Wait, are they necessary?
+  var CfgState, TTBase, TTDiff;
+  [CfgState, TTBase, TTDiff] = await Promise.all([
+    AttemptFunc(await FetchCfg()),
+    AttemptFunc(await User.GetTimeTableBase(EditDate)),
+    AttemptFunc(await User.GetTimeTableDiff(EditDate))
+  ]);
 
   console.info(TTBase);
   console.info(TTDiff);
@@ -116,9 +116,9 @@ async function PrepareEditor(User) {
   if (Timetable === null) {
     Timetable = {};
   }
-   
-    //TODO: apply some options
-    
+
+  //TODO: apply some options
+
   SubjectsConfig = await UserSchool.GetConfig("Subjects", User);
 
   UpdateTimeTable(Timetable, SubjectsConfig, document.getElementById("Table_Body"), document.getElementById("Class_Base"));
@@ -129,14 +129,16 @@ async function PrepareEditor(User) {
     })
   });
   */
-  
+
   Classes = Timetable;
   DestructLoadAnim();
 }
 
 function MergeTimetable(Base, Diff) {
   Timetable = Base;
-  if (Diff === null) { return Base; }
+  if (Diff === null) {
+    return Base;
+  }
   Object.keys(Diff).forEach(Key => {
     Timetable[ClassData.Key] = Diff.Key;
   });
@@ -154,8 +156,7 @@ class TimetableStore {
 function Class_Edit(Obj) {
   var SearchFrom = document.getElementById("Table_Body").children;
   for (var i = 0; i < SearchFrom.length; i++) {
-    if (SearchFrom[i] == Obj.parentElement) {
-    }
+    if (SearchFrom[i] == Obj.parentElement) {}
   }
 
   var Target = document.getElementById("Edit_ClassType");
@@ -227,14 +228,16 @@ async function Edit_Upload(ClassList) {
   if (Data["Result"]) {
     alert("更新しました。");
   } else {
-    alert("更新に失敗しました。\n\n"+Data["ReasonCode"]+","+Data["ReasonText"]);
+    alert("更新に失敗しました。\n\n" + Data["ReasonCode"] + "," + Data["ReasonText"]);
   }
 }
 
 function Edit_Apply() {
-// TODO: if KEY duplicates, that's not approved
+  // TODO: if KEY duplicates, that's not approved
   var IsTimetableUpdated = false;
   var NewClassData = Classes[EditingKey]; // Copy that
+
+  
 
   document.getElementById("Edit_ClassType").childNodes.forEach(function (Candidate) {
     if (Candidate.selected) {
@@ -265,7 +268,8 @@ function Edit_Apply() {
     }
 
     Classes = NewClasses;
-  }
+ 
+}
 
   if (IsTimetableUpdated) {
     Classes[NewKey] = NewClassData;
@@ -288,7 +292,7 @@ function Edit_DiscardConfirm() {
 }
 
 function Edit_DeleteClassConfirm() {
-  Flag = confirm(EditingKey+"時間目 の授業を削除しますか？");
+  Flag = confirm(EditingKey + "時間目 の授業を削除しますか？");
 
   if (Flag === true) {
     Edit_DeleteClass(EditingKey);
@@ -318,14 +322,20 @@ function Edit_AddClass() {
   if (Object.keys(Classes).length === 0) {
     ClassKey = 1;
   } else {
-    for (ClassKey = Object.keys(Classes).length; true; ClassKey++) {
+    for (ClassKey = 1; true; ClassKey++) {
       if (!Classes[ClassKey]) {
         break;
+      } else {
+        if (Classes[ClassKey] === null) {
+          break;
+        }
       }
     }
   }
 
-  Classes[ClassKey] = { "ID": "Special" };
+  Classes[ClassKey] = {
+    "ID": "Special"
+  };
 
   // Clear
   UpdateTimeTable(Classes, SubjectsConfig, document.getElementById("Table_Body"), document.getElementById("Class_Base"));
@@ -395,15 +405,15 @@ function LoadLocalStash() {
 }
 
 async function DownloadStash() {
-   var Info = await AwaitAjaxy(API_URL, JSON.stringify({
-     "Auth": {
-       "UserID": User.UserID,
-       "SessionToken": User.Credentials.SessionToken
-     },
-     "Action": "GET_EDIT_STASH",
-     "GroupID": User.Profile.Group.ID
-   }));
-  
+  var Info = await AwaitAjaxy(API_URL, JSON.stringify({
+    "Auth": {
+      "UserID": User.UserID,
+      "SessionToken": User.Credentials.SessionToken
+    },
+    "Action": "GET_EDIT_STASH",
+    "GroupID": User.Profile.Group.ID
+  }));
+
   var Data = JSON.parse(Info.Content);
   if (Data["Result"]) {
     if (Data["Revision"] === -1) {
@@ -469,8 +479,8 @@ async function UploadStash() {
   }
 
   setTimeout(() => {
-  document.getElementById("Update_Status").innerText = "変更があります。確定 を押すと時間割に反映します";
-}, 5000);
+    document.getElementById("Update_Status").innerText = "変更があります。確定 を押すと時間割に反映します";
+  }, 5000);
 
 
 }
