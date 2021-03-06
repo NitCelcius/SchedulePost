@@ -8,10 +8,10 @@ async function InitPage(User) {
       LongToken = GetCookie("LongToken");
       if (LongToken != null && User.GetUserID() != null) {
         try {
-          UpdateRes = await UpdateSessionToken(LongToken);
-          console.warn(UpdateRes);
+          UpdateRes = await User.UpdateSessionToken(LongToken);
 
           if (UpdateRes) {
+            console.log("SessionToken updated.");
             // We can continue
             break;
           } else {
@@ -52,6 +52,8 @@ async function InitPage(User) {
     throw new Error("Could not load timetable base.");
   }
   */
+  
+  await PrepareEditor(User);
 }
 
 async function PrepareEditor(User) {
@@ -508,4 +510,3 @@ if (UserID == null || SessionToken == null) {
 }
 
 InitPage(User);
-PrepareEditor(User);

@@ -134,10 +134,10 @@ class User {
       LongToken = this.Credentials.LongToken;
     }
     if (!LongToken || !this.UserID) {
-      throw new InvalidCredentialsError("The longtoken is not set (Check User class instance or specify longtoken before!)");
+      throw new InvalidCredentialsError("The longtoken or UserID is not set (Check User class instance)");
     }
 
-    Info = await AwaitAjaxy(API_URL, JSON.stringify({
+    var Info = await AwaitAjaxy(API_URL, JSON.stringify({
       "Auth": {
         "UserID": this.UserID,
         "LongToken": LongToken
@@ -146,11 +146,15 @@ class User {
     }));
 
     var Resp = JSON.parse(Info["Content"]);
+    console.info(Resp);
     if (Resp["Result"] === true) {
       if (StoreLongToken) {
         this.Credentials.LongToken = LongToken;
+        SetCookie("LongToken", LongToken, 720);
       }
-      this.SessionToken = Resp["SessionToken"];
+      this.Credentials.SessionToken = Resp["SessionToken"];
+      SetCookie("SessionToken", this.Credentials.SessionToken, 24);
+
       return true;
     } else {
       return false;
@@ -272,6 +276,8 @@ class User {
     try {
       return JSON.parse(JSON.parse(Info["Content"])["Body"]);
     } catch (e) {
+      console.info(Info);
+      console.error(e);
       return false;
     }
   }
@@ -307,6 +313,8 @@ class User {
     try {
       return JSON.parse(JSON.parse(Info["Content"])["Body"]);
     } catch (e) {
+      console.info(Info);
+      console.error(e);
       return false;
     }
   }
@@ -372,6 +380,8 @@ class School {
           this.Config.Subjects = Data;
           return true;
         } catch (e) {
+          console.info(Data);
+          console.error(e);
           return false;
         }
       }
@@ -390,7 +400,33 @@ function GetCookie(name) {
       .find(Piece => Piece.startsWith(name))
       .split("=")[1];
   } catch (err) {
-    return null;
+    console.warn(err);
+    return false;
+  }
+}
+
+function SetCookie(Name, Value, ExpiryHour, Options = {secure: true, samesite: "strict"}) {
+  try {
+    var Exp = "";
+    if (ExpiryHour) {
+      var DateObj = new Date();
+      DateObj.setTime(DateObj.getTime() + (ExpiryHour * 3600000));
+      Exp = "; expires=" + DateObj.toUTCString();
+    }
+    
+    var CookieString = Name + "=" + (Value || "") + Exp + "; ";
+    for (var Key in Options) {
+      CookieString += "; " + Key;
+      if (Options[Key] !== true) {
+        CookieString += "=" + Options[Key];
+      }
+    };
+      
+    document.cookie = CookieString;
+    return true;
+  } catch (err) {
+    console.warn(err);
+    return false;
   }
 }
 
