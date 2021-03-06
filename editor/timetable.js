@@ -103,16 +103,20 @@ async function PrepareEditor(User) {
   console.info(TTDiff);
 
   if (TTBase["Result"] === true) {
-    Timetable = TTBase["Body"]["TimeTable"];
-    //ClassesOption["Revision"] = TTDiff.Revision;
-    // merge
-    if (TTDiff["Override"] === true) {
-      Timetable = TTDiff["Body"];
+    if (TTBase["Body"] !== null) {
+      Timetable = TTBase["Body"]["TimeTable"];
+      //ClassesOption["Revision"] = TTDiff.Revision;
+      // merge
+      if (TTDiff["Override"] === true) {
+        Timetable = TTDiff["Body"];
+      } else {
+        Timetable = MergeTimetable(TTBase["Body"]["TimeTable"], TTDiff["Body"]);
+      }
     } else {
-      Timetable = MergeTimetable(TTBase["Body"]["TimeTable"], TTDiff["Body"]);
+      Timetable = TTDiff["Body"];
     }
   } else {
-    Timetable = TTDiff["Body"];
+    Timetable = null;
   }
 
   if (Timetable === null) {
@@ -124,6 +128,12 @@ async function PrepareEditor(User) {
   SubjectsConfig = await UserSchool.GetConfig("Subjects", User);
 
   UpdateTimeTable(Timetable, SubjectsConfig, document.getElementById("Table_Body"), document.getElementById("Class_Base"));
+
+  document.getElementById("Date_Month").innerText = EditDate.getMonth() + 1;
+  document.getElementById("Date_Day").innerText = EditDate.getDate();
+  document.getElementById("Date_The_Day").innerText = EditDate.toLocaleString(window.navigator.language, {
+    weekday: "narrow"
+  });
   /* メモを編集 のところ、考える
   document.getElementsByClassName("Class_Block").forEach(function (Element) {
     Element.getElementsByClassName("Class_Note_Input")[0].addEventListener(onchange, function (UpElem) {
@@ -496,6 +506,7 @@ UserGroup = null;
 
 SubjectsConfig = null;
 EditingKey = null;
+EditDate = new Date();
 
 LastSaveTime = 0;
 SaveTimer = null;

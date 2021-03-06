@@ -17,7 +17,6 @@ async function InitPage(User) {
   DeployLoadAnim();
   try {
     var Prof = await User.UpdateProfile();
-    console.info(Prof.Content);
 
     var Resp = Prof;
     if (Resp["Result"]) {
@@ -70,9 +69,15 @@ async function InitPage(User) {
 
     var Tb = await User.GetTimeTable();
 
-    console.info(Tb);
     var DayData = JSON.parse(Tb.Body);
     var SubjectsConfig = await UserSchool.GetConfig("Subjects", User);
+
+    var TimetableDate = new Date(DayData["Date"]+" 00:00:00");
+    document.getElementById("Date_Month").innerText = TimetableDate.getMonth() + 1;
+    document.getElementById("Date_Day").innerText = TimetableDate.getDate();
+    document.getElementById("Date_The_Day").innerText = TimetableDate.toLocaleString(window.navigator.language, {
+      weekday: "narrow"
+    });
 
     UpdateTimeTable(
       DayData["TimeTable"],

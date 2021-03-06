@@ -892,12 +892,15 @@ class Fetcher {
     $Data = array();
     //TODO: Need to verify things here, but ignoring for now
     $Base = $this->GetDefaultTimetable($GroupID, ((int)$Date->format("w")));
+    if ($Base === null) {
+      $Base = array("TimeTable" => array());
+    }
     $Diff = $this->GetTimetableDiff($GroupID, $Date, $Revision);
     if ($Diff["Revision"] !== -1) {
       if ($Diff["Override"] === true) {
         $Data = array_merge(
           array(
-            "Date" => $Date->format("d-m-Y"),
+            "Date" => $Date->format("Y-m-d"),
             "Revision" => $Diff["Revision"],
             "GroupID" => $GroupID
           ),
@@ -906,7 +909,7 @@ class Fetcher {
       } else {
         $Data = array_merge(
           array(
-            "Date" => $Date->format("d-m-Y"),
+            "Date" => $Date->format("Y-m-d"),
             "Revision" => $Diff["Revision"],
             "GroupID" => $GroupID
           ),
@@ -917,7 +920,7 @@ class Fetcher {
     } else {
       $Data = array_merge(
         array(
-          "Date" => $Date->format("d-m-Y"),
+          "Date" => $Date->format("Y-m-d"),
           "Revision" => $Diff["Revision"],
           "GroupID" => $GroupID
         ),
@@ -965,7 +968,8 @@ class Fetcher {
     } else if (!array_key_exists($DayStr, $DefaultTimeTable)) {
       error_log("An error occurred in GetDefaultTimetable(): The JSON of default timetable of GroupID $GroupID does not have index $DayStr !");
 
-      throw new OutOfBoundsException("The default timetable does not contain the index: \"" . $DayStr . "\"");
+      // throw new OutOfBoundsException("The default timetable does not contain the index: \"" . $DayStr . "\"");
+      return null;
     }
 
     return $DefaultTimeTable[$DayStr];

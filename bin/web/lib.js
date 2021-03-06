@@ -32,10 +32,10 @@ function AwaitLoady(URL) {
   });
 }
 
-function AwaitAjaxy(URL, Content) {
+function AwaitAjaxy(DestURL, Content, Prot = true) {
   return new Promise(function (Resolve, Reject) {
     let Req = new XMLHttpRequest();
-    Req.open("POST", URL, true);
+    Req.open("POST", DestURL, true);
     Req.setRequestHeader("Content-Type", "application/json");
 
     Req.onload = function (LoadData) {
@@ -62,6 +62,88 @@ function AwaitAjaxy(URL, Content) {
 
     Req.send(Content);
   });
+/*
+  return new Promise(function (Resolve, Reject) {
+    let Sendfunc = async function (Resolve, Reject) {
+      let Req = new XMLHttpRequest();
+      Req.open("POST", DestURL, true);
+      Req.setRequestHeader("Content-Type", "application/json");
+      Req.onload = function (LoadData) {
+        //console.debug(LoadData.target.responseText);
+        if (LoadData.target.status >= 200 && LoadData.target.status < 300) {
+          Resolve({
+            "status": LoadData.target.status,
+            "statusText": LoadData.target.statusText,
+            "Content": LoadData.target.response
+          });
+        } else {
+          Reject({
+            "status": LoadData.target.status,
+            "statusText": LoadData.target.statusText
+          })
+        }
+      };
+      Req.onerror = function (LoadData) {
+        Reject({
+          "status": LoadData.target.status,
+          "statusText": LoadData.target.statusText
+        });
+      }
+      Req.send(Content);
+    }
+    Sendfunc(function (Data) {
+      console.warn(Data);
+      if (DestURL === API_URL && Prot) {
+        for (var att = 0; att < 3; att++) {
+          if (Data.Content.search("\\\"Result\\\":\\\"false\\\"")) {
+            console.info(User.Credentials.SessionToken);
+            User.UpdateSessionToken(User.Credentials.LongToken ?? GetCookie("LongToken"));
+            console.info(User.Credentials.SessionToken);
+          }
+        }
+      } else {
+        return Data;
+      }
+    }, function () { Reject(); }).then(function (Data) {
+      console.error(Data);
+      Resolve(Data);
+    });
+  });
+*/
+
+/*
+    try {
+      var Raw;
+      Raw = Sendfunc(function (Data) {
+        if (DestURL === API_URL) {
+          for (var att = 0; att < 3; att++) {
+            console.info(Data);
+            if (Data.Content.search("\\\"Result\\\":\\\"false\\\"")) {
+              User.UpdateSessionToken();
+              //TODO: if continuable:
+              Sendfunc(function (SecondTryData) {
+                console.info("Second try accept");
+                Resolve(SecondTryData);
+              }, function () {
+                console.error("rejected");
+                Reject();
+              });
+            } else {
+              console.warn(Raw);
+              Resolve(Raw);
+              break;
+            }
+          }
+        } else {
+          Resolve(Data);
+        }
+      }, function () {
+          console.error("Awaitajaxy failed.");
+      });
+    } catch (e) {
+      console.warn("Error in AwaitAjaxy(): " + e);
+    }
+  */
 }
 
 function SqlizeDate(TargetDate) {
@@ -143,10 +225,9 @@ class User {
         "LongToken": LongToken
       },
       "Action": "SIGN_IN"
-    }));
+    }), false);
 
     var Resp = JSON.parse(Info["Content"]);
-    console.info(Resp);
     if (Resp["Result"] === true) {
       if (StoreLongToken) {
         this.Credentials.LongToken = LongToken;
@@ -201,6 +282,7 @@ class User {
     }));
 
     var Resp = JSON.parse(Info.Content);
+
     if (Resp["Result"]) {
       // LITERALLY PRIVATE.
       // This weird code may well be removed
@@ -245,7 +327,6 @@ class User {
       throw new Error("There seems to be an error occurred while fetching timetable. " + Info.toString());
     }
 
-    console.info(Info);
     return JSON.parse(Info["Content"]);
   }
 
@@ -522,7 +603,7 @@ function TransferLoginPage() {
 
 function UpdateTimeTable(TimeTable, SubjectsConfig, TargetNode, BaseNode) {
   TargetNode.innerHTML = "";
-  if (Object.keys(TimeTable).length === 0) {
+  if (TimeTable === null || Object.keys(TimeTable).length === 0) {
     EmptyDesc = document.createElement("p");
     EmptyDesc.class = "Timetable_Desc";
     EmptyDesc.innerHTML = "時間割はまだ入力されていません";
