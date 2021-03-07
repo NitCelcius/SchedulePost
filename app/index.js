@@ -85,7 +85,6 @@ async function InitPage(User) {
       document.getElementById("Table_Body"),
       document.getElementById("Class_Base")
     );
-
   } catch (e) {
     console.error(e);
   }
