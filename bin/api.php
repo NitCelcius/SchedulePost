@@ -8,7 +8,7 @@
 $GLOBALS["DB_URL"] = getenv("DB_URL");
 $GLOBALS["DB_Username"] = getenv("DB_UserName");
 $GLOBALS["DB_PassPhrase"] = getenv("DB_PassPhrase");
-$GLOBALS["DB_NAME"] = getenv("DB_NAME");
+$GLOBALS["DB_NAME"] = getenv("DB_Name");
 
 if (($GLOBALS["DefaultTimeZone"] = getenv("DefaultTimeZone")) === null) {
   $GLOBALS["DefaultTimeZone"] = "UTC";
@@ -198,8 +198,9 @@ class DBConnection {
         return $GLOBALS["Connection"];
       }
     } catch (Exception $e) {
-      throw new ConnectionException("Could not connect to the database: " . " Could not connect to the database using provided credentials.");
       error_log("Could not connect to the database with provided credentials: " . $e->getMessage());
+
+      throw new ConnectionException("Could not connect to the database: " . " Could not connect to the database using provided credentials.");
       return false;
     }
 
@@ -1050,7 +1051,12 @@ class Messages {
     "UNEXPECTED_ARGUMENT" => "The input data contains unexpected value.",
     "INTERNAL_EXCEPTION" => "There was an internal exception occurred. Please try again.",
     "INVALID_CREDENTIALS" => "The provided credential is invalid.",
-    "INSUFFCIENT_PERMISSION" => "You do not have sufficient permission to do that."
+    "INSUFFCIENT_PERMISSION" => "You do not have sufficient permission to do that.",
+    "ACCOUNT_SESSION_TOKEN_EXPIRED" => "",
+    "ACCOUNT_SESSION_TOKEN_INVALID" => "", 
+    "ACCOUNT_LONG_TOKEN_INVALID" => "",
+    "ACCOUNT_LONG_TOKEN_EXPIRED" => "",
+    "ACCOUNT_CREDENTIALS_INVALID" => ""
   );
 
   static function GenerateErrorJSON(string $Code, $Message = null) {
@@ -1094,6 +1100,7 @@ while (true) {
   //Probs insert this part on request header
   //var_dump($Recv);
 
+  
   switch ($Recv["Action"]) {
 
     case "SIGN_IN": {
