@@ -4,7 +4,7 @@ body {
   max-width: 80rem;
   margin: 0rem auto;
   /* If unnecessary, remove this */
-  background-image: url("/resources/images/grid.png");
+  background-image: url("/resources/images/grid.webp");
   
   display: flex;
   flex-direction: row-reverse;
@@ -12,16 +12,6 @@ body {
 
 body>* {
   max-width: 80rem;
-}
-
-header {
-  display: flex;
-  top: 0;
-  height: 3rem;
-  width: 100%;
-  background-color: rgb(240, 240, 220);
-  position: fixed;
-  z-index: 5;
 }
 
 article {
@@ -48,207 +38,13 @@ article>* {
   line-height: 3rem;
 }
 
-#Sidebar_OpenButton {
-  display: none;
-  position: fixed;
-  top: 0;
-  right: 0;
-  z-index: 0;
-  background: #0d7;
-  border: none;
-  width: 3rem;
-  height: 3rem;
-}
 
-.Sidebar_Text {
-  opacity: 0.0;
-}
-
-/* ここからハードコード / 3rem x 3rem にはめる*/
-.Sidebar_Visual {
-  position: absolute;
-  margin: auto;
-  right: 0.4rem;
-  height: 2px;
-  width: 2rem;
-  background-color: white;
-}
-
-.Sidebar_Visual::before,
-.Sidebar_Visual::after {
-  position: absolute;
-  height: 2px;
-  width: 2rem;
-  left: 0;
-  content: " ";
-  background-color: white;
-}
-
-.Sidebar_Visual::before {
-  top: -0.6rem;
-}
-
-.Sidebar_Visual::after {
-  top: 0.6rem;
-}
 
 article {
   display: flex;
   flex-direction: column;
   margin-top: 3rem;
   justify-content: center;
-}
-
-/* この nav をウィンドウのタテサイズの最大まで大きくしたい */
-nav {
-  position: sticky;
-  top: 4rem;
-  left: -25rem;
-  /* 1 rem あけている */
-  width: 25rem;
-  height: calc(100% - 6rem);
-  margin-right: 1rem;
-  /* height の値に関係なくタテのサイズが固定される。なんでだ？ */
-  overflow-y: scroll;
-  overflow-x: hidden;
-  border-right: 1px solid black;
-  z-index: 10;
-
-  /* ここから無理やり。スクロールバー非表示なので、矢印とかを、あとではじっこにつけたい */
-  /* Edge */
-  -ms-overflow-style: none;
-  /* Firefox */
-  scrollbar-width: none;
-}
-
-/* Chrome */
-nav::-webkit-scrollbar {
-  display: none;
-}
-
-div#Nav_Body {
-  padding: 1rem;
-}
-
-nav ul {
-  margin: 0;
-  padding: 0rem 1rem 0rem 1rem;
-  margin: 1rem 0;
-}
-
-nav li {
-  list-style: none;
-}
-
-nav p#Brief_Profile {
-  border-bottom: 1px dashed black;
-  margin: 1rem 0;
-}
-
-nav #Group_Label {
-  font-size: 180%;
-}
-
-nav #School_Label {
-  font-size: 80%;
-  color: #444;
-  margin: 0;
-}
-
-#Nav_Title {
-  font-size: 200%;
-  margin: 0;
-}
-
-div#Nav_Wrapper {
-  position: sticky;
-  top: 3rem;
-  left: 0;
-}
-
-div#Nav_Overlay {
-  display: none;
-}
-
-button#Sidebar_CloseButton {
-  display: none;
-  height: 3rem;
-  width: 100%;
-}
-
-footer {
-  position: fixed;
-  background-color: #eee;
-  bottom: 0;
-  overflow: hidden;
-  height: 4rem;
-  width: 100%;
-
-  z-index: 2;
-}
-
-footer ul {
-  display: flex;
-  flex-direction: row;
-  vertical-align: bottom;
-  list-style: none;
-  width: calc(100% - 2rem);
-  margin: 0 auto;
-  height: 4rem;
-  padding: 0 1rem;
-  max-width: 50rem;
-}
-
-footer li {
-  /* flex でこれ使うと下揃えにできる。 */
-  display: flex;
-  flex-direction: column-reverse;
-  box-sizing: border-box;
-  width: calc(25% - 3px);
-  height: 100%;
-  text-align: center;
-  vertical-align: bottom;
-
-  transition: 0.2s linear;
-  transition-property: background-color, transform;
-  background-color: #ddd;
-}
-
-footer li:hover {
-  transition: 0.2s linear;
-  transition-property: background-color, transform;
-  background-color: darkgray;
-  /*transform: translateY(-0.5rem);*/
-}
-
-footer li.Active {
-  transition: 0.2s linear;
-  transition-property: background-color, transform;
-  background-color: #fff;
-  border-top: 1px solid #ddd;
-  /*transform: translateY(-1rem);*/
-}
-
-footer p {
-  display: inline-block;
-  margin: 0;
-  font-size: 0.8rem;
-  color: #888;
-  font-weight: bolder;
-  transform: scale(0.9, 1);
-  letter-spacing: 3px;
-  /*
-  display: block;
-  height: 100%;
-  width: 100%;
-  vertical-align: middle;
-  */
-}
-
-footer img {
-  width: auto;
-  height: 2rem;
-  width: 2rem;
 }
 
 div.Class_Block {
@@ -334,52 +130,123 @@ div.Class_Block_Label {
 }
 
 @media (max-width: 55rem) {
-  nav {
-    display: none;
-    position: fixed;
-    top: 0;
-    left: 0;
-    height: 100%;
-    max-width: 100%;
-    background: white;
-
-    box-shadow: 2rem 0rem 1rem 0rem rgba(0, 0, 0, 0.8)
-  }
-
-  div#Nav_Wrapper {
-    position: fixed;
-    top: 0;
-    left: 0;
-
-    width: 25rem;
-  }
-
-  div#Nav_Overlay {
-    position: fixed;
-    z-index: 5;
-    top: 0;
-    left: 0;
-    background-color: rgba(0, 0, 0, 0.8);
-    height: 100%;
-    width: 100%;
-  }
-
-  /* これ意味あるんかな
-  div#Body_Wrapper {
-    padding: 0rem 0rem;
-  }
-  */
-
-  button#Sidebar_OpenButton {
-    display: block;
-  }
-
-  button#Sidebar_CloseButton {
-    display: block;
-  }
-
   article {
     display: block;
   }
 }
 
+@keyframes LoadBox {
+    0% {
+      background-color: #f33;
+      transform: rotateX(180deg);
+    }
+
+    25% {
+      background-color: #55f;
+      transform: rotateY(180deg);
+    }
+
+    50% {
+      background-color: #5c5;
+      transform: rotateX(-180deg);
+    }
+
+    75% {
+      background-color: #bb2;
+      transform: rotateY(-180deg);
+    }
+
+    99.9% {
+      transform: rotate(1440deg);
+    }
+
+    100% {
+      transform: rotate(0deg);
+      background-color: #f33;
+    }
+}
+
+@keyframes LoadBox-2 {
+  0% {
+    transform: rotate(0deg);
+    background-color: #f33;
+    transform: rotateX(180deg);
+  }
+
+  25% {
+    transform: rotate(360deg);
+    background-color: #55f;
+    transform: rotateY(180deg);
+  }
+
+  50% {
+    transform: rotate(720deg);
+    background-color: #5c5;
+    transform: rotateX(-180deg);
+  }
+
+  75% {
+    transform: rotate(1080deg);
+    background-color: #bb2;
+    transform: rotateY(-180deg);
+  }
+
+  99.9% {
+    transform: rotate(1440deg);
+    transform: rotateX(180deg);
+
+  }
+
+  100% {
+    transform: rotate(0deg);
+    background-color: #f33;
+  }
+}
+
+@keyframes FadeIn {
+  0% {
+    opacity: 0;
+  }
+
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes FadeOut {
+  0% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes LoadIn {
+  0% {
+    opacity: 0;
+    scale: 1.3;
+  }
+
+  0.2% {
+    opacity: 1;
+    scale: 1.0;
+  }
+
+  100% {
+    opacity: 1;
+    scale: 1.0;
+  }
+}
+
+@keyframes LoadOut {
+  0% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+    scale: 1.3;
+  }
+}

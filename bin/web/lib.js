@@ -1,6 +1,303 @@
 // Set here too.
 const API_URL = "/bin/api.php";
 
+class User {
+  UserID = null;
+  UserID = null;
+  Credentials = {
+    SessionToken: null,
+    LongToken: null
+  };
+  // For these properties, if it is false, then it is confirmed to be NULL. Because these need to be fetched from API and can be cached, if API gave the value NULL for a property, then the property is set false - and its getter returns null!
+  // Thus,
+  //   null = not yet fetched
+  //   false = CACHED and it is null.
+  //   anything else = itself.
+  Profile = {
+    Self: {
+      ID: false,
+      DisplayName: false
+    },
+    School: new School(),
+    Group: {
+      ID: false,
+      DisplayName: false
+    }
+  };
+
+  constructor(InUserID, InSessionToken) {
+    this.UserID = InUserID;
+    this.Credentials.SessionToken = InSessionToken;
+    this.Credentials.LongToken = null;
+  }
+
+  /* DEPRECATED
+  async FetchPersonalInfo() {
+    if (this.PersonalRaw === null) {
+      // Might be making 2 requests.
+      this.PersonalRaw = false;
+      var Info = await AwaitAjaxy(API_URL, JSON.stringify({
+        "Auth": {
+          "UserID": this.UserID,
+          "SessionToken": this.Credentials.SessionToken
+        },
+        "Action": "GET_USER_PROFILE"
+      }));
+
+      this.PersonalRaw = Info;
+      return Info;
+    } else if (this.PersonalRaw === false) {
+      while (this.PersonalRaw === false) {
+        // Well, there were no way to actually observe var change.
+        // TODO: implement callback later
+        console.info("Waiting...");
+        setTimeout(100);
+        break;
+      }
+      return null;
+    }
+    return false;
+  }
+  */
+
+  async UpdateSessionToken(LongToken = null, StoreLongToken = true) {
+    if (LongToken == null) {
+      LongToken = this.Credentials.LongToken ?? GetCookie("LongToken");
+    }
+    if (!LongToken || !this.UserID) {
+      throw new InvalidCredentialsError("The longtoken or UserID is not set (Check User class instance)");
+    }
+
+    var Info = await AwaitAjaxy(API_URL, JSON.stringify({
+      "Auth": {
+        "UserID": this.UserID,
+        "LongToken": LongToken
+      },
+      "Action": "SIGN_IN"
+    }), false);
+
+    var Resp = JSON.parse(Info["Content"]);
+    if (Resp["Result"] === true) {
+      if (StoreLongToken) {
+        this.Credentials.LongToken = LongToken;
+        SetCookie("LongToken", LongToken, 720);
+      }
+      this.Credentials.SessionToken = Resp["SessionToken"];
+      SetCookie("SessionToken", this.Credentials.SessionToken, 24);
+
+      return true;
+    } else {
+      return false;
+    }
+  }
+
+  //Deprecated
+  GetUserID() {
+    return this.UserID;
+  }
+
+  async GetUserProfile() {
+    if (this.Profile.Self.ID === false) {
+      await this.UpdateProfile();
+    }
+
+    return this.Profile.Self;
+  }
+
+  async GetGroupProfile() {
+    if (this.Profile.Group.ID === false) {
+      await this.UpdateProfile()
+    }
+
+    return this.Profile.Group;
+  }
+
+  async GetSchoolProfile() {
+    if (this.Profile.School.ID === false) {
+      await this.UpdateProfile();
+    }
+
+    return this.Profile.School;
+  }
+
+  async UpdateProfile() {
+    var Resp = await APIReq(this, {
+      "Action": "GET_USER_PROFILE"
+    });
+
+    /*
+    var Info = await AwaitAjaxy(API_URL, JSON.stringify({
+      "Auth": {
+        "UserID": this.UserID,
+        "SessionToken": this.Credentials.SessionToken
+      },
+      "Action": "GET_USER_PROFILE"
+    }));
+    */
+
+    if (Resp["Result"]) {
+      // LITERALLY PRIVATE.
+      // This weird code may well be removed
+      this.Profile.Self.DisplayName = Resp.Profile.User.DisplayName || null;
+      this.Profile.School.ID = Resp.Profile.School || null;
+      this.Profile.School.DisplayName = Resp.Profile.School.DisplayName || null;
+      this.Profile.Group.ID = Resp.Profile.Group.ID || null;
+      this.Profile.Group.DisplayName = Resp.Profile.Group.DisplayName || null;
+      return true;
+    } else {
+      switch (Resp["ReasonCode"]) {
+        case "ACCOUNT_SESSION_TOKEN_EXPIRED":
+        case "INVALID_CREDENTIALS": {
+          console.warn("The account session token has expired. Redirecting to the sign-in page.");
+          TransferLoginPage();
+          break;
+        }
+      }
+      return false;
+    }
+  }
+
+  async GetTimeTable(TargetDate = null) {
+    if (!TargetDate) {
+      //TODO: Just fix this. Normalize.
+      TargetDate = new Date();
+    }
+    // mm-dd-YY
+    var TargetDateString = SqlizeDate(TargetDate);
+
+    var Info = await APIReq(this, {
+      "Action": "GET_SCHEDULE",
+      "Date": TargetDateString
+    });
+
+    //TODO: error handling
+    if (Info === false) {
+      console.info(Info);
+      throw new Error("There seems to be an error occurred while fetching timetable. " + Info.toString());
+    }
+
+    return Info;
+  }
+
+  async GetTimeTableBase(TargetDate = null) {
+    if (!TargetDate) {
+      //TODO: Just fix this. Normalize.
+      TargetDate = new Date();
+    }
+    var TargetDateString = SqlizeDate(TargetDate);
+
+    // TODO: Casually using DATE, not day of the week
+    var Info = await APIReq(this, {
+      "Action": "GET_TIMETABLE_RAW",
+      "Date": TargetDateString,
+      "Type": "Base"
+    });
+
+    try {
+      return JSON.parse(Info["Body"]);
+    } catch (e) {
+      console.info(Info);
+      console.error(e);
+      return false;
+    }
+  }
+
+  async GetTimeTableDiff(TargetDate = null, Revision = null) {
+    if (!TargetDate) {
+      //TODO: Just fix this. Normalize.
+      TargetDate = new Date();
+    }
+    var TargetDateString = SqlizeDate(TargetDate);
+
+    var Dt = {
+      "Action": "GET_TIMETABLE_RAW",
+      "Date": TargetDateString,
+      "Type": "Diff"
+    }
+
+    if (Revision !== null) {
+      Dt["Revision"] = parseInt(Revision);
+    }
+
+    var Info = await APIReq(this, Dt);
+    console.info(Info);
+    try {
+      return JSON.parse(Info["Body"]);
+    } catch (e) {
+      console.info(Info);
+      console.error(e);
+      return false;
+    }
+  }
+}
+
+class InvalidCredentialsError extends Error {
+  constructor(...params) {
+    super(...params);
+  }
+}
+
+class School {
+  // May need to capsulize these. But wait for now, I'll get some idea...
+  ID = null;
+  DisplayName = false;
+
+  constructor(id = null) {
+    this.ID = id;
+    this.Config = {};
+  }
+
+  IsConfigAvailable(Key) {
+    return this.Config[Key] === undefined ? false : true;
+  }
+
+  async GetConfig(Key, User = null) {
+    if (this.Config[Key] === undefined) {
+      // Super Lazy.
+      if (User === null) {
+        return false;
+      } else {
+        await this.FetchConfig(User, Key);
+        return this.Config[Key];
+      }
+    } else {
+      if (this.Config[Key] === null) {
+        return null;
+      } else {
+        return this.Config[Key]
+      }
+    }
+  }
+
+  async FetchConfig(User, Key) {
+    var Data = await APIReq(User, {
+      "Action": "GET_SCHOOL_CONFIG",
+      "Item": Key
+    });
+    this.Config[Key] = Data.Content;
+    return true;
+  }
+
+  UpdateConfig(Key, Value) {
+    // somehow validate
+    switch (Key) {
+      case "Subjects": {
+        try {
+          Data = JSON.parse(Key);
+          this.Config.Subjects = Data;
+          return true;
+        } catch (e) {
+          console.info(Data);
+          console.error(e);
+          return false;
+        }
+      }
+
+    }
+    //    this.Config.Key = Value;
+  }
+}
+
 function AwaitLoady(URL) {
   return new Promise(function (Resolve, Reject) {
     let Req = new XMLHttpRequest();
@@ -146,330 +443,69 @@ function AwaitAjaxy(DestURL, Content, Prot = true) {
   */
 }
 
-function SqlizeDate(TargetDate) {
-  // What the heck, convert!
-  return "" + (TargetDate.getDate()) + "-" + (TargetDate.getMonth() + 1) + "-" + TargetDate.getFullYear() + " 00:00:00";
-}
-
-class User {
-  constructor(InUserID, InSessionToken) {
-    // Private, I guess.
-    this.UserID = null;
-    this.Credentials = {
-      SessionToken: null,
-      LongToken: null
-    };
-    // For these properties, if it is false, then it is confirmed to be NULL. Because these need to be fetched from API and can be cached, if API gave the value NULL for a property, then the property is set false - and its getter returns null!
-    // Thus,
-    //   null = not yet fetched
-    //   false = CACHED and it is null.
-    //   anything else = itself.
-    this.Profile = {
-      Self: {
-        ID: false,
-        DisplayName: false
-      },
-      School: new School(),
-      Group: {
-        ID: false,
-        DisplayName: false
+async function APIReq(User, Content) {
+  var Resp;
+  for (var i = 0; i < 3; i++) {
+    if (!Content["Auth"]) {
+      if (!(User.UserID == null || User.Credentials.SessionToken == null)) {
+        Content["Auth"] = {
+          "UserID": User.UserID,
+          "SessionToken": User.Credentials.SessionToken
+        };
+      } else {
+        throw new Error("APIReq: Credentials not defined");
       }
-    };
-    this.UserID = InUserID;
-    this.Credentials.SessionToken = InSessionToken;
-    this.Credentials.LongToken = null;
-
-    this.PersonalRaw = null;
-  }
-
-  async FetchPersonalInfo() {
-    if (this.PersonalRaw === null) {
-      // Might be making 2 requests.
-      this.PersonalRaw = false;
-      var Info = await AwaitAjaxy(API_URL, JSON.stringify({
-        "Auth": {
-          "UserID": this.UserID,
-          "SessionToken": this.Credentials.SessionToken
-        },
-        "Action": "GET_USER_PROFILE"
-      }));
-
-      this.PersonalRaw = Info;
-      return Info;
-    } else if (this.PersonalRaw === false) {
-      /*      
-      while (this.PersonalRaw === false) {
-        // Well, there were no way to actually observe var change.
-        // TODO: implement callback later
-        console.info("Waiting...");
-        setTimeout(100);
-        break;
-      }
-      */
-      return null;
-    }
-    return false;
-  }
-
-  async UpdateSessionToken(LongToken = null, StoreLongToken = true) {
-    if (LongToken === null) {
-      LongToken = this.Credentials.LongToken;
-    }
-    if (!LongToken || !this.UserID) {
-      throw new InvalidCredentialsError("The longtoken or UserID is not set (Check User class instance)");
     }
 
-    var Info = await AwaitAjaxy(API_URL, JSON.stringify({
-      "Auth": {
-        "UserID": this.UserID,
-        "LongToken": LongToken
-      },
-      "Action": "SIGN_IN"
-    }), false);
-
-    var Resp = JSON.parse(Info["Content"]);
-    if (Resp["Result"] === true) {
-      if (StoreLongToken) {
-        this.Credentials.LongToken = LongToken;
-        SetCookie("LongToken", LongToken, 720);
-      }
-      this.Credentials.SessionToken = Resp["SessionToken"];
-      SetCookie("SessionToken", this.Credentials.SessionToken, 24);
-
-      return true;
-    } else {
+    Resp = await AwaitAjaxy(API_URL, JSON.stringify(Content));
+    try {
+      var Data = JSON.parse(Resp.Content);
+    } catch (e) {
+      console.error("Fatal error occurred in API: Server responded with an error.");
+      throw new Error("Fatal error occurred in API: Server responded with an error.");
       return false;
     }
-  }
-
-
-  //Deprecated
-  GetUserID() {
-    return this.UserID;
-  }
-
-  async GetUserProfile() {
-    if (this.Profile.Self.ID === false) {
-      await this.UpdateProfile();
-    }
-
-    return this.Profile.Self;
-  }
-
-  async GetGroupProfile() {
-    if (this.Profile.Group.ID === false) {
-      await this.UpdateProfile()
-    }
-
-    return this.Profile.Group;
-  }
-
-  async GetSchoolProfile() {
-    if (this.Profile.School.ID === false) {
-      await this.UpdateProfile();
-    }
-
-    return this.Profile.School;
-  }
-
-  async UpdateProfile() {
-    var Info = await AwaitAjaxy(API_URL, JSON.stringify({
-      "Auth": {
-        "UserID": this.UserID,
-        "SessionToken": this.Credentials.SessionToken
-      },
-      "Action": "GET_USER_PROFILE"
-    }));
-
-    var Resp = JSON.parse(Info.Content);
-
-    if (Resp["Result"]) {
-      // LITERALLY PRIVATE.
-      // This weird code may well be removed
-      this.Profile.Self.DisplayName = Resp.Profile.User.DisplayName || null;
-      this.Profile.School.ID = Resp.Profile.School || null;
-      this.Profile.School.DisplayName = Resp.Profile.School.DisplayName || null;
-      this.Profile.Group.ID = Resp.Profile.Group.ID || null;
-      this.Profile.Group.DisplayName = Resp.Profile.Group.DisplayName || null;
-    } else {
-      switch (Resp["ReasonCode"]) {
+      
+    if (!Data.Result) {
+      var ErrLog = function() {
+        console.error("Fatal error occurred in API: " + Data.ReasonCode + " Script will suspend.")
+        throw new Error("Fatal error occurred in API: " + Data.ReasonCode + " Script will suspend.");
+        return false;
+      }
+      switch (Data.ReasonCode) {
         case "ACCOUNT_SESSION_TOKEN_EXPIRED":
-        case "INVALID_CREDENTIALS": {
-          console.warn("The account session token has expired. Redirecting to the sign-in page.");
+        case "ACCOUNT_SESSION_TOKEN_INVALID": {
+          var Flag = await User.UpdateSessionToken();
+          if (!Flag) {
+            TransferLoginPage();
+            break;
+          }
+          break;
+        }
+        case "ACCOUNT_LONG_TOKEN_INVALID":
+        case "ACCOUNT_LONG_TOKEN_EXPIRED":
+        case "ACCOUNT_CREDENTIALS_INVALID": {
           TransferLoginPage();
           break;
         }
-      }
-    }
-    return Resp;
-  }
-
-  async GetTimeTable(TargetDate = null) {
-    if (!TargetDate) {
-      //TODO: Just fix this. Normalize.
-      TargetDate = new Date();
-    }
-    // mm-dd-YY
-    var TargetDateString = SqlizeDate(TargetDate);
-
-    var Info = await AwaitAjaxy(API_URL, JSON.stringify({
-      "Auth": {
-        "UserID": this.UserID,
-        "SessionToken": this.Credentials.SessionToken
-      },
-      "Action": "GET_SCHEDULE",
-      "Date": TargetDateString
-    }));
-
-    //TODO: error handling
-    if (!(Info["status"] >= 200 && Info["status"] < 300)) {
-      console.info(Info);
-      throw new Error("There seems to be an error occurred while fetching timetable. " + Info.toString());
-    }
-
-    return JSON.parse(Info["Content"]);
-  }
-
-  async GetTimeTableBase(TargetDate = null) {
-    if (!TargetDate) {
-      //TODO: Just fix this. Normalize.
-      TargetDate = new Date();
-    }
-    var TargetDateString = SqlizeDate(TargetDate);
-
-    // TODO: Casually using DATE, not day of the week
-    var Info = await AwaitAjaxy(API_URL, JSON.stringify({
-      "Auth": {
-        "UserID": this.UserID,
-        "SessionToken": this.Credentials.SessionToken
-      },
-      "Action": "GET_TIMETABLE_RAW",
-      "Date": TargetDateString,
-      "Type": "Base"
-    }));
-
-    //TODO: error handling
-    if (!(Info["status"] >= 200 && Info["status"] < 300)) {
-      throw new Error("There seems to be an error occurred while fetching timetable. " + Info.toString());
-    }
-
-
-    try {
-      return JSON.parse(JSON.parse(Info["Content"])["Body"]);
-    } catch (e) {
-      console.info(Info);
-      console.error(e);
-      return false;
-    }
-  }
-
-  async GetTimeTableDiff(TargetDate = null, Revision = null) {
-    if (!TargetDate) {
-      //TODO: Just fix this. Normalize.
-      TargetDate = new Date();
-    }
-    var TargetDateString = SqlizeDate(TargetDate);
-
-    var Dt = {
-      "Auth": {
-        "UserID": this.UserID,
-        "SessionToken": this.Credentials.SessionToken
-      },
-      "Action": "GET_TIMETABLE_RAW",
-      "Date": TargetDateString,
-      "Type": "Diff"
-    }
-
-    if (Revision !== null) {
-      Dt["Revision"] = parseInt(Revision);
-    }
-
-    var Info = await AwaitAjaxy(API_URL, JSON.stringify(Dt));
-
-    //TODO: error handling
-    if (!(Info["status"] >= 200 && Info["status"] < 300)) {
-      throw new Error("There seems to be an error occurred while fetching timetable. " + stringify(Info));
-    }
-
-    try {
-      return JSON.parse(JSON.parse(Info["Content"])["Body"]);
-    } catch (e) {
-      console.info(Info);
-      console.error(e);
-      return false;
-    }
-  }
-}
-
-class InvalidCredentialsError extends Error {
-  constructor(...params) {
-    super(...params);
-  }
-}
-
-class School {
-  // May need to capsulize these. But wait for now, I'll get some idea...
-  ID = null;
-  DisplayName = false;
-
-  constructor(id = null) {
-    this.ID = id;
-    this.Config = {};
-  }
-
-  IsConfigAvailable(Key) {
-    return this.Config[Key] === undefined ? false : true;
-  }
-
-  async GetConfig(Key, User = null) {
-    if (this.Config[Key] === undefined) {
-      // Super Lazy.
-      if (User === null) {
-        return false;
-      } else {
-        await this.FetchConfig(User, Key);
-        return this.Config[Key];
-      }
-    } else {
-      if (this.Config[Key] === null) {
-        return null;
-      } else {
-        return this.Config[Key]
-      }
-    }
-  }
-
-  async FetchConfig(User, Key) {
-    var Data = await AwaitAjaxy(API_URL, JSON.stringify({
-      "Auth": {
-        "UserID": User.UserID,
-        "SessionToken": User.Credentials.SessionToken
-      },
-      "Action": "GET_SCHOOL_CONFIG",
-      "Item": Key
-    }));
-    this.Config[Key] = JSON.parse(Data.Content)["Content"];
-    return true;
-  }
-
-  UpdateConfig(Key, Value) {
-    // somehow validate
-    switch (Key) {
-      case "Subjects": {
-        try {
-          Data = JSON.parse(Key);
-          this.Config.Subjects = Data;
-          return true;
-        } catch (e) {
-          console.info(Data);
-          console.error(e);
-          return false;
+        default: {
+          ErrLog();
         }
       }
-
+    } else {
+      console.warn(Data);
+      return Data;
     }
-    //    this.Config.Key = Value;
   }
+  console.error(Resp);
+  console.error(User);
+  console.error(Content);
+  throw new Error("APIReq failed.");
+}
+
+function SqlizeDate(TargetDate) {
+  // What the heck, convert!
+  return "" + (TargetDate.getDate()) + "-" + (TargetDate.getMonth() + 1) + "-" + TargetDate.getFullYear() + " 00:00:00";
 }
 
 function GetCookie(name) {
@@ -521,12 +557,12 @@ function Sidebar_Close() {
   document.getElementById("Nav_Overlay").style.display = "none";
 }
 
-async function DeployLoadAnim() {
+async function DeployLoadAnim(TitleText = "LOADING", DescText = "読み込んでいます...") {
   OverlayDiv = document.createElement("div");
   OverlayDiv.id = "LoadIndiWrapper";
   with(OverlayDiv.style) {
     display = "flex"
-    position = "absolute";
+    position = "fixed";
     top = 0;
     left = 0;
     width = "100%";
@@ -536,31 +572,45 @@ async function DeployLoadAnim() {
     alignItems = "center";
     flexDirection = "column";
     placeContent = "center";
+    animation = "60s ease-out 0s 1 normal none running LoadIn";
   }
   document.getElementsByTagName("Body")[0].appendChild(OverlayDiv);
   LoadTitle = document.createElement("h1");
   LoadTitle.id = "LoadIndiTitle";
-  LoadTitle.innerHTML = "LOADING";
+  LoadTitle.innerText = TitleText;
   with(LoadTitle.style) {
     justifyContent = "center";
     color = "#666";
-    letterSpacing = "0.3em";
+    letterSpacing = "0.2em";
     fontSize = "1.5rem";
-    margin = 0;
   }
   LoadText = document.createElement("p");
   LoadText.id = "LoadIndiMessage"
-  LoadText.innerHTML = "読み込んでいます...";
-  with(LoadText.style) {}
+  LoadText.innerText = DescText;
+  with (LoadText.style) { }
+  LoadAnimator = document.createElement("div");
+  LoadAnimator.id = "LoadAnimator";
+  with (LoadAnimator.style) {
+    position = "fixed";
+    width = "1rem";
+    height = "1rem";
+    zIndex = "20";
+    backgroundColor = "black";
+    animation = "3.8s ease-in-out 0s infinite normal none running LoadBox";
+  }
   with(OverlayDiv) {
     appendChild(LoadTitle);
     appendChild(LoadText);
+    appendChild(LoadAnimator);
   }
 }
 
 async function DestructLoadAnim() {
+  document.getElementById("LoadIndiWrapper").style.animation = "0.15s linear 0s 1 normal none running LoadOut";
+  document.getElementById("LoadIndiWrapper").addEventListener("animationend", function () {
+    document.getElementById("LoadIndiWrapper").remove();
+  })
   // Want some animation, but skip.
-  document.getElementById("LoadIndiWrapper").remove();
 }
 
 function TransferLoginPage() {
@@ -603,7 +653,7 @@ function TransferLoginPage() {
 
 function UpdateTimeTable(TimeTable, SubjectsConfig, TargetNode, BaseNode) {
   TargetNode.innerHTML = "";
-  if (TimeTable === null || Object.keys(TimeTable).length === 0) {
+  if (TimeTable == null || Object.keys(TimeTable).length === 0) {
     EmptyDesc = document.createElement("p");
     EmptyDesc.class = "Timetable_Desc";
     EmptyDesc.innerHTML = "時間割はまだ入力されていません";

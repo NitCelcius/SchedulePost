@@ -1,63 +1,46 @@
 async function InitPage(User) {
-  Prof = await User.FetchPersonalInfo();
-  var Resp = JSON.parse(Prof["Content"]);
+  DeployLoadAnim();
 
-  switch (Resp["ReasonCode"]) {
-    case "ACCOUNT_SESSION_TOKEN_INVALID":
-    case "ACCOUNT_SESSION_TOKEN_EXPIRED": {
-      LongToken = GetCookie("LongToken");
-      if (LongToken != null && User.GetUserID() != null) {
-        try {
-          UpdateRes = await User.UpdateSessionToken(LongToken);
+  User.UpdateProfile().then(async function (Prof) {
+    console.info(Prof);
 
-          if (UpdateRes) {
-            console.log("SessionToken updated.");
-            // We can continue
-            break;
-          } else {
-            // RIP, LongToken wasn't right
+    /*
+    switch (Resp["ReasonCode"]) {
+      case "ACCOUNT_SESSION_TOKEN_INVALID":
+      case "ACCOUNT_SESSION_TOKEN_EXPIRED": {
+        LongToken = GetCookie("LongToken");
+        if (LongToken != null && User.GetUserID() != null) {
+          try {
+            UpdateRes = await User.UpdateSessionToken(LongToken);
+
+            if (UpdateRes) {
+              console.log("SessionToken updated.");
+              // We can continue
+              break;
+            } else {
+              // RIP, LongToken wasn't right
+              TransferLoginPage();
+              break;
+            }
+          } catch (e) {
+            // In fact this catch might not be necessary.
             TransferLoginPage();
             break;
           }
-        } catch (e) {
-          // In fact this catch might not be necessary.
-          TransferLoginPage();
-          break;
         }
       }
+      case "INVALID_CREDENTIALS": {
+        TransferLoginPage();
+        break;
+      }
     }
-    case "INVALID_CREDENTIALS": {
-      TransferLoginPage();
-      break;
-    }
-  }
-
-  // Todo: keep working.
-  /*
-  First of all implement EDITOR.
-   - Create outline of website, then just modify those w/ jS.
-  */
-
-  /*
-  TTBase = await User.GetTimeTableBase(EditDate);
-  if (TTBase.Result) {
-  } else {
-    // handle some error
-    throw new Error("Could not load timetable base.");
-  }
-
-  TTDiff = await User.GetTimeTableDiff(EditDate);
-  if (TTBase.Result) {} else {
-    // handle some error
-    throw new Error("Could not load timetable base.");
-  }
-  */
-  
-  await PrepareEditor(User);
+    */
+    await PrepareEditor(User);
+    DestructLoadAnim();
+  });
 }
 
 async function PrepareEditor(User) {
-  DeployLoadAnim();
   //TODO: Select groups.
   // And this is really inefficient.
   GroupProf = await User.GetGroupProfile();
@@ -81,11 +64,13 @@ async function PrepareEditor(User) {
     for (var i = 0; i < 3; i++) {
       Data = await Tryer;
       if (Tryer) {
+        console.info("done");
         return Tryer;
       } else {
         await Delay(2000);
       }
       if (i == 2) {
+        console.warn("AttemptFunc failed!");
         return false;
       }
     }
@@ -94,9 +79,9 @@ async function PrepareEditor(User) {
   //Wait, are they necessary?
   var CfgState, TTBase, TTDiff;
   [CfgState, TTBase, TTDiff] = await Promise.all([
-    AttemptFunc(await FetchCfg()),
-    AttemptFunc(await User.GetTimeTableBase(EditDate)),
-    AttemptFunc(await User.GetTimeTableDiff(EditDate))
+    AttemptFunc(FetchCfg()),
+    AttemptFunc(User.GetTimeTableBase(EditDate)),
+    AttemptFunc(User.GetTimeTableDiff(EditDate))
   ]);
 
   console.info(TTBase);
@@ -126,6 +111,7 @@ async function PrepareEditor(User) {
   //TODO: apply some options
 
   SubjectsConfig = await UserSchool.GetConfig("Subjects", User);
+  console.error(SubjectsConfig);
 
   UpdateTimeTable(Timetable, SubjectsConfig, document.getElementById("Table_Body"), document.getElementById("Class_Base"));
 
@@ -143,7 +129,6 @@ async function PrepareEditor(User) {
   */
 
   Classes = Timetable;
-  DestructLoadAnim();
 }
 
 function MergeTimetable(Base, Diff) {
@@ -217,30 +202,25 @@ async function ClassEdit_Setup(EditingClassKey) {
 
 // BLOCKED.
 async function Edit_Upload(ClassList) {
-  DeployLoadAnim();
+  DeployLoadAnim("UPLOADING", "適用しています...");
   console.debug(JSON.stringify({
     "TimeTable": ClassList
   }));
 
-  var Info = await AwaitAjaxy(API_URL, JSON.stringify({
-    "Auth": {
-      "UserID": User.UserID,
-      "SessionToken": User.Credentials.SessionToken
-    },
+  var Info = await APIReq(User, {
     "Action": "GET_EDIT_STASH",
     "GroupID": User.Profile.Group.ID,
-    "Body": JSON.stringify({
+    "Body": {
       "TimeTable": ClassList
-    })
-  }));
+    }
+  });
 
-  var Data = JSON.parse(Info.Content);
   DestructLoadAnim();
 
-  if (Data["Result"]) {
+  if (Info["Result"]) {
     alert("更新しました。");
   } else {
-    alert("更新に失敗しました。\n\n" + Data["ReasonCode"] + "," + Data["ReasonText"]);
+    alert("更新に失敗しました。\n\n" + Info["ReasonCode"] + "," + Info["ReasonText"]);
   }
 }
 
@@ -248,8 +228,6 @@ function Edit_Apply() {
   // TODO: if KEY duplicates, that's not approved
   var IsTimetableUpdated = false;
   var NewClassData = Classes[EditingKey]; // Copy that
-
-  
 
   document.getElementById("Edit_ClassType").childNodes.forEach(function (Candidate) {
     if (Candidate.selected) {
@@ -368,7 +346,7 @@ async function Edit_ApplyStashConfirm() {
   Flag = confirm("一時保存した内容を読み込みますか？");
 
   if (Flag === true) {
-    DeployLoadAnim();
+    DeployLoadAnim("LOADING", "一時保存した内容を読み込んでいます...");
     await Edit_LoadStash();
     UpdateTimeTable(Timetable, SubjectsConfig, document.getElementById("Table_Body"), document.getElementById("Class_Base"));
     DestructLoadAnim();
@@ -417,14 +395,10 @@ function LoadLocalStash() {
 }
 
 async function DownloadStash() {
-  var Info = await AwaitAjaxy(API_URL, JSON.stringify({
-    "Auth": {
-      "UserID": User.UserID,
-      "SessionToken": User.Credentials.SessionToken
-    },
+  var Info = await APIReq(User, {
     "Action": "GET_EDIT_STASH",
     "GroupID": User.Profile.Group.ID
-  }));
+  });
 
   var Data = JSON.parse(Info.Content);
   if (Data["Result"]) {
@@ -455,6 +429,7 @@ async function StartAutoStash() {
     SaveTimer = null;
   }
   if (Dt > LastSaveTime + SavePeriod) {
+    LastSaveTime = Dt;
     await UploadStash();
   } else {
     // This is some kind of weirdness
@@ -474,28 +449,25 @@ async function UploadStash() {
   document.getElementById("Update_Status").innerText = "アップロードしています...";
 
   // Weirdness: global
-  var Info = await AwaitAjaxy(API_URL, JSON.stringify({
-    "Auth": {
-      "UserID": User.UserID,
-      "SessionToken": User.Credentials.SessionToken
-    },
+  var Info = await APIReq(User, {
     "Action": "SET_EDIT_STASH",
     "GroupID": User.Profile.Group.ID,
     "Body": JSON.stringify(Classes)
-  }));
-  if (JSON.parse(Info["Content"])["Result"]) {
+  });
+  if (Info["Result"]) {
     document.getElementById("Update_Status").innerText = "アップロードして一時保存しました";
+    return true;
   } else {
     console.warn(Info);
     document.getElementById("Update_Status").innerText = "アップロードできませんでした";
+    return false;
   }
 
   setTimeout(() => {
     document.getElementById("Update_Status").innerText = "変更があります。確定 を押すと時間割に反映します";
   }, 5000);
-
-
 }
+
 
 var UserID = GetCookie("UserID");
 var SessionToken = GetCookie("SessionToken");
