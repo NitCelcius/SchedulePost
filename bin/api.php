@@ -1371,35 +1371,36 @@ while (true) {
         switch ($Recv["Type"]) {
           case "Base": {
               if ($User->IsPermitted("Timetable.View", DEST_GROUP, $TargetGroupID)) {
-                // NOT DAY OF THE WEEK, REALLY?
-                $IndexOfTheWeek = null;
-                if (array_key_exists("Date", $Recv)) {
-                  $IndexOfTheWeek = (int)$Date->format("w");
-                } else if (array_key_exists("DayOfTheWeek", $Recv)) {
-                  $IndexOfTheWeek = DayEnum::StrToEnum($Recv["DayOfTheDate"]);
-                } else {
-                  $Resp = Messages::GenerateErrorJSON("ILLEGAL_CALL", "Specify at least one of DATE or DayOfTheWeek.");
-                  break;
-                }
-                try {
-                  $Timetable = $Fetcher->GetDefaultTimetable(
-                    $TargetGroupID,
-                    // Note here: Because PHP Datetime::format() format character "w" follows ISO-8601, DayEnum corresponds to it.
-                    $IndexOfTheWeek
-                  );
-                  $Resp = array(
-                    "Result" => true,
-                    "Body" => $Timetable
-                  );
-                  break;
-                } catch (OutOfBoundsException $e) {
-                  $Resp = Messages::GenerateErrorJSON("INTERNAL_EXCEPTION", "The default timetable that corresponds to the specified day-of-the-week does not contain any data. Please contact administrator.");
-                  break;
-                }
               } else {
                 $Resp = Messages::GenerateErrorJSON("INSUFFCIENT_PERMISSION");
                 break;
               }
+              // NOT DAY OF THE WEEK, REALLY?
+              $IndexOfTheWeek = null;
+              if (array_key_exists("Date", $Recv)) {
+                $IndexOfTheWeek = (int)$Date->format("w");
+              } else if (array_key_exists("DayOfTheWeek", $Recv)) {
+                $IndexOfTheWeek = DayEnum::StrToEnum($Recv["DayOfTheDate"]);
+              } else {
+                $Resp = Messages::GenerateErrorJSON("ILLEGAL_CALL", "Specify at least one of DATE or DayOfTheWeek.");
+                break;
+              }
+              try {
+                $Timetable = $Fetcher->GetDefaultTimetable(
+                  $TargetGroupID,
+                  // Note here: Because PHP Datetime::format() format character "w" follows ISO-8601, DayEnum corresponds to it.
+                  $IndexOfTheWeek
+                );
+                $Resp = array(
+                  "Result" => true,
+                  "Body" => $Timetable
+                );
+                break;
+              } catch (OutOfBoundsException $e) {
+                $Resp = Messages::GenerateErrorJSON("INTERNAL_EXCEPTION", "The default timetable that corresponds to the specified day-of-the-week does not contain any data. Please contact administrator.");
+                break;
+              }
+
               break;
             }
           case "Diff": {
