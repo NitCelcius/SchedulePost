@@ -117,7 +117,6 @@ class User {
 
     //TODO: error handling
     if (Info === false) {
-      console.info(Info);
       throw new Error("There seems to be an error occurred while fetching timetable. " + Info.toString());
     }
 
@@ -139,9 +138,11 @@ class User {
     });
 
     try {
-      return JSON.parse(Info["Body"]);
+      console.error("Base");
+      console.error(Info);
+      return Info["Body"];
     } catch (e) {
-      console.info(Info);
+      console.error(Info);
       console.error(e);
       return false;
     }
@@ -165,11 +166,12 @@ class User {
     }
 
     var Info = await APIReq(this, Dt);
-    console.info(Info);
     try {
-      return JSON.parse(Info["Body"]);
+            console.error("Diff");
+            console.error(Info);
+      return Info["Body"];
     } catch (e) {
-      console.info(Info);
+      console.error(Info);
       console.error(e);
       return false;
     }
@@ -232,7 +234,7 @@ class School {
           this.Config.Subjects = Data;
           return true;
         } catch (e) {
-          console.info(Data);
+          console.error(Data);
           console.error(e);
           return false;
         }
@@ -302,6 +304,8 @@ function AwaitAjaxy(DestURL, Content, Prot = true) {
       });
     }
 
+    console.debug(Content);
+
     Req.send(Content);
   });
 }
@@ -322,8 +326,8 @@ async function APIReq(User, Content) {
       
     if (!Data.Result) {
       var ErrLog = function() {
-        console.error("Fatal error occurred in API: " + Data.ReasonCode + " Script will suspend.")
-        throw new Error("Fatal error occurred in API: " + Data.ReasonCode + " Script will suspend.");
+        console.error("Fatal error occurred in API: " + Data.ReasonCode + ": " + Data.ReasonText +" Script will suspend.")
+        throw new Error("Fatal error occurred in API: " + Data.ReasonCode + ": " + Data.ReasonText + " Script will suspend.");
         return false;
       }
       switch (Data.ReasonCode) {
@@ -512,19 +516,41 @@ function TransferLoginPage() {
   location.href = encodeURI("/login.html?auth_callback=" + location.pathname);
 }
 
-function UpdateTimeTable(TimeTable, SubjectsConfig, TargetNode, BaseNode) {
+function GetDateStrings(TargetDate) {
+  return {
+    Year: TargetDate.getFullYear(),
+    Month: (TargetDate.getMonth() + 1),
+    DayOfTheMonth: TargetDate.getDate(),
+    DayOfTheWeek: TargetDate.toLocaleString(window.navigator.language, {
+      weekday: "narrow"
+    })
+  };
+}
+
+// ULTRA SUPER DELUXE LAZINESS
+function ApplyDateStrings(TargetDate, YearElement = document.getElementById("Date_Year"), MonthElement = document.getElementById("Date_Month"), DayOfTheMonthElement = document.getElementById("Date_Day"), DayOfTheWeekElement = document.getElementById("Date_The_Day")) {
+  DateStrings = GetDateStrings(TargetDate);
+  YearElement.innerText = DateStrings.Year;
+  MonthElement.innerText = DateStrings.Month;
+  DayOfTheMonthElement.innerText = DateStrings.DayOfTheMonth;
+  DayOfTheWeekElement.innerText = DateStrings.DayOfTheWeek;
+  // I'm done for.
+}
+
+
+function UpdateClasses(ClassList, SubjectsConfig, TargetNode, BaseNode) {
   TargetNode.innerHTML = "";
-  if (TimeTable == null || Object.keys(TimeTable).length === 0) {
+  if (ClassList == null || Object.keys(ClassList).length === 0) {
     EmptyDesc = document.createElement("p");
     EmptyDesc.class = "Timetable_Desc";
     EmptyDesc.innerHTML = "時間割はまだ入力されていません";
     TargetNode.appendChild(EmptyDesc);
   } else {
-    Object.keys(TimeTable).sort(function (p, q) {
+    Object.keys(ClassList).sort(function (p, q) {
       return p - q;
     }).forEach(function (Key) {
-      if (TimeTable[Key] === null) { } else {
-        Elem = ConstructClassElement(TimeTable[Key], SubjectsConfig, BaseNode, Key);
+      if (ClassList[Key] === null) {} else {
+        Elem = ConstructClassElement(ClassList[Key], SubjectsConfig, BaseNode, Key);
         Elem.style.setProperty("--Key", Key);
         TargetNode.appendChild(Elem);
       }
