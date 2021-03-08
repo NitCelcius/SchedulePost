@@ -1,6 +1,18 @@
 <?php
 // This might not be necessary, in fact.
-$API_URL = getenv("SP_API_URL");
+$GLOBALS["DB_URL"] = getenv("SP_DB_URL");
+$GLOBALS["DB_Username"] = getenv("SP_DB_USER");
+$GLOBALS["DB_PassPhrase"] = getenv("SP_DB_PASSPHRASE");
+$GLOBALS["DB_NAME"] = getenv("SP_DB_NAME");
+$GLOBALS["PUBLIC_MODE"] = getenv("SP_PUBLIC_MODE") ?? true;
+
+if (($GLOBALS["DefaultTimeZone"] = getenv("SP_TIMEZONE")) === null) {
+  $GLOBALS["DefaultTimeZone"] = "UTC";
+}
+
+$GLOBALS["SessionTokenExpiry"] = getenv("SP_SESSIONTOKENEXPIRY") ?? "30 minutes";
+$GLOBALS["LongTokenExpiry"] = getenv("SP_LONGTOKENEXPIRY") ?? "14 days";
+
 $Result = array(
   "Result" => "false",
   "ReasonCode" => "ERROR_UNKNOWN",
@@ -9,6 +21,9 @@ $Result = array(
 
 $GLOBALS["SessionTokenExpiry"] = getenv("SP_SESSIONTOKENEXPIRY") ?? "30 minutes";
 $GLOBALS["LongTokenExpiry"] = getenv("SP_LONGTOKENEXPIRY") ?? "14 days";
+if (($GLOBALS["DefaultTimeZone"] = getenv("SP_TIMEZONE")) === null) {
+  $GLOBALS["DefaultTimeZone"] = "UTC";
+}
 
 $INPUT = json_decode(file_get_contents("php://input"), true) ?? array();
 
@@ -40,29 +55,29 @@ switch ($Res) {
       //var_dump($RespObj);
 
       if ($RespObj["Result"] === true) {
-        $SessionExpiry = new DateTime("now");
-        $LongExpiry = new DateTime("now");
+        $SessionExpiry = new DateTime("now", new DateTimeZone($GLOBALS["DefaultTimeZone"]));
+        $LongExpiry = new DateTime("now", new DateTimeZone($GLOBALS["DefaultTimeZone"]));
         $SessionExpiry->add(DateInterval::createFromDateString($GLOBALS["SessionTokenExpiry"]));
         $LongExpiry->add(DateInterval::createFromDateString($GLOBALS["LongTokenExpiry"]));
 
         setcookie("UserID", $RespObj["UserID"], array(
           "expires" => time() + 60 * 60 * 24 * 365,
           "path" => "/",
-          "secure" => true,
+          "secure" => $GLOBALS["PUBLIC_MODE"],
           "httponly" => false,
           "samesite" => "Strict"
         ));
         setcookie("Session", $RespObj["SessionToken"], array(
           "expires" => ($SessionExpiry->getTimestamp()),
           "path" => "/",
-          "secure" => true,
+          "secure" => $GLOBALS["PUBLIC_MODE"],
           "httponly" => true,
           "samesite" => "Strict"
         ));
         setcookie("LongToken", $RespObj["LongToken"], array(
           "expires" => ($LongExpiry->getTimestamp()),
           "path" => "/",
-          "secure" => true,
+          "secure" => $GLOBALS["PUBLIC_MODE"],
           "httponly" => true,
           "samesite" => "Strict"
         ));

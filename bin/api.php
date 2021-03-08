@@ -9,12 +9,12 @@ $GLOBALS["DB_URL"] = getenv("SP_DB_URL");
 $GLOBALS["DB_Username"] = getenv("SP_DB_USER");
 $GLOBALS["DB_PassPhrase"] = getenv("SP_DB_PASSPHRASE");
 $GLOBALS["DB_NAME"] = getenv("SP_DB_NAME");
+$GLOBALS["PUBLIC_MODE"] = getenv("SP_PUBLIC_MODE") ?? true;
 
 if (($GLOBALS["DefaultTimeZone"] = getenv("SP_TIMEZONE")) === null) {
   $GLOBALS["DefaultTimeZone"] = "UTC";
 }
 
-// TODO: Get rid of those. Let envilonment variables hold those.
 $GLOBALS["SessionTokenExpiry"] = getenv("SP_SESSIONTOKENEXPIRY") ?? "30 minutes";
 $GLOBALS["LongTokenExpiry"] = getenv("SP_LONGTOKENEXPIRY") ?? "14 days";
 
@@ -1171,21 +1171,21 @@ while (true) {
                 setcookie("UserID", $User->GetUserID(), array(
                   "expires" => time() + 60 * 60 * 24 * 365,
                   "path" => "/",
-                  "secure" => true,
+                  "secure" => $GLOBALS["PUBLIC_MODE"],
                   "httponly" => false,
                   "samesite" => "Strict"
                 ));
                 setcookie("Session", $User->GetSessionToken(), array(
                   "expires" => ($User->GetSessionTokenExpiry()->getTimestamp()),
                   "path" => "/",
-                  "secure" => true,
+                  "secure" => $GLOBALS["PUBLIC_MODE"],
                   "httponly" => true,
                   "samesite" => "Strict"
                 ));
                 setcookie("LongToken", $User->GetLongToken(), array(
                   "expires" => ($User->GetLongTokenExpiry()->getTimestamp()),
                   "path" => "/",
-                  "secure" => true,
+                  "secure" => $GLOBALS["PUBLIC_MODE"],
                   "httponly" => true,
                   "samesite" => "Strict"
                 ));
@@ -1220,14 +1220,14 @@ while (true) {
                   setcookie("UserID", $User->GetUserID(), array(
                     "expires" => time() + 60 * 60 * 24 * 365,
                     "path" => "/",
-                    "secure" => true,
+                    "secure" => $GLOBALS["PUBLIC_MODE"],
                     "httponly" => false,
                     "samesite" => "Strict"
                   ));
                   setcookie("Session", $User->GetSessionToken(), array(
                     "expires" => ($User->GetSessionTokenExpiry()->getTimestamp()),
                     "path" => "/",
-                    "secure" => true,
+                    "secure" => $GLOBALS["PUBLIC_MODE"],
                     "httponly" => true,
                     "samesite" => "Strict"
                   ));
