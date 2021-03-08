@@ -76,7 +76,7 @@ async function InitPage(User) {
       weekday: "narrow"
     });
 
-    UpdateTimeTable(
+    UpdateClasses(
       DayData["TimeTable"],
       SubjectsConfig,
       document.getElementById("Table_Body"),
