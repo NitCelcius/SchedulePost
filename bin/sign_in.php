@@ -1,14 +1,18 @@
 <?php
 // This might not be necessary, in fact.
+$API_URL = getenv("SP_API_URL");
 $GLOBALS["DB_URL"] = getenv("SP_DB_URL");
 $GLOBALS["DB_Username"] = getenv("SP_DB_USER");
 $GLOBALS["DB_PassPhrase"] = getenv("SP_DB_PASSPHRASE");
 $GLOBALS["DB_NAME"] = getenv("SP_DB_NAME");
-$GLOBALS["PUBLIC_MODE"] = getenv("SP_PUBLIC_MODE") ?? true;
+//type false exactly!!
+$GLOBALS["PUBLIC_MODE"] = (getenv("SP_PUBLIC_MODE")==="false") ? false : true;
 
 if (($GLOBALS["DefaultTimeZone"] = getenv("SP_TIMEZONE")) === null) {
   $GLOBALS["DefaultTimeZone"] = "UTC";
 }
+date_default_timezone_set($GLOBALS["DefaultTimeZone"]);
+
 
 $GLOBALS["SessionTokenExpiry"] = getenv("SP_SESSIONTOKENEXPIRY") ?? "30 minutes";
 $GLOBALS["LongTokenExpiry"] = getenv("SP_LONGTOKENEXPIRY") ?? "14 days";
