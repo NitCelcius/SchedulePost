@@ -4,9 +4,11 @@
 <head>
   <title>EDITOR</title>
   <link href="/bin/web/theme.css" rel="stylesheet">
-  <link href="/editor/timetable.css" rel="stylesheet">
+  <link href="/app/editor/timetable.css" rel="stylesheet">
   <meta lang="ja">
   <meta name="viewport" content="width=device-width,initial-scale=1.0,minimum-scale=1.0">
+  <meta name="description" content="Edit timetable page of SchedulePost">
+
 </head>
 
 <body>
@@ -14,7 +16,7 @@
     <h1>時間割の編集</h1>
     <div id="Control">
       <div>
-        <a id="Update_Status">変更点はまだありません</a>
+        <span id="Update_Status">変更点はまだありません</span>
         <button id="Edit_Accept" onclick="Edit_CompleteConfirm()">確定</button>
       </div>
       <div>
@@ -24,7 +26,7 @@
 
     <hr>
 
-    <h2 id="Edit_Date"><span id="Date_Year">----</span><span id="Date_YMSplit">年</span><span
+    <h2 id="Date"><span id="Date_Year">----</span><span id="Date_YMSplit">年</span><span
         id="Date_Month">--</span><span id="Date_MDSplit">月</span><span id="Date_Day">--</span><span
         id="Date_DSplit">日</span><span id="Date_The_Day">-</span><span id="Date_TDSplit">曜日</span></h2>
 
@@ -32,7 +34,7 @@
 
     <section id="Timetable_Options">
       <form name="Timetable_Options">
-        <span class="Edit_Desc">日付</span><input type="date" name="Date" id="Edit_Date">
+        <label><span class="Edit_Desc">日付</span><input type="date" name="Date" id="Edit_Date"></label>
       </form>
     </section>
 
@@ -108,6 +110,6 @@
 
 <script src="/bin/web/lib.js"></script>
 <script src="/bin/web/commonloader.js" async></script>
-<script src="/editor/timetable.js" async></script>
+<script src="/app/editor/timetable.js" async></script>
 
 </html>

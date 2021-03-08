@@ -2,7 +2,6 @@ async function InitPage(User) {
   DeployLoadAnim();
 
   User.UpdateProfile().then(async function (Prof) {
-    console.info(Prof);
     await PrepareEditor(User);
     DestructLoadAnim();
   });
@@ -17,7 +16,7 @@ async function PrepareEditor(User) {
   //Timetable_Group
 
   UserSchool = new School(User.GetSchoolProfile().ID);
-  EditDate = new Date();
+  EditingDate = new Date();
 
   // So weird but it actually works.
   FetchCfg = async function () {
@@ -30,9 +29,8 @@ async function PrepareEditor(User) {
   // No local, neither cloud saves!
   AttemptFunc = async (Tryer) => {
     for (var i = 0; i < 3; i++) {
-      Data = await Tryer;
-      if (Tryer) {
-        console.info("done");
+      var Data = await Tryer;
+      if (Data !== false) {
         return Tryer;
       } else {
         await Delay(2000);
@@ -45,28 +43,33 @@ async function PrepareEditor(User) {
   }
 
   //Wait, are they necessary?
-  var CfgState, TTBase, TTDiff;
+
+  //BUG: These returns same things
+  var CfgState = null;
+  var TTBase = null;
+  var TTDiff = null;
   [CfgState, TTBase, TTDiff] = await Promise.all([
     AttemptFunc(FetchCfg()),
-    AttemptFunc(User.GetTimeTableBase(EditDate)),
-    AttemptFunc(User.GetTimeTableDiff(EditDate))
+    AttemptFunc(User.GetTimeTableBase(EditingDate)),
+    AttemptFunc(User.GetTimeTableDiff(EditingDate))
   ]);
 
   console.info(TTBase);
   console.info(TTDiff);
 
-  if (TTBase["Result"] === true) {
-    if (TTBase["Body"] !== null) {
-      Timetable = TTBase["Body"]["TimeTable"];
-      //ClassesOption["Revision"] = TTDiff.Revision;
-      // merge
-      if (TTDiff["Override"] === true) {
-        Timetable = TTDiff["Body"];
-      } else {
-        Timetable = MergeTimetable(TTBase["Body"]["TimeTable"], TTDiff["Body"]);
-      }
+  if (TTBase !== false) {
+    if (TTBase === null || TTBase["Body"]===null) {
+      Timetable = TTDiff;
     } else {
-      Timetable = TTDiff["Body"];
+      Timetable = TTBase["TimeTable"];
+      // merge
+      Global["TTBase"] = TTBase;
+      Global["TTDiff"] = TTDiff;
+      if (TTDiff["Override"] === true) {
+        Timetable = TTDiff;
+      } else {
+        Timetable = MergeTimetable(TTBase, TTDiff);
+      }
     }
   } else {
     Timetable = null;
@@ -76,18 +79,19 @@ async function PrepareEditor(User) {
     Timetable = {};
   }
 
+  // Currently auto-override
+  Timetable["Override"] = true;
+
+   // It does not copy things. Just for easy code!
+   Classes = Timetable["TimeTable"];
+
   //TODO: apply some options
 
   SubjectsConfig = await UserSchool.GetConfig("Subjects", User);
-  console.error(SubjectsConfig);
 
-  UpdateTimeTable(Timetable, SubjectsConfig, document.getElementById("Table_Body"), document.getElementById("Class_Base"));
+  UpdateEditTimetable();
 
-  document.getElementById("Date_Month").innerText = EditDate.getMonth() + 1;
-  document.getElementById("Date_Day").innerText = EditDate.getDate();
-  document.getElementById("Date_The_Day").innerText = EditDate.toLocaleString(window.navigator.language, {
-    weekday: "narrow"
-  });
+  
   /* メモを編集 のところ、考える
   document.getElementsByClassName("Class_Block").forEach(function (Element) {
     Element.getElementsByClassName("Class_Note_Input")[0].addEventListener(onchange, function (UpElem) {
@@ -95,20 +99,36 @@ async function PrepareEditor(User) {
     })
   });
   */
-
-  Classes = Timetable;
+ 
 }
 
 function MergeTimetable(Base, Diff) {
-  Timetable = Base;
   if (Diff === null) {
-    return Base;
+    return Object.create(JSON.parse(JSON.stringify(Base)));
   }
+  // RIP Object.create - could not deep-copy things
+  var Tp = JSON.parse(JSON.stringify(Base));
+  //var Tp = Object.create(Base);
+
+  // Preserve these keys in BASE. Only for root element
+  const UnmergeableKeys = [
+    "TimeTable"
+  ];
+
+  // Merge options.
   Object.keys(Diff).forEach(Key => {
-    Timetable[ClassData.Key] = Diff.Key;
+    // Merge only what can be merged.
+    if ((Key in UnmergeableKeys)) {
+      Tp[Key] = Diff[Key];
+    }
   });
 
-  return Timetable;
+  // Merge TIMETABLE thing
+  Object.keys(Diff["TimeTable"]).forEach(Key => {
+    Tp["TimeTable"][Key] = Diff["TimeTable"][Key];
+  });
+
+  return Tp;
 }
 
 class TimetableStore {
@@ -169,22 +189,17 @@ async function ClassEdit_Setup(EditingClassKey) {
 }
 
 // BLOCKED.
-async function Edit_Upload(ClassList) {
+async function Edit_Upload(TimetableObj) {
   DeployLoadAnim("UPLOADING", "適用しています...");
-  console.debug(JSON.stringify({
-    "TimeTable": ClassList
-  }));
 
   var Info = await APIReq(User, {
-    "Action": "GET_EDIT_STASH",
+    "Action": "SET_TIMETABLE",
     "GroupID": User.Profile.Group.ID,
-    "Body": {
-      "TimeTable": ClassList
-    }
+    "Date": SqlizeDate(EditingDate),
+    "Body": TimetableObj
   });
 
   DestructLoadAnim();
-
   if (Info["Result"]) {
     alert("更新しました。");
   } else {
@@ -226,12 +241,11 @@ function Edit_Apply() {
     }
 
     Classes = NewClasses;
- 
 }
 
   if (IsTimetableUpdated) {
     Classes[NewKey] = NewClassData;
-    UpdateTimeTable(Classes, SubjectsConfig, document.getElementById("Table_Body"), document.getElementById("Class_Base"));
+    UpdateEditTimetable();
     StartAutoStash();
   }
 
@@ -265,7 +279,7 @@ function Edit_CompleteConfirm() {
   Flag = confirm("この時間割を確定してもよろしいですか？");
 
   if (Flag === true) {
-    Edit_Upload(Classes);
+    Edit_Upload(Timetable);
   } else {
     // Do nothing !!!
   }
@@ -296,14 +310,15 @@ function Edit_AddClass() {
   };
 
   // Clear
-  UpdateTimeTable(Classes, SubjectsConfig, document.getElementById("Table_Body"), document.getElementById("Class_Base"));
+  
+  UpdateEditTimetable();
 
   StartAutoStash();
 }
 
 function Edit_DeleteClass(ClassKey) {
   Classes[ClassKey] = null;
-  UpdateTimeTable(Classes, SubjectsConfig, document.getElementById("Table_Body"), document.getElementById("Class_Base"));
+  UpdateEditTimetable();
 
   StartAutoStash();
 }
@@ -316,7 +331,7 @@ async function Edit_ApplyStashConfirm() {
   if (Flag === true) {
     DeployLoadAnim("LOADING", "一時保存した内容を読み込んでいます...");
     await Edit_LoadStash();
-    UpdateTimeTable(Timetable, SubjectsConfig, document.getElementById("Table_Body"), document.getElementById("Class_Base"));
+    UpdateEditTimetable();
     DestructLoadAnim();
   } else {
     // Do nothing !!!
@@ -334,10 +349,10 @@ async function Edit_LoadStash() {
     }, 5000);
     return true;
   } else {
-    var UploadedStash = await DownloadStash();
+    var UploadedStash = await DownloadStash(EditingDate);
     if (UploadedStash !== null) {
       Timetable = JSON.parse(UploadedStash["Body"]);
-      ClassesOption["Revision"] = UploadedStash["Revision"];
+      EditingRevision = UploadedStash["Revision"];
       document.getElementById("Update_Status").innerText = "アップロードした内容を読み込みました";
       setTimeout(() => {
         document.getElementById("Update_Status").innerText = "変更があります。確定 を押すと時間割に反映します";
@@ -362,10 +377,11 @@ function LoadLocalStash() {
   }
 }
 
-async function DownloadStash() {
+async function DownloadStash(TargetDate) {
   var Info = await APIReq(User, {
     "Action": "GET_EDIT_STASH",
-    "GroupID": User.Profile.Group.ID
+    "GroupID": User.Profile.Group.ID,
+    "Date": SqlizeDate(TargetDate)
   });
 
   var Data = JSON.parse(Info.Content);
@@ -388,7 +404,7 @@ async function DownloadStash() {
 // Though we need to save THIS to local storage
 async function StartAutoStash() {
   document.getElementById("Update_Status").innerText = "一時保存しています...";
-  var StoreData = JSON.stringify(Classes);
+  var StoreData = JSON.stringify(Timetable);
   localStorage.setItem("Timetable_Stash", StoreData);
 
   var Dt = new Date().getTime();
@@ -420,7 +436,8 @@ async function UploadStash() {
   var Info = await APIReq(User, {
     "Action": "SET_EDIT_STASH",
     "GroupID": User.Profile.Group.ID,
-    "Body": JSON.stringify(Classes)
+    "Date": SqlizeDate(EditingDate),
+    "Body": JSON.stringify(Timetable)
   });
   if (Info["Result"]) {
     document.getElementById("Update_Status").innerText = "アップロードして一時保存しました";
@@ -436,6 +453,15 @@ async function UploadStash() {
   }, 5000);
 }
 
+function UpdateEditTimetable() {
+  ApplyDateStrings(EditingDate);
+
+  //Just an imitation of SQLizeDate, but what the he-!?
+  document.Timetable_Options.Date.value = "" +EditingDate.getFullYear() + "-" + ("00"+(EditingDate.getMonth() + 1).toString()).slice(-2) + "-"+ ("00"+(EditingDate.getDate()).toString()).slice(-2);
+
+  UpdateClasses(Classes, SubjectsConfig, document.getElementById("Table_Body"), document.getElementById("Class_Base"));
+}
+
 
 var UserID = GetCookie("UserID");
 
@@ -445,7 +471,8 @@ UserGroup = null;
 
 SubjectsConfig = null;
 EditingKey = null;
-EditDate = new Date();
+EditingDate = new Date();
+EditingRevision = null;
 
 LastSaveTime = 0;
 SaveTimer = null;
@@ -453,6 +480,5 @@ const SavePeriod = 30000;
 
 Global = {};
 Classes = {};
-ClassesOption = {};
 
 InitPage(User);
