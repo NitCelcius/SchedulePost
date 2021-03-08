@@ -913,7 +913,7 @@ class Fetcher {
       return false;
     }
     if ($Diff["Revision"] !== -1) {
-      if ($Diff["Override"] === true) {
+      if (isset($Diff["Override"]) && $Diff["Override"]) {
         $Data = array_merge(
           array(
             "Date" => $Date->format("Y-m-d"),
