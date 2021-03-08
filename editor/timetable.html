@@ -32,7 +32,7 @@
 
     <section id="Timetable_Options">
       <form name="Timetable_Options">
-        <span class="Edit_Desc">日付</span><input type="date" name="Edit_Date" id="Edit_Date">
+        <span class="Edit_Desc">日付</span><input type="date" name="Date" id="Edit_Date">
       </form>
     </section>
 
@@ -69,26 +69,26 @@
         </div>
         <hr>
         <h2 id="Edit_ClassLabelTitle"><span id="Edit_ClassLabelDisp"></span>時間目</h2>
-        <div id="Edit_ClassSel">
-          <!-- TODO: use label instead of span-->
-          <span class="Edit_Desc">教科</span><select id="Edit_ClassType" name="Class_Type">
-            <option value="None" id="Edit_ClassNone">選択</option>
-          </select>
-        </div>
-        <div id="Edit_NoteSel">
-          <p class="Edit_Desc">メモ</p>
-          <textarea id="Edit_Note" type="text" placeholder="メモを編集"></textarea>
-        </div>
-        <div id="Edit_Options">
+        <form name="Edit_Class">
+          <label id="Edit_ClassSel">
+            <span class="Edit_Desc">教科</span><select id="Edit_ClassType" name="Class_Type">
+              <option value="None" id="Edit_ClassNone">選択</option>
+            </select>
+          </label>
+          <label><span class="Edit_Desc">メモ</span>
+            <textarea id="Edit_Note" type="text" placeholder="メモを編集"></textarea>
+          </label>
           <h3>オプション</h3>
           <div id="Edit_ImportantSel">
-            <label class="Edit_Desc">重要としてマーク</label><input id="Edit_Important" type="checkbox">
+            <label>
+              <span class="Edit_Desc">重要としてマーク</span><input id="Edit_Important" type="checkbox">
+            </label>
+            <label>
+              <span class="Edit_Desc">時数(教科名の左に表示)</span><input id="Edit_ClassLabel" type="text"
+                placeholder="1, 2, 3 ...">
+            </label>
           </div>
-          <div id="Edit_ClassLabelSel">
-            <span class="Edit_Desc">時数(教科名の左に表示)</span><input id="Edit_ClassLabel" type="text"
-              placeholder="1, 2, 3 ...">
-          </div>
-        </div>
+        </form>
       </div>
     </div>
 

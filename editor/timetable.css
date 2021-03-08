@@ -126,8 +126,13 @@ div#Edit_Page_Wrapper {
 }
 
 
-#Edit_Page div {
+#Edit_Page label {
   margin-bottom: 0.5rem;
+}
+
+#Edit_Page label {
+  width: 100%;
+  display: flex;
 }
 
 #Edit_Control {
@@ -171,11 +176,6 @@ h2#Edit_Title {
   display: flex;
   justify-content: left;
   min-height: 3rem;
-}
-
-#Edit_NoteSel {
-  display: flex;
-  justify-content: left;
 }
 
 .Edit_Desc {
