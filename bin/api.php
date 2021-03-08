@@ -5,18 +5,18 @@
 
 //error_reporting(0);
 
-$GLOBALS["DB_URL"] = getenv("DB_URL");
-$GLOBALS["DB_Username"] = getenv("DB_UserName");
-$GLOBALS["DB_PassPhrase"] = getenv("DB_PassPhrase");
-$GLOBALS["DB_NAME"] = getenv("DB_Name");
+$GLOBALS["DB_URL"] = getenv("SP_DB_URL");
+$GLOBALS["DB_Username"] = getenv("SP_DB_USER");
+$GLOBALS["DB_PassPhrase"] = getenv("SP_DB_PASSPHRASE");
+$GLOBALS["DB_NAME"] = getenv("SP_DB_NAME");
 
-if (($GLOBALS["DefaultTimeZone"] = getenv("DefaultTimeZone")) === null) {
+if (($GLOBALS["DefaultTimeZone"] = getenv("SP_TIMEZONE")) === null) {
   $GLOBALS["DefaultTimeZone"] = "UTC";
 }
 
 // TODO: Get rid of those. Let envilonment variables hold those.
-$GLOBALS["SessionTokenExpiry"] = "30 minutes";
-$GLOBALS["LongTokenExpiry"] = "10 days";
+$GLOBALS["SessionTokenExpiry"] = getenv("SP_SESSIONTOKENEXPIRY") ?? "30 minutes";
+$GLOBALS["LongTokenExpiry"] = getenv("SP_LONGTOKENEXPIRY") ?? "14 days";
 
 $GLOBALS["Connection"] = null;
 
@@ -419,6 +419,7 @@ class UserAuth {
 
   function SignIn(bool $Record_Activity = true) {
     $Connection = DBConnection::Connect();
+    $Data = null;
     try {
       $PDOstt = $Connection->prepare("select SessionToken,LastActivityAt from accounts where UserID = :UserID");
       $PDOstt->bindValue(":UserID", $this->UserID);
@@ -430,12 +431,13 @@ class UserAuth {
         return false;
       }
     } catch (PDOException $e) {
+      error_log("SignIn(): An error occurred whilst connecting to the database: $e->getMessage()");
       throw new ConnectionException("Could not communicate with the database: " . $e->getMessage(), "DATABASE");
       return false;
     }
     if ($Data === null || $Data === false) {
       if ($Data === null) {
-        error_log("Error in SignIn(): While signin $this->UserID was specified as UserID but it did not exist!");
+        error_log("Error in SignIn(): While signin, $this->UserID was specified as UserID but it did not exist!");
       }
       return false;
     } else {
