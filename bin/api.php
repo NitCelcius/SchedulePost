@@ -3,17 +3,19 @@
 // TODO: PHP envilonment requirement
 // WIP.
 
-//error_reporting(0);
+error_reporting(E_ALL);
 
 $GLOBALS["DB_URL"] = getenv("SP_DB_URL");
 $GLOBALS["DB_Username"] = getenv("SP_DB_USER");
 $GLOBALS["DB_PassPhrase"] = getenv("SP_DB_PASSPHRASE");
 $GLOBALS["DB_NAME"] = getenv("SP_DB_NAME");
-$GLOBALS["PUBLIC_MODE"] = getenv("SP_PUBLIC_MODE") ?? true;
+//type false exactly!!
+$GLOBALS["PUBLIC_MODE"] = (getenv("SP_PUBLIC_MODE") === "false") ? false : true;
 
 if (($GLOBALS["DefaultTimeZone"] = getenv("SP_TIMEZONE")) === null) {
   $GLOBALS["DefaultTimeZone"] = "UTC";
 }
+date_default_timezone_set($GLOBALS["DefaultTimeZone"]);
 
 $GLOBALS["SessionTokenExpiry"] = getenv("SP_SESSIONTOKENEXPIRY") ?? "30 minutes";
 $GLOBALS["LongTokenExpiry"] = getenv("SP_LONGTOKENEXPIRY") ?? "14 days";
@@ -901,8 +903,15 @@ class Fetcher {
     $Base = $this->GetDefaultTimetable($GroupID, ((int)$Date->format("w")));
     if ($Base === null) {
       $Base = array("TimeTable" => array());
+    } else if ($Base === false) {
+      error_log("GetTimeTable(): failed since GetDefaultTimetable returned an error.");
+      return false;
     }
     $Diff = $this->GetTimetableDiff($GroupID, $Date, $Revision);
+    if ($Diff === false) {
+      error_log("GetTimeTable(): failed since GetTimetableDiff returned an error.");
+      return false;
+    }
     if ($Diff["Revision"] !== -1) {
       if ($Diff["Override"] === true) {
         $Data = array_merge(
@@ -1003,7 +1012,7 @@ class Fetcher {
     $PDOstt->execute();
     $Result = $PDOstt->fetchAll();
 
-    if ($Result === null || $Result === false) {
+    if ($Result === false) {
       error_log("An error occurred in GetTimetableDiff(): Could not fetch data from table `timetable`. TargetGroupID:$GroupID, Date:" . $Date->format("Y-m-d") . ", Revision: $Revision, Info: " . implode(',', $PDOstt));
       throw new ConnectionException("Could not connect to the database properly.");
       return false;
@@ -1015,16 +1024,43 @@ class Fetcher {
         "Body" => null
       );
     } else {
-      $Diff = array(
-        "Revision" => $Result["0"]["Revision"],
-        "Body" => json_decode($Result["0"]["Body"], true, 512, JSON_FORCE_OBJECT)
-      );
+      $FoundFlag = false;
+      $TargetIndex = 0;
+      $MaxIndex = null;
+      $MaxRev = -1;
+      // Though it's inefficient, all results same
+      for ($TargetIndex = 0; $TargetIndex < count($Result); $TargetIndex++) {
+        if ($Result[$TargetIndex]["Revision"] === $Revision) {
+          $MaxIndex = $TargetIndex;
+          $FoundFlag = true;
+          break;
+        }
+        if ($Revision === null) {
+          if ($Result[$TargetIndex]["Revision"] > $MaxRev) {
+            $MaxRev = intval($Result[$TargetIndex]["Revision"]);
+            $MaxIndex = $TargetIndex;
+            $FoundFlag = true;
+          }
+        }
+      }
+      if (!$FoundFlag) {
+        $Diff = array(
+          "Revision" => $Revision ?? -1,
+          "Body" => null
+        );
+      } else {
+        $Diff = array(
+          "Revision" => $MaxRev,
+          "Body" => json_decode($Result[$MaxIndex]["Body"], true, 512, JSON_FORCE_OBJECT)
+        );
+      }
     }
 
     if ($Diff === false) {
       error_log("An error occurred in GetTimetableDiff(): The JSON data for timetable diff of GroupID $GroupID is invalid! Date:" . $Date->format("Y-m-d") . ", Revision: $Revision");
 
       throw new InvalidArgumentException("The JSON of the specified timetable is malformed.");
+      return false;
     }
 
     return $Diff;
@@ -1063,6 +1099,7 @@ class Messages {
     "ACCOUNT_LONG_TOKEN_INVALID" => "",
     "ACCOUNT_LONG_TOKEN_EXPIRED" => "",
     "ACCOUNT_CREDENTIALS_INVALID" => "",
+    "ILLEGAL_CALL" => "Some of necessary arguments are missing or malformed.",
     "SIGNIN_REQUIRED" => "You need to be signed in to do that."
   );
 
@@ -1084,6 +1121,11 @@ class Messages {
       $Message = "Error information not provided.";
     }
   }
+}
+
+function json_api_encode($Obj) {
+  // default JSON encode
+  return json_encode($Obj, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_FORCE_OBJECT | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
 }
 
 // BASICではよくある、 while(true) -> break. try~catch(exception e)~finally ができるやり方。
@@ -1279,7 +1321,7 @@ while (true) {
             throw new InsuffcientPermissionException("You cannot view the timetable of that group.");
           }
 
-          $Result = json_encode($Fetcher->GetTimetable($User->GetGroupID(), $Date), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_FORCE_OBJECT);
+          $Result = json_api_encode($Fetcher->GetTimetable($User->GetGroupID(), $Date));
 
           if ($Result != false) {
             $Resp = array(
@@ -1303,9 +1345,19 @@ while (true) {
           break;
         }
         $Date = null;
-        if (array_key_exists("Date", $Recv)) {
-          $Date = new DateTime($Recv["Date"]);
+        try {
+          if (array_key_exists("Date", $Recv)) {
+            $Date = new DateTime($Recv["Date"]);
+          }
+        } catch (Exception $e) {
+          $Resp = Messages::GenerateErrorJSON("UNEXPECTED_ARGUMENT", "The specified date is invalid.");
+          break;
         }
+        if ($Date === null) {
+          $Resp = Messages::GenerateErrorJSON("ILLEGAL_CALL", "Specify Date.");
+          break;
+        }
+
         $Fetcher = new Fetcher($User);
 
         if (array_key_exists("GroupID", $Recv)) {
@@ -1326,7 +1378,7 @@ while (true) {
                 } else if (array_key_exists("DayOfTheWeek", $Recv)) {
                   $IndexOfTheWeek = DayEnum::StrToEnum($Recv["DayOfTheDate"]);
                 } else {
-                  $Resp = Messages::GenerateErrorJSON("UNEXPECTED_ARGUMENT", "Specify at least one of DATE or DayOfTheWeek.");
+                  $Resp = Messages::GenerateErrorJSON("ILLEGAL_CALL", "Specify at least one of DATE or DayOfTheWeek.");
                   break;
                 }
                 try {
@@ -1355,32 +1407,31 @@ while (true) {
 
                 $Target_Revision = null;
                 if (array_key_exists("Revision", $Recv)) {
-                  $Target_Revision = $Recv["Revision"];
+                  if (is_int($Recv["Revision"])) {
+                    $Target_Revision = intval($Recv["Revision"]);
+                  } else {
+                    $Resp = Messages::GenerateErrorJSON("INPUT_MALFORMED", "The specified revision is not a valid number.");
+                    break;
+                  }
                 }
                 $Diff = $Fetcher->GetTimetableDiff($TargetGroupID, $Date, $Target_Revision);
-
                 $Resp = array(
                   "Result" => true,
                   "Body" => $Diff["Body"],
-                  "Revision" => $Diff["Revision"]
+                  "Revision" => intval($Diff["Revision"])
                 );
-
+              } else {
+                $Resp = Messages::GenerateErrorJSON("INTERNAL_EXCEPTION", "There was an error whilst trying to fetch timetable diff.");
                 break;
               }
+
+              break;
             }
           default: {
               break;
             }
         }
 
-        $Result = json_encode($Resp, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_FORCE_OBJECT);
-
-        if ($Result != false) {
-          $Resp = array(
-            "Result" => true,
-            "Body" => $Result
-          );
-        }
         break;
       }
 
@@ -1401,7 +1452,7 @@ while (true) {
           if (!$User->GetSchoolID()) {
             $Resp = Messages::GenerateErrorJSON("UNEXPECTED_ARGUMENT", "The user does not belong to any school.");
           } else {
-            $Resp = Messages::GenerateErrorJSON("UNEXPECTED_ARGUMENT", "Specify school ID.");
+            $Resp = Messages::GenerateErrorJSON("ILLEGAL_CALL", "Specify school ID.");
           }
         }
 
@@ -1466,6 +1517,7 @@ while (true) {
       }
 
     case "GET_USER_PROFILE": {
+
         if (!$User) {
           $Resp = Messages::GenerateErrorJSON("SIGNIN_REQUIRED");
           break;
@@ -1554,6 +1606,14 @@ while (true) {
         break;
       }
 
+
+      /**
+       * ACTION GET_EDIT_STASH
+       * Arguments: 
+       *    *"Date" (Any PHP recognizable string)
+       *     "GroupID" Optional, target group ID
+       *     "TargetRevision" Optional, a revision number to fetch. If not specified, fetch the newest
+       */
     case "GET_EDIT_STASH": {
         if (!$User) {
           $Resp = Messages::GenerateErrorJSON("SIGNIN_REQUIRED");
@@ -1567,7 +1627,7 @@ while (true) {
         }
 
         if ($TargetGroupID == null) {
-          $Resp = Messages::GenerateErrorJSON("UNEXPECTED_ARGUMENT", "The group ID is not found.");
+          $Resp = Messages::GenerateErrorJSON("ILLEGAL_CALL", "The user is not in a group or in multiple group. Specify one group.");
           break;
         }
 
@@ -1576,20 +1636,36 @@ while (true) {
           throw new InsuffcientPermissionException("You cannot view the timetable of that group.");
         }
 
+        $Date = null;
+        try {
+          if (array_key_exists("Date", $Recv)) {
+            $Date = new DateTime($Recv["Date"]);
+          }
+        } catch (Exception $e) {
+          $Resp = Messages::GenerateErrorJSON("UNEXPECTED_ARGUMENT", "The specified date is invalid.");
+          break;
+        }
+        if ($Date === null) {
+          $Resp = Messages::GenerateErrorJSON("ILLEGAL_CALL", "Specify Date.");
+          break;
+        }
+
         $TargetRevision = null;
         $ReturnData = null;
         if (array_key_exists("Revision", $Recv)) {
           if (is_int($Recv["Revision"])) {
             $TargetRevision = intval($Recv["Revision"]);
           } else {
-            $Resp = Messages::GenerateErrorJSON("INPUT_MALFORMED", "The revision is not integer or out of range.");
+            $Resp = Messages::GenerateErrorJSON("INPUT_MALFORMED", "The specified revision is not an integer or out of range.");
             break;
           }
         }
+
         $Connection = DBConnection::Connect();
-        $PDOstt = $Connection->prepare("select Revision, StashData, CreatedAt from edit_stash where UserID = :UserID AND DestGroupID = :GroupID ORDER BY 'Revision' DESC");
+        $PDOstt = $Connection->prepare("select Revision, StashData, CreatedAt from edit_stash where UserID = :UserID AND DestGroupID = :GroupID AND TargetDate = :TargetDate ORDER BY 'Revision' DESC");
         $PDOstt->bindValue(":UserID", $User->GetUserID());
         $PDOstt->bindValue(":GroupID", $TargetGroupID);
+        $PDOstt->bindValue(":TargetDate", $Date->format("Y-m-d"));
         $PDOstt->execute();
         $Data = $PDOstt->fetchAll();
 
@@ -1632,13 +1708,25 @@ while (true) {
         break;
       }
 
+
+      /**
+       * ACTION SET_EDIT_STASH
+       * Arguments: 
+       *    *"Body" Timetable JSON. Must be parsable.
+       *    *"Date" (Any PHP recognizable string)
+       *     "GroupID" Optional, target group ID
+       * 
+       * Returns:
+       *    *"Result" bool: true on success, false on failure
+       *     "Revision" The revision number that was created.
+       */
     case "SET_EDIT_STASH": {
         if (!$User) {
           $Resp = Messages::GenerateErrorJSON("SIGNIN_REQUIRED");
           break;
         }
         if ($Recv["Body"] === null) {
-          $Resp = Messages::GenerateErrorJSON("INPUT_MALFORMED", "Specify 'Body' to save.");
+          $Resp = Messages::GenerateErrorJSON("ILLEGAL_CALL", "Specify 'Body' to save.");
         }
 
         $TargetGroupID = "";
@@ -1653,6 +1741,20 @@ while (true) {
           break;
         }
 
+        $Date = null;
+        try {
+          if (array_key_exists("Date", $Recv)) {
+            $Date = new DateTime($Recv["Date"]);
+          }
+        } catch (Exception $e) {
+          $Resp = Messages::GenerateErrorJSON("UNEXPECTED_ARGUMENT", "The specified date is invalid.");
+          break;
+        }
+        if ($Date === null) {
+          $Resp = Messages::GenerateErrorJSON("ILLEGAL_CALL", "Specify Date.");
+          break;
+        }
+
         if ($User->IsPermitted("Timetable.Edit", DEST_GROUP, $TargetGroupID)) {
         } else {
           throw new InsuffcientPermissionException("You cannot view the timetable of that group.");
@@ -1660,9 +1762,10 @@ while (true) {
 
         $NewRevision = null;
         $Connection = DBConnection::Connect();
-        $PDOstt = $Connection->prepare("select Revision, StashData, CreatedAt from edit_stash where UserID = :UserID AND DestGroupID = :GroupID");
+        $PDOstt = $Connection->prepare("select Revision, StashData, CreatedAt from edit_stash where UserID = :UserID AND DestGroupID = :GroupID AND TargetDate = :SetDate");
         $PDOstt->bindValue(":UserID", $User->GetUserID());
         $PDOstt->bindValue(":GroupID", $TargetGroupID);
+        $PDOstt->bindValue(":SetDate", $Date->format("Y-m-d"));
         $PDOstt->execute();
         $Data = $PDOstt->fetchAll();
 
@@ -1683,9 +1786,10 @@ while (true) {
           $NewRevision = $SegRev + 1;
         }
 
-        $PDOstt = $Connection->prepare("insert into edit_stash (`UserID`, `Revision`, `StashData`, `DestGroupID`) VALUES (:UserID, :Revision, :StashData, :GroupID)");
+        $PDOstt = $Connection->prepare("insert into edit_stash (`UserID`, `DestGroupID`, `TargetDate`, `Revision`, `StashData`) VALUES (:UserID, :GroupID, :TargetDate, :Revision, :StashData)");
         $PDOstt->bindValue(":UserID", $User->GetUserID());
         $PDOstt->bindValue(":GroupID", $TargetGroupID);
+        $PDOstt->bindValue(":TargetDate", $Date->format("Y-m-d"));
         $PDOstt->bindValue(":Revision", $NewRevision);
         $PDOstt->bindValue(":StashData", $Recv["Body"]);
         $Result = $PDOstt->execute();
@@ -1693,7 +1797,7 @@ while (true) {
         if ($Result) {
           $Resp = array(
             "Result" => true,
-            "Revision" => $NewRevision,
+            "Revision" => $NewRevision
           );
         } else {
           $Resp = Messages::GenerateErrorJSON("INTERNAL_EXCEPTION", "There was an internal error occurred while connecting to the database.");
@@ -1708,7 +1812,7 @@ while (true) {
           break;
         }
         if ($Recv["Body"] === null) {
-          $Resp = Messages::GenerateErrorJSON("INPUT_MALFORMED", "Specify 'Body' to save as stash.");
+          $Resp = Messages::GenerateErrorJSON("ILLEGAL_CALL", "Specify 'Body' to save as stash.");
         }
 
         $TargetGroupID = "";
@@ -1731,9 +1835,15 @@ while (true) {
 
         $Date = null;
         try {
-          $Date = new DateTime($Recv["Date"]);
+          if (array_key_exists("Date", $Recv)) {
+            $Date = new DateTime($Recv["Date"]);
+          }
         } catch (Exception $e) {
           $Resp = Messages::GenerateErrorJSON("UNEXPECTED_ARGUMENT", "The specified date is invalid.");
+          break;
+        }
+        if ($Date === null) {
+          $Resp = Messages::GenerateErrorJSON("ILLEGAL_CALL", "Specify Date.");
           break;
         }
 
@@ -1766,7 +1876,7 @@ while (true) {
         $PDOstt->bindValue(":GroupID", $TargetGroupID);
         $PDOstt->bindValue(":Date", $Date->format("Y-m-d"));
         $PDOstt->bindValue(":Revision", $NewRevision);
-        $PDOstt->bindValue(":Body", $Recv["Body"]);
+        $PDOstt->bindValue(":Body", json_api_encode($Recv["Body"]));
         $Result = $PDOstt->execute();
 
         if ($Result) {
@@ -1809,6 +1919,6 @@ while (true) {
   break;
 }
 
-echo json_encode($Resp, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_FORCE_OBJECT);
+echo json_api_encode($Resp);
 
 exit;
