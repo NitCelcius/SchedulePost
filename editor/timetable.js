@@ -3,38 +3,6 @@ async function InitPage(User) {
 
   User.UpdateProfile().then(async function (Prof) {
     console.info(Prof);
-
-    /*
-    switch (Resp["ReasonCode"]) {
-      case "ACCOUNT_SESSION_TOKEN_INVALID":
-      case "ACCOUNT_SESSION_TOKEN_EXPIRED": {
-        LongToken = GetCookie("LongToken");
-        if (LongToken != null && User.GetUserID() != null) {
-          try {
-            UpdateRes = await User.UpdateSessionToken(LongToken);
-
-            if (UpdateRes) {
-              console.log("SessionToken updated.");
-              // We can continue
-              break;
-            } else {
-              // RIP, LongToken wasn't right
-              TransferLoginPage();
-              break;
-            }
-          } catch (e) {
-            // In fact this catch might not be necessary.
-            TransferLoginPage();
-            break;
-          }
-        }
-      }
-      case "INVALID_CREDENTIALS": {
-        TransferLoginPage();
-        break;
-      }
-    }
-    */
     await PrepareEditor(User);
     DestructLoadAnim();
   });
@@ -470,9 +438,8 @@ async function UploadStash() {
 
 
 var UserID = GetCookie("UserID");
-var SessionToken = GetCookie("SessionToken");
 
-User = new User(UserID, SessionToken);
+User = new User(UserID);
 UserSchool = null;
 UserGroup = null;
 
@@ -487,9 +454,5 @@ const SavePeriod = 30000;
 Global = {};
 Classes = {};
 ClassesOption = {};
-
-if (UserID == null || SessionToken == null) {
-  TransferLoginPage();
-}
 
 InitPage(User);

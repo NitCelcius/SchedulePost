@@ -41,7 +41,6 @@ async function LoadCommonNodes() {
           case "NAV": {
             // NAV needs some space.
             Nav = document.getElementsByTagName("nav")[0];
-            console.info(Field.childNodes[i].childNodes);
             Field.childNodes[i].childNodes.forEach(function (Node) {
               cp = Node.cloneNode(true);
               Nav.appendChild(cp);

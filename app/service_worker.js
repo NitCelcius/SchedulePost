@@ -1,4 +1,4 @@
-var CACHE_NAME = "Schedulepost-cached-v2";
+var CACHE_NAME = "Schedulepost-cached-v4";
 var CacheURLs = [
   "/app/index.html",
   "/app/index.css",

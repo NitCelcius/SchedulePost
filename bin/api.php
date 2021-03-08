@@ -289,7 +289,9 @@ class UserAuth {
   }
 
   function GetSessionTokenExpiry(bool $Force_Update = false) {
-    if ($Force_Update) { $this->SessionTokenExpiry = null; }
+    if ($Force_Update) {
+      $this->SessionTokenExpiry = null;
+    }
     if ($this->SessionTokenExpiry !== null) {
       return $this->SessionTokenExpiry;
     } else {
@@ -321,7 +323,9 @@ class UserAuth {
   }
 
   function GetLongTokenExpiry(bool $Force_Update = false) {
-    if ($Force_Update) { $this->LongTokenExpiry = null; }
+    if ($Force_Update) {
+      $this->LongTokenExpiry = null;
+    }
     if ($this->LongTokenExpiry !== null) {
       return $this->LongTokenExpiry;
     } else {
@@ -1055,10 +1059,11 @@ class Messages {
     "INVALID_CREDENTIALS" => "The provided credential is invalid.",
     "INSUFFCIENT_PERMISSION" => "You do not have sufficient permission to do that.",
     "ACCOUNT_SESSION_TOKEN_EXPIRED" => "",
-    "ACCOUNT_SESSION_TOKEN_INVALID" => "", 
+    "ACCOUNT_SESSION_TOKEN_INVALID" => "",
     "ACCOUNT_LONG_TOKEN_INVALID" => "",
     "ACCOUNT_LONG_TOKEN_EXPIRED" => "",
-    "ACCOUNT_CREDENTIALS_INVALID" => ""
+    "ACCOUNT_CREDENTIALS_INVALID" => "",
+    "SIGNIN_REQUIRED" => "You need to be signed in to do that."
   );
 
   static function GenerateErrorJSON(string $Code, $Message = null) {
@@ -1084,8 +1089,8 @@ class Messages {
 // BASICではよくある、 while(true) -> break. try~catch(exception e)~finally ができるやり方。
 
 while (true) {
-
   $Recv = json_decode(file_get_contents("php://input"), true);
+  $User = null;
 
   if ($Recv === null || $Recv === false) {
     $Resp = array(
@@ -1095,6 +1100,32 @@ while (true) {
     break;
   }
 
+  $uid = null;
+  $ses = null;
+  if ($Recv["Action"] != "SIGN_IN") {
+    if (isset($_COOKIE["UserID"]) && isset($_COOKIE["Session"])) {
+      $uid = $_COOKIE["UserID"];
+      $ses = $_COOKIE["Session"];
+      $User = new UserAuth($uid, $ses);
+    } else if (array_key_exists("Auth", $Recv) && array_key_exists("SessionToken", $Recv["Auth"]) && $Recv["Auth"]["SessionToken"] != "" && array_key_exists("UserID", $Recv["Auth"]) && $Recv["Auth"]["UserID"] != "") {
+      $uid = $Recv["Auth"]["UserID"];
+      $ses = $Recv["Auth"]["SessionToken"];
+      $User = new UserAuth($uid, $ses);
+    } else {
+      $User = null;
+    }
+
+    if ($User !== null && !$User->SignIn()) {
+      $Error = $User->GetError();
+      $Resp = array(
+        "Result" => false,
+        "ReasonCode" => $Error["Code"],
+        "ReasonText" => "Could not sign in with the provided credentials. " . ", " . $Error["Code"]
+      );
+      break;
+    }
+  }
+
   $Resp = Messages::GenerateErrorJSON("ERROR_UNKNOWN", "The API could not respond properly to your request. " . serialize($Recv));
   /* Please note that SchedulePost API does not support any GET method. */
 
@@ -1102,17 +1133,30 @@ while (true) {
   //Probs insert this part on request header
   //var_dump($Recv);
 
-  
   switch ($Recv["Action"]) {
 
     case "SIGN_IN": {
         $UserID = null;
         $Resp = Messages::GenerateErrorJSON("UNEXPECTED_ARGUMENT", "The information provided to signin is insuffcient.");
 
-        if (array_key_exists("Mail", $Recv["Auth"]) && array_key_exists("PassPhrase", $Recv["Auth"])) {
+        if (array_key_exists("Auth", $Recv)) {
+          $Mail = array_key_exists("Mail", $Recv["Auth"]) ? $Recv["Auth"]["Mail"] : null;
+          $PassPhrase = array_key_exists("PassPhrase", $Recv["Auth"]) ? $Recv["Auth"]["PassPhrase"] : null;
+
+          $UserID = array_key_exists("UserID", $Recv["Auth"]) ? $Recv["Auth"]["UserID"] : (array_key_exists("UserID", $_COOKIE) ? $_COOKIE["UserID"] : null);
+          $LongToken = array_key_exists("LongToken", $Recv["Auth"]) ? $Recv["Auth"]["LongToken"] : (array_key_exists("LongToken", $_COOKIE) ? $_COOKIE["LongToken"] : null);
+        } else {
+          $Mail = null;
+          $PassPhrase = null;
+          $UserID =
+            array_key_exists("UserID", $_COOKIE) ? $_COOKIE["UserID"] : null;
+          $LongToken = array_key_exists("LongToken", $_COOKIE) ? $_COOKIE["LongToken"] : null;
+        }
+
+        if ($Mail != null && $PassPhrase != null) {
           try {
             $User = new UserAuth();
-            switch ($User->SignInFromMailAndPassphrase($Recv["Auth"]["Mail"], $Recv["Auth"]["PassPhrase"])) {
+            switch ($User->SignInFromMailAndPassphrase($Mail, $PassPhrase)) {
               case true:
                 $Resp = array(
                   "Result" => true,
@@ -1124,7 +1168,27 @@ while (true) {
                   "LongTokenExpiry" => $User->GetLongTokenExpiry()->format("Y-m-d\TH:i:sP")
                 );
                 break;
-
+                setcookie("UserID", $User->GetUserID(), array(
+                  "expires" => time() + 60 * 60 * 24 * 365,
+                  "path" => "/",
+                  "secure" => true,
+                  "httponly" => false,
+                  "samesite" => "Strict"
+                ));
+                setcookie("Session", $User->GetSessionToken(), array(
+                  "expires" => ($User->GetSessionTokenExpiry()->getTimestamp()),
+                  "path" => "/",
+                  "secure" => true,
+                  "httponly" => true,
+                  "samesite" => "Strict"
+                ));
+                setcookie("LongToken", $User->GetLongToken(), array(
+                  "expires" => ($User->GetLongTokenExpiry()->getTimestamp()),
+                  "path" => "/",
+                  "secure" => true,
+                  "httponly" => true,
+                  "samesite" => "Strict"
+                ));
               case false:
                 break;
             }
@@ -1139,20 +1203,34 @@ while (true) {
             $Resp = Messages::GenerateErrorJSON("INTERNAL_EXCEPTION", "There was an internal exception whilst trying to sign in. " . $e->getMessage());
           }
         } else {
-          if (array_key_exists("UserID", $Recv["Auth"]) && array_key_exists("LongToken", $Recv["Auth"])) {
+          if ($UserID != null && $LongToken != null) {
             try {
-              $User = new UserAuth($Recv["Auth"]["UserID"]);
-              switch ($User->SignInFromUserIDAndLongToken($Recv["Auth"]["UserID"], $Recv["Auth"]["LongToken"])) {
+              $User = new UserAuth($UserID);
+              switch ($User->SignInFromUserIDAndLongToken($UserID, $LongToken)) {
                 case true:
                   $Resp = array(
                     "Result" => true,
                     "UserID" => $User->GetUserID(), // TODO: Is it necessary?
                     "SessionToken" => $User->GetSessionToken(),
-                    "LongToken" => $User->GetLongToken(), // TODO: Is it necessary?
                     // Literally based on W3C, to supply this to JS
                     "SessionTokenExpiry" => $User->GetSessionTokenExpiry()->format("Y-m-d\TH:i:sP"),
                     "LongTokenExpiry" => $User->GetLongTokenExpiry()->format("Y-m-d\TH:i:sP")
                   );
+
+                  setcookie("UserID", $User->GetUserID(), array(
+                    "expires" => time() + 60 * 60 * 24 * 365,
+                    "path" => "/",
+                    "secure" => true,
+                    "httponly" => false,
+                    "samesite" => "Strict"
+                  ));
+                  setcookie("Session", $User->GetSessionToken(), array(
+                    "expires" => ($User->GetSessionTokenExpiry()->getTimestamp()),
+                    "path" => "/",
+                    "secure" => true,
+                    "httponly" => true,
+                    "samesite" => "Strict"
+                  ));
                   break;
 
                 case false:
@@ -1172,35 +1250,22 @@ while (true) {
       }
       // Could be a problem: ACTIVITY CHECK may not be necessary as it only checks token validity.
     case "ACTIVITY_CHECK": {
-        $User = new UserAuth($Recv["Auth"]["UserID"], $Recv["Auth"]["SessionToken"]);
-        if (!$User->SignIn()) {
-          $Error = $User->GetError();
-          $Resp = array(
-            "Result" => false,
-            "ReasonCode" => $Error["Code"],
-            "ReasonText" => "Could not sign in with the provided credentials. " . ", " . $Error["Code"]
-          );
+        if (!$User) {
+          $Resp = Messages::GenerateErrorJSON("SIGNIN_REQUIRED");
           break;
-        } else {
-          $Resp = array(
-            "Result" => true
-          );
         }
+        $Resp = array(
+          "Result" => true
+        );
         break;
       }
 
     case "GET_SCHEDULE": {
+        if (!$User) {
+          $Resp = Messages::GenerateErrorJSON("SIGNIN_REQUIRED");
+          break;
+        }
         try {
-          $User = new UserAuth($Recv["Auth"]["UserID"], $Recv["Auth"]["SessionToken"]);
-          if (!$User->SignIn()) {
-            $Error = $User->GetError();
-            $Resp = array(
-              "Result" => false,
-              "ReasonCode" => $Error["Code"],
-              "ReasonText" => "Could not sign in with the provided credentials. " . ", " . $Error["Code"]
-            );
-            break;
-          }
           $Date = new DateTime($Recv["Date"]);
           $Fetcher = new Fetcher($User);
 
@@ -1233,17 +1298,10 @@ while (true) {
 
 
     case "GET_TIMETABLE_RAW": {
-        $User = new UserAuth($Recv["Auth"]["UserID"], $Recv["Auth"]["SessionToken"]);
-        if (!$User->SignIn()) {
-          $Error = $User->GetError();
-          $Resp = array(
-            "Result" => false,
-            "ReasonCode" => $Error["Code"],
-            "ReasonText" => "Could not sign in with the provided credentials. " . ", " . $Error["Code"]
-          );
+        if (!$User) {
+          $Resp = Messages::GenerateErrorJSON("SIGNIN_REQUIRED");
           break;
         }
-
         $Date = null;
         if (array_key_exists("Date", $Recv)) {
           $Date = new DateTime($Recv["Date"]);
@@ -1327,13 +1385,11 @@ while (true) {
       }
 
     case "GET_SCHOOL_CONFIG": {
-        // Need to check permissions here.
-        $User = new UserAuth($Recv["Auth"]["UserID"], $Recv["Auth"]["SessionToken"]);
-        if (!$User->SignIn()) {
-          $Error = $User->GetError();
-          $Resp = Messages::GenerateErrorJSON($User->GetError()["Code"], "Could not sign in with the provided credentials.");
+        if (!$User) {
+          $Resp = Messages::GenerateErrorJSON("SIGNIN_REQUIRED");
           break;
         }
+        // Need to check permissions here.
 
         $TargetSchoolID = null;
         if (array_key_exists("SchoolID", $Recv)) {
@@ -1410,13 +1466,10 @@ while (true) {
       }
 
     case "GET_USER_PROFILE": {
-        $User = new UserAuth($Recv["Auth"]["UserID"], $Recv["Auth"]["SessionToken"]);
-        if (!$User->SignIn()) {
-          $Error = $User->GetError();
-          $Resp = Messages::GenerateErrorJSON($User->GetError()["Code"], "Could not sign in with the provided credentials.");
+        if (!$User) {
+          $Resp = Messages::GenerateErrorJSON("SIGNIN_REQUIRED");
           break;
         }
-
         // Fetch user profile(raw)
         $Connection = DBConnection::Connect();
         $PDOstt = $Connection->prepare("select BelongGroupID, BelongSchoolID, DisplayName from user_profile where BelongUserID = :UserID");
@@ -1502,13 +1555,10 @@ while (true) {
       }
 
     case "GET_EDIT_STASH": {
-        $User = new UserAuth($Recv["Auth"]["UserID"], $Recv["Auth"]["SessionToken"]);
-        if (!$User->SignIn()) {
-          $Error = $User->GetError();
-          $Resp = Messages::GenerateErrorJSON($User->GetError()["Code"], "Could not sign in with the provided credentials.");
+        if (!$User) {
+          $Resp = Messages::GenerateErrorJSON("SIGNIN_REQUIRED");
           break;
         }
-
         $TargetGroupID = "";
         if (array_key_exists("GroupID", $Recv)) {
           $TargetGroupID = $Recv["GroupID"];
@@ -1583,15 +1633,12 @@ while (true) {
       }
 
     case "SET_EDIT_STASH": {
+        if (!$User) {
+          $Resp = Messages::GenerateErrorJSON("SIGNIN_REQUIRED");
+          break;
+        }
         if ($Recv["Body"] === null) {
           $Resp = Messages::GenerateErrorJSON("INPUT_MALFORMED", "Specify 'Body' to save.");
-        }
-
-        $User = new UserAuth($Recv["Auth"]["UserID"], $Recv["Auth"]["SessionToken"]);
-        if (!$User->SignIn()) {
-          $Error = $User->GetError();
-          $Resp = Messages::GenerateErrorJSON($User->GetError()["Code"], "Could not sign in with the provided credentials.");
-          break;
         }
 
         $TargetGroupID = "";
@@ -1656,15 +1703,12 @@ while (true) {
       }
 
     case "SET_TIMETABLE": {
+        if (!$User) {
+          $Resp = Messages::GenerateErrorJSON("SIGNIN_REQUIRED");
+          break;
+        }
         if ($Recv["Body"] === null) {
           $Resp = Messages::GenerateErrorJSON("INPUT_MALFORMED", "Specify 'Body' to save as stash.");
-        }
-
-        $User = new UserAuth($Recv["Auth"]["UserID"], $Recv["Auth"]["SessionToken"]);
-        if (!$User->SignIn()) {
-          $Error = $User->GetError();
-          $Resp = Messages::GenerateErrorJSON($User->GetError()["Code"], "Could not sign in with the provided credentials.");
-          break;
         }
 
         $TargetGroupID = "";

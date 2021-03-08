@@ -5,10 +5,8 @@ async function InitPage(User) {
   switch (Resp["ReasonCode"]) {
     case "ACCOUNT_SESSION_TOKEN_INVALID":
     case "ACCOUNT_SESSION_TOKEN_EXPIRED": {
-      LongToken = GetCookie("LongToken");
-      if (LongToken != null && User.GetUserID() != null) {
         try {
-          UpdateRes = await UpdateSessionToken(LongToken);
+          UpdateRes = await UpdateSessionToken();
           if (UpdateRes) {
             // We can continue
             break;
@@ -22,7 +20,6 @@ async function InitPage(User) {
           TransferLoginPage();
           break;
         }
-      }
     }
     case "INVALID_CREDENTIALS": {
       TransferLoginPage();

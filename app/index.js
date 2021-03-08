@@ -20,29 +20,26 @@ async function InitPage(User) {
 
     var Resp = Prof;
     if (Resp["Result"]) {
-      
+
     } else {
       // May need to copy these
       switch (Resp["ReasonCode"]) {
         case "ACCOUNT_SESSION_TOKEN_INVALID":
         case "ACCOUNT_SESSION_TOKEN_EXPIRED": {
-          LongToken = GetCookie("LongToken");
-          if (LongToken != null && User.GetUserID() != null) {
-            try {
-              UpdateRes = await UpdateSessionToken(LongToken);
-              if (UpdateRes) {
-                // We can continue
-                break;
-              } else {
-                // RIP, LongToken wasn't right
-                TransferLoginPage();
-                break;
-              }
-            } catch (e) {
-              // In fact this catch might not be necessary.
-                TransferLoginPage();
-                break;
+          try {
+            UpdateRes = await UpdateSessionToken();
+            if (UpdateRes) {
+              // We can continue
+              break;
+            } else {
+              // RIP, LongToken wasn't right
+              TransferLoginPage();
+              break;
             }
+          } catch (e) {
+            // In fact this catch might not be necessary.
+            TransferLoginPage();
+            break;
           }
         }
         case "INVALID_CREDENTIALS": {
@@ -72,7 +69,7 @@ async function InitPage(User) {
     var DayData = JSON.parse(Tb.Body);
     var SubjectsConfig = await UserSchool.GetConfig("Subjects", User);
 
-    var TimetableDate = new Date(DayData["Date"]+" 00:00:00");
+    var TimetableDate = new Date(DayData["Date"] + " 00:00:00");
     document.getElementById("Date_Month").innerText = TimetableDate.getMonth() + 1;
     document.getElementById("Date_Day").innerText = TimetableDate.getDate();
     document.getElementById("Date_The_Day").innerText = TimetableDate.toLocaleString(window.navigator.language, {
@@ -193,16 +190,16 @@ setInterval(function () {
 
 // Temporary credentials
 
-
 var UserID = GetCookie("UserID");
-var SessionToken = GetCookie("SessionToken");
 
-User = new User(UserID, SessionToken);
+User = new User(UserID);
 UserSchool = null;
 UserGroup = null;
 
-if (UserID == null || SessionToken == null) {
+/*
+if (UserID == false || SessionToken == false) {
   TransferLoginPage();
 }
+*/
 
 InitPage(User);

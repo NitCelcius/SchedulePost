@@ -49,11 +49,14 @@
   <nav></nav>
 
 </body>
-
 <script>
   // SW registration
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('service_worker.js').then(function (registration) {
+      registration.onupdatefound = function() {
+        console.info("Updating SW...");
+        registration.update();
+      }
       console.log('ServiceWorker registration successful with scope: ', registration.scope);
     }).catch(function (err) {
       console.log('ServiceWorker registration failed: ', err);

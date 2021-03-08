@@ -3,11 +3,6 @@ const API_URL = "/bin/api.php";
 
 class User {
   UserID = null;
-  UserID = null;
-  Credentials = {
-    SessionToken: null,
-    LongToken: null
-  };
   // For these properties, if it is false, then it is confirmed to be NULL. Because these need to be fetched from API and can be cached, if API gave the value NULL for a property, then the property is set false - and its getter returns null!
   // Thus,
   //   null = not yet fetched
@@ -25,75 +20,28 @@ class User {
     }
   };
 
-  constructor(InUserID, InSessionToken) {
+  constructor(InUserID) {
     this.UserID = InUserID;
-    this.Credentials.SessionToken = InSessionToken;
-    this.Credentials.LongToken = null;
   }
 
-  /* DEPRECATED
-  async FetchPersonalInfo() {
-    if (this.PersonalRaw === null) {
-      // Might be making 2 requests.
-      this.PersonalRaw = false;
-      var Info = await AwaitAjaxy(API_URL, JSON.stringify({
-        "Auth": {
-          "UserID": this.UserID,
-          "SessionToken": this.Credentials.SessionToken
-        },
-        "Action": "GET_USER_PROFILE"
-      }));
-
-      this.PersonalRaw = Info;
-      return Info;
-    } else if (this.PersonalRaw === false) {
-      while (this.PersonalRaw === false) {
-        // Well, there were no way to actually observe var change.
-        // TODO: implement callback later
-        console.info("Waiting...");
-        setTimeout(100);
-        break;
-      }
-      return null;
-    }
-    return false;
-  }
-  */
-
-  async UpdateSessionToken(LongToken = null, StoreLongToken = true) {
-    if (LongToken == null) {
-      LongToken = this.Credentials.LongToken ?? GetCookie("LongToken");
-    }
-    if (!LongToken || !this.UserID) {
-      throw new InvalidCredentialsError("The longtoken or UserID is not set (Check User class instance)");
-    }
-
+  async UpdateSessionToken() {
     var Info = await AwaitAjaxy(API_URL, JSON.stringify({
-      "Auth": {
-        "UserID": this.UserID,
-        "LongToken": LongToken
-      },
       "Action": "SIGN_IN"
     }), false);
 
-    var Resp = JSON.parse(Info["Content"]);
-    if (Resp["Result"] === true) {
-      if (StoreLongToken) {
-        this.Credentials.LongToken = LongToken;
-        SetCookie("LongToken", LongToken, 720);
+    try {
+      var Resp = JSON.parse(Info["Content"]);
+      if (Resp["Result"] === true) {
+        return true;
+      } else {
+        console.error(Info);
+        return false;
       }
-      this.Credentials.SessionToken = Resp["SessionToken"];
-      SetCookie("SessionToken", this.Credentials.SessionToken, 24);
-
-      return true;
-    } else {
+    } catch (e) {
+      console.error(Info);
+      console.error(e);
       return false;
     }
-  }
-
-  //Deprecated
-  GetUserID() {
-    return this.UserID;
   }
 
   async GetUserProfile() {
@@ -116,25 +64,28 @@ class User {
     if (this.Profile.School.ID === false) {
       await this.UpdateProfile();
     }
-
     return this.Profile.School;
   }
 
-  async UpdateProfile() {
-    var Resp = await APIReq(this, {
-      "Action": "GET_USER_PROFILE"
-    });
-
-    /*
-    var Info = await AwaitAjaxy(API_URL, JSON.stringify({
-      "Auth": {
-        "UserID": this.UserID,
-        "SessionToken": this.Credentials.SessionToken
-      },
-      "Action": "GET_USER_PROFILE"
-    }));
-    */
-
+  async UpdateProfile(Force_Update = false) {
+    var Cached = (localStorage.getItem("User_Profile") != null ? true : false);
+    var Resp = null;
+    if (!Force_Update) {
+      var CachedProfile = localStorage.getItem("User_Profile");
+      if (CachedProfile != null) {
+        //TODO: expire check
+        Resp = JSON.parse(CachedProfile);
+        if (Resp != false) {
+          Cached = true;
+        }
+      }
+    }
+    if (!Cached) {
+      var Resp = await APIReq(this, {
+        "Action": "GET_USER_PROFILE"
+      });
+    }
+    
     if (Resp["Result"]) {
       // LITERALLY PRIVATE.
       // This weird code may well be removed
@@ -143,16 +94,10 @@ class User {
       this.Profile.School.DisplayName = Resp.Profile.School.DisplayName || null;
       this.Profile.Group.ID = Resp.Profile.Group.ID || null;
       this.Profile.Group.DisplayName = Resp.Profile.Group.DisplayName || null;
+      // TODO: Cache it if NOT fetched from cache
+
       return true;
     } else {
-      switch (Resp["ReasonCode"]) {
-        case "ACCOUNT_SESSION_TOKEN_EXPIRED":
-        case "INVALID_CREDENTIALS": {
-          console.warn("The account session token has expired. Redirecting to the sign-in page.");
-          TransferLoginPage();
-          break;
-        }
-      }
       return false;
     }
   }
@@ -359,108 +304,17 @@ function AwaitAjaxy(DestURL, Content, Prot = true) {
 
     Req.send(Content);
   });
-/*
-  return new Promise(function (Resolve, Reject) {
-    let Sendfunc = async function (Resolve, Reject) {
-      let Req = new XMLHttpRequest();
-      Req.open("POST", DestURL, true);
-      Req.setRequestHeader("Content-Type", "application/json");
-      Req.onload = function (LoadData) {
-        //console.debug(LoadData.target.responseText);
-        if (LoadData.target.status >= 200 && LoadData.target.status < 300) {
-          Resolve({
-            "status": LoadData.target.status,
-            "statusText": LoadData.target.statusText,
-            "Content": LoadData.target.response
-          });
-        } else {
-          Reject({
-            "status": LoadData.target.status,
-            "statusText": LoadData.target.statusText
-          })
-        }
-      };
-      Req.onerror = function (LoadData) {
-        Reject({
-          "status": LoadData.target.status,
-          "statusText": LoadData.target.statusText
-        });
-      }
-      Req.send(Content);
-    }
-    Sendfunc(function (Data) {
-      console.warn(Data);
-      if (DestURL === API_URL && Prot) {
-        for (var att = 0; att < 3; att++) {
-          if (Data.Content.search("\\\"Result\\\":\\\"false\\\"")) {
-            console.info(User.Credentials.SessionToken);
-            User.UpdateSessionToken(User.Credentials.LongToken ?? GetCookie("LongToken"));
-            console.info(User.Credentials.SessionToken);
-          }
-        }
-      } else {
-        return Data;
-      }
-    }, function () { Reject(); }).then(function (Data) {
-      console.error(Data);
-      Resolve(Data);
-    });
-  });
-*/
-
-/*
-    try {
-      var Raw;
-      Raw = Sendfunc(function (Data) {
-        if (DestURL === API_URL) {
-          for (var att = 0; att < 3; att++) {
-            console.info(Data);
-            if (Data.Content.search("\\\"Result\\\":\\\"false\\\"")) {
-              User.UpdateSessionToken();
-              //TODO: if continuable:
-              Sendfunc(function (SecondTryData) {
-                console.info("Second try accept");
-                Resolve(SecondTryData);
-              }, function () {
-                console.error("rejected");
-                Reject();
-              });
-            } else {
-              console.warn(Raw);
-              Resolve(Raw);
-              break;
-            }
-          }
-        } else {
-          Resolve(Data);
-        }
-      }, function () {
-          console.error("Awaitajaxy failed.");
-      });
-    } catch (e) {
-      console.warn("Error in AwaitAjaxy(): " + e);
-    }
-  */
 }
 
 async function APIReq(User, Content) {
   var Resp;
   for (var i = 0; i < 3; i++) {
-    if (!Content["Auth"]) {
-      if (!(User.UserID == null || User.Credentials.SessionToken == null)) {
-        Content["Auth"] = {
-          "UserID": User.UserID,
-          "SessionToken": User.Credentials.SessionToken
-        };
-      } else {
-        throw new Error("APIReq: Credentials not defined");
-      }
-    }
-
     Resp = await AwaitAjaxy(API_URL, JSON.stringify(Content));
     try {
       var Data = JSON.parse(Resp.Content);
     } catch (e) {
+      console.error(Resp);
+      console.error(e);
       console.error("Fatal error occurred in API: Server responded with an error.");
       throw new Error("Fatal error occurred in API: Server responded with an error.");
       return false;
@@ -477,6 +331,7 @@ async function APIReq(User, Content) {
         case "ACCOUNT_SESSION_TOKEN_INVALID": {
           var Flag = await User.UpdateSessionToken();
           if (!Flag) {
+          console.warn("The account session token has expired. Redirecting to the sign-in page.");
             TransferLoginPage();
             break;
           }
@@ -485,6 +340,13 @@ async function APIReq(User, Content) {
         case "ACCOUNT_LONG_TOKEN_INVALID":
         case "ACCOUNT_LONG_TOKEN_EXPIRED":
         case "ACCOUNT_CREDENTIALS_INVALID": {
+          console.warn("The account session token is invalid. Redirecting to the sign-in page.");
+
+          TransferLoginPage();
+          break;
+        }
+        case "SIGNIN_REQUIRED": {
+          console.warn("Please sign in.");
           TransferLoginPage();
           break;
         }
@@ -493,7 +355,6 @@ async function APIReq(User, Content) {
         }
       }
     } else {
-      console.warn(Data);
       return Data;
     }
   }
