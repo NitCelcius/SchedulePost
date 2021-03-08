@@ -1,7 +1,5 @@
 document.getElementById("LoginButton").addEventListener("click", async function () {
-  // むりやり GET パラメータを追加
-  document.login.action = encodeURI(document.login.action + "?" + "auth_callback=" + new URL(window.location.href).searchParams.get("auth_callback"));
-
+  DeployLoadAnim("LOGGING IN", "ログインしています...");
 
   var Info = await AwaitAjaxy("/bin/sign_in.php", JSON.stringify({
     "Mail": document.login.Mail.value,
@@ -10,7 +8,9 @@ document.getElementById("LoginButton").addEventListener("click", async function 
 
   var Resp = JSON.parse(Info.Content);
   if (Resp["Result"]) {
+    console.info("Moving on...");
     location.href = new URL(window.location.href).searchParams.get("auth_callback");
+      
   
   } else {
     // err
