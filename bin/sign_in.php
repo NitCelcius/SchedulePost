@@ -56,6 +56,7 @@ switch ($Res) {
       $api_resp = curl_exec($api_getter);
       curl_close($api_getter);
       $RespObj = json_decode($api_resp, true);
+      error_log("RESPONSE:");
       error_log(print_r($api_resp, true));
 
       if ($RespObj["Result"] === true) {
@@ -91,7 +92,7 @@ switch ($Res) {
         );
       } else {
         error_log("sign_in.php: error");
-        error_log(print_r($api_resp, true));
+        error_log(print_r($RespObj, true));
         $Result = array(
           "Result" => false,
           "ReasonCode" => "INTERNAL_EXCEPTION",
