@@ -155,6 +155,7 @@ function Class_Edit(Obj) {
 async function ClassEdit_Setup(EditingClassKey) {
   // EditingClassKey can be replaced with EditingKey. Completely.
   document.getElementById("Edit_ClassLabelDisp").innerText = EditingClassKey;
+  // Update "class type"
   var UpdateFlag = false;
   document.getElementById("Edit_ClassType").childNodes.forEach(function (Option) {
     if (Option.id === "Edit_ClassNone") {
@@ -171,7 +172,6 @@ async function ClassEdit_Setup(EditingClassKey) {
       var AddOption = document.createElement("Option");
       AddOption.value = Keys[i];
       AddOption.innerText = SubjectsConfig[Keys[i]].DisplayName;
-
       Target.appendChild(AddOption);
     }
   }
@@ -184,8 +184,15 @@ async function ClassEdit_Setup(EditingClassKey) {
     }
   });
 
-  document.getElementById("Edit_Note").value = Classes[EditingClassKey].Note ?? null;
-  document.getElementById("Edit_ClassLabel").value = EditingClassKey ?? null;
+  Edit_Class.Edit_Note.value = Classes[EditingClassKey].Note ?? null;
+  Edit_Class.Edit_ClassLabel.value = EditingClassKey ?? null;
+
+  if (Classes[EditingClassKey].Options) {
+    var Options = Classes[EditingClassKey].Options;  
+    Edit_Class.Edit_Important.checked = Options["Important"];
+  } else {
+    // initial
+  }
 }
 
 // BLOCKED.
@@ -212,6 +219,7 @@ function Edit_Apply() {
   var IsTimetableUpdated = false;
   var NewClassData = Classes[EditingKey]; // Copy that
 
+  /*
   document.getElementById("Edit_ClassType").childNodes.forEach(function (Candidate) {
     if (Candidate.selected) {
       if (Classes[EditingKey].ID != Candidate.value) {
@@ -220,14 +228,33 @@ function Edit_Apply() {
       NewClassData["ID"] = Candidate.value;
     }
   });
+  */
+  
+  if (Classes[EditingKey]["ID"] != Edit_Class.Class_Type.value) {
+    IsTimetableUpdated = true;
+  }
+  NewClassData["ID"] = Edit_Class.Class_Type.value;
 
-  var NoteText = document.getElementById("Edit_Note").value;
+  var NoteText = Edit_Class.Edit_Note.value;
   if (Classes[EditingKey].Note != NoteText) {
     IsTimetableUpdated = true;
   }
   NewClassData.Note = NoteText;
 
-  var NewKey = document.getElementById("Edit_ClassLabel").value;
+  // O P T I O N S
+  if (!(Classes[EditingKey].Options)) {
+    Classes[EditingKey].Options = {}
+  };
+
+  var IsImportant = Edit_Class.Edit_Important.checked
+  if (Classes[EditingKey].Options.Important != IsImportant) {
+    IsTimetableUpdated = true;
+  }
+  NewClassData.Options.Important = IsImportant;
+
+
+  // Finally do
+  var NewKey = Edit_Class.Edit_ClassLabel.value;
   if (EditingKey != NewKey) {
     IsTimetableUpdated = true;
     // How do I remove ONLY that property?
@@ -239,7 +266,6 @@ function Edit_Apply() {
       }
       NewClasses[Keys[i]] = Classes[Keys[i]]; //Copy
     }
-
     Classes = NewClasses;
 }
 
@@ -342,6 +368,7 @@ async function Edit_LoadStash() {
   var Local = LoadLocalStash();
   if (Local !== null) {
     Timetable = JSON.parse(Local);
+    Classes = Timetable["TimeTable"];
     // Well we may need something to update status text.
     document.getElementById("Update_Status").innerText = "一時保存した内容を読み込みました";
     setTimeout(() => {
@@ -353,6 +380,7 @@ async function Edit_LoadStash() {
     if (UploadedStash !== null) {
       Timetable = JSON.parse(UploadedStash["Body"]);
       EditingRevision = UploadedStash["Revision"];
+      Classes = Timetable["TimeTable"];
       document.getElementById("Update_Status").innerText = "アップロードした内容を読み込みました";
       setTimeout(() => {
         document.getElementById("Update_Status").innerText = "変更があります。確定 を押すと時間割に反映します";
@@ -454,6 +482,8 @@ async function UploadStash() {
 }
 
 function UpdateEditTimetable() {
+  // Redefine "Classes"
+  Classes = Timetable["TimeTable"];
   ApplyDateStrings(EditingDate);
 
   //Just an imitation of SQLizeDate, but what the he-!?

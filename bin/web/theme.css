@@ -38,8 +38,6 @@ article>* {
   line-height: 3rem;
 }
 
-
-
 article {
   display: flex;
   flex-direction: column;
@@ -53,7 +51,8 @@ div.Class_Block {
   /*  box-shadow: 0 0 1px 0px black; */
   margin: 0.5rem 0rem;
   /*padding: 0.5rem;*/
-  border: 1px solid #aaa
+  border: 1px solid #aaa;
+  box-sizing: border-box;
 }
 
 /*
@@ -78,9 +77,23 @@ label.Class_Label {
   background-color: var(--subject-color);
 }
 
+div.Class_Block.important {
+  border: 2px #000 solid;
+}
+
 div.Class_Block.important label{
   color: white;
+  font-weight: bolder;
   background-color: var(--subject-emphasize-color);
+}
+
+div.Class_Block.important label * {
+  font-weight: normal;
+  color: black;
+}
+
+h3.Class_Name {
+  font-weight: bold !important;
 }
 
 .Class_Emphasizer {
@@ -107,7 +120,6 @@ div.Class_Block_Side {
 
 div.Class_Block_Label {
   display: flex;
-  
 }
 
 .Class_Name {
