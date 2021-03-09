@@ -3,7 +3,7 @@
 // TODO: PHP envilonment requirement
 // WIP.
 
-error_reporting(0);
+error_reporting(3);
 
 $GLOBALS["DB_URL"] = getenv("SP_DB_URL");
 $GLOBALS["DB_Username"] = getenv("SP_DB_USER");
@@ -115,7 +115,7 @@ class Permissions {
     ),
     "Config.Subjects.View" => array(
       "Default" => true,
-      "DefaultAllowRoles" => array("Admin", "Teacher", "Students"),
+      "DefaultAllowRoles" => array("Admin", "Teacher", "Student"),
     )
   );
 
@@ -148,7 +148,7 @@ class InsuffcientPermissionException extends Exception {
   }
 
   public function __toString() {
-    return "Insuffcient permission. Additional information: " . $this->Message . " Location: " . $this->Location;
+    return "Insufficient permission. Additional information: " . $this->Message . " Location: " . $this->Location;
   }
 }
 
@@ -1128,15 +1128,24 @@ function json_api_encode($Obj) {
   return json_encode($Obj, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_FORCE_OBJECT | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
 }
 
+function ErrShutdown() {
+  error_log("API shut down with an fatal error.");
+  exit(json_api_encode(array(
+    "Result" => false,
+    "ReasonCode" => "INTERNAL_EXCEPTION",
+    "ReasonText" => "There was an error in API."
+  )));
+}
+
 // BASICではよくある、 while(true) -> break. try~catch(exception e)~finally ができるやり方。
 
 while (true) {
   $Recv = json_decode(file_get_contents("php://input"), true);
   $User = null;
-  error_log("Got ".print_r($Recv, true));
 
   if ($Recv === null || $Recv === false) {
     $Resp = array(
+      "Result" => false,
       "ReasonCode" => "INPUT_MALFORMED",
       "ReasonText" => "The provided JSON is malformed."
     );
@@ -1458,8 +1467,25 @@ while (true) {
           }
         }
 
+        $PermKey = false;
         $Permitted = false;
-        if ($User->IsPermitted("Config.Subjects.View", DEST_SCHOOL, $TargetSchoolID)) {
+        switch ($Recv["Item"]) {
+          case "Subjects": {
+            $PermKey = "Config.Subjects.View";
+            break;
+          }
+        }
+
+        if ($PermKey === false) {
+          $Resp = array(
+            "Result" => false,
+            "ReasonCode" => "UNEXPECTED_ARGUMENT",
+            "ReasonText" => "The item type requested is not defined in the system. There might be a typo in your code!"
+          );
+          break;
+        }
+
+        if ($User->IsPermitted($PermKey, DEST_SCHOOL, $TargetSchoolID)) {
           $Permitted = true;
         } else {
           $Permitted = false;
@@ -1621,6 +1647,8 @@ while (true) {
           $Resp = Messages::GenerateErrorJSON("SIGNIN_REQUIRED");
           break;
         }
+
+        try {
         $TargetGroupID = "";
         if (array_key_exists("GroupID", $Recv)) {
           $TargetGroupID = $Recv["GroupID"];
@@ -1707,6 +1735,10 @@ while (true) {
             "Body" => $ReturnData["StashData"]
           );
         }
+      } catch (InsuffcientPermissionException $e) {
+        $Resp = Messages::GenerateErrorJSON("INSUFFCIENT_PERMISSION", "You do not have permission to edit that group's timetable.");
+        break;
+      }
         break;
       }
 
@@ -1731,6 +1763,7 @@ while (true) {
           $Resp = Messages::GenerateErrorJSON("ILLEGAL_CALL", "Specify 'Body' to save.");
         }
 
+        try {
         $TargetGroupID = "";
         if (array_key_exists("GroupID", $Recv)) {
           $TargetGroupID = $Recv["GroupID"];
@@ -1805,6 +1838,10 @@ while (true) {
           $Resp = Messages::GenerateErrorJSON("INTERNAL_EXCEPTION", "There was an internal error occurred while connecting to the database.");
           error_log("There was an error while trying to add stash data: " . $PDOstt->errorCode());
         }
+      } catch (InsuffcientPermissionException $e) {
+          $Resp = Messages::GenerateErrorJSON("INSUFFCIENT_PERMISSION", "You do not have permission to edit that group's timetable.");
+          break;
+      }
         break;
       }
 
