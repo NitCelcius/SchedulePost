@@ -56,7 +56,7 @@ switch ($Res) {
       $api_resp = curl_exec($api_getter);
       curl_close($api_getter);
       $RespObj = json_decode($api_resp, true);
-      //var_dump($RespObj);
+      error_log(print_r($RespObj, true));
 
       if ($RespObj["Result"] === true) {
         $SessionExpiry = new DateTime("now", new DateTimeZone($GLOBALS["DefaultTimeZone"]));

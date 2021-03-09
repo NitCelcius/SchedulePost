@@ -504,6 +504,7 @@ async function DeployLoadAnim(TitleText = "LOADING", DescText = "読み込んで
   with(OverlayDiv.style) {
     display = "flex"
     position = "fixed";
+    top = 0;
     width = "100%";
     height = "100%";
     zIndex = 32;
