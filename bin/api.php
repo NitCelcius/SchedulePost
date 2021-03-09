@@ -1133,6 +1133,7 @@ function json_api_encode($Obj) {
 while (true) {
   $Recv = json_decode(file_get_contents("php://input"), true);
   $User = null;
+  error_log("Got ".print_r($Recv));
 
   if ($Recv === null || $Recv === false) {
     $Resp = array(

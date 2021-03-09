@@ -1,6 +1,6 @@
 <?php
 // This might not be necessary, in fact.
-$API_URL = getenv("SP_API_URL");
+$GLOBALS["API_URL"] = getenv("SP_API_URL");
 $GLOBALS["DB_URL"] = getenv("SP_DB_URL");
 $GLOBALS["DB_Username"] = getenv("SP_DB_USER");
 $GLOBALS["DB_PassPhrase"] = getenv("SP_DB_PASSPHRASE");
@@ -47,7 +47,7 @@ switch ($Res) {
 
       // POST する
       curl_setopt_array($api_getter, [
-        CURLOPT_URL => $API_URL,
+        CURLOPT_URL => $GLOBALS["API_URL"],
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_POST => true,
         CURLOPT_POSTFIELDS => $post,
@@ -56,7 +56,7 @@ switch ($Res) {
       $api_resp = curl_exec($api_getter);
       curl_close($api_getter);
       $RespObj = json_decode($api_resp, true);
-      error_log(print_r($RespObj, true));
+      error_log(print_r($api_resp, true));
 
       if ($RespObj["Result"] === true) {
         $SessionExpiry = new DateTime("now", new DateTimeZone($GLOBALS["DefaultTimeZone"]));
