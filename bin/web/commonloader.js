@@ -57,8 +57,6 @@ async function LoadCommonNodes() {
 }
 
 async function LoadSidebarProfile() {
-
-
     // May be waste. Already loaded
     var Prof = await User.FetchPersonalInfo();
     console.info(Prof.Content);
@@ -70,4 +68,21 @@ async function LoadSidebarProfile() {
     }
 }
 
-LoadCommonNodes();
+LoadCommonNodes().then(async function () {
+  var UserID = GetCookie("UserID");
+  User = new UserClass(UserID);
+  User.GetGroupProfile().then(function (GroupProf) {
+    if (GroupProf.DisplayName) {
+      document.getElementById("Group_Label").innerHTML = GroupProf.DisplayName;
+    }
+  });
+  SchoolProf = await User.GetSchoolProfile();
+    console.warn(SchoolProf);
+    if (SchoolProf.DisplayName) {
+      document.getElementById("School_Label").innerHTML = SchoolProf.DisplayName;
+    };
+
+  User.GetSchoolProfile().then(function (SchoolProf) {
+  })
+});
+
