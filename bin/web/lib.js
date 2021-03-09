@@ -283,7 +283,6 @@ function AwaitAjaxy(DestURL, Content, Prot = true) {
 
     Req.onload = function (LoadData) {
       //console.debug(LoadData.target.responseText);
-      console.debug(LoadData);
       if (LoadData.target.status >= 200 && LoadData.target.status < 300) {
         Resolve({
           "status": LoadData.target.status,
@@ -304,7 +303,6 @@ function AwaitAjaxy(DestURL, Content, Prot = true) {
       });
     }
 
-    console.debug(Content);
     Req.send(Content);
   });
 }
@@ -379,7 +377,6 @@ async function APIReq(User, Content) {
         "Content-Type": "application/json; charset=UTF-8"
       }
     }).then(function (resp) {
-        console.info(resp);
       try {
         return resp.json();
       } catch (e) {

@@ -3,7 +3,7 @@
 // TODO: PHP envilonment requirement
 // WIP.
 
-error_reporting(E_ALL);
+error_reporting(0);
 
 $GLOBALS["DB_URL"] = getenv("SP_DB_URL");
 $GLOBALS["DB_Username"] = getenv("SP_DB_USER");

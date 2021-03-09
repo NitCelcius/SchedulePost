@@ -10,8 +10,6 @@ document.getElementById("LoginButton").addEventListener("click", async function 
   if (Resp["Result"]) {
     console.info("Moving on...");
     location.href = new URL(window.location.href).searchParams.get("auth_callback");
-      
-  
   } else {
     // err
   }
