@@ -7,16 +7,12 @@ async function InitPage(User) {
   });
 }
 
-async function PrepareEditor(User) {
-  //TODO: Select groups.
-  // And this is really inefficient.
-  GroupProf = await User.GetGroupProfile();
-  console.info(GroupProf);
-  document.getElementById("Timetable_Group").innerText = GroupProf.DisplayName;
-  //Timetable_Group
-
-  UserSchool = new School(User.GetSchoolProfile().ID);
-  EditingDate = new Date();
+async function LoadSchedule(TargetDate) {
+  if (!(TargetDate instanceof Date)) {
+    console.error("Non-date was specified as TargetDate!");
+    return false;
+  }
+  EditingDate = TargetDate;
 
   // So weird but it actually works.
   FetchCfg = async function () {
@@ -43,32 +39,39 @@ async function PrepareEditor(User) {
   }
 
   //Wait, are they necessary?
-
   //BUG: These returns same things
   var CfgState = null;
   var TTBase = null;
   var TTDiff = null;
-  [CfgState, TTBase, TTDiff] = await Promise.all([
+  var Cfg = null;
+  [CfgState, TTBase, TTDiff, Cfg] = await Promise.all([
     AttemptFunc(FetchCfg()),
     AttemptFunc(User.GetTimeTableBase(EditingDate)),
-    AttemptFunc(User.GetTimeTableDiff(EditingDate))
+    AttemptFunc(User.GetTimeTableDiff(EditingDate)),
+    AttemptFunc(UserSchool.GetConfig("Subjects", User))
   ]);
 
   console.info(TTBase);
   console.info(TTDiff);
 
+  if (Cfg !== false) {
+    SubjectsConfig = Cfg;
+  }
+
   if (TTBase !== false) {
-    if (TTBase === null || TTBase["Body"]===null) {
+    if (TTBase === null) {
       Timetable = TTDiff;
     } else {
-      Timetable = TTBase["TimeTable"];
+      Timetable = TTBase;
       // merge
       Global["TTBase"] = TTBase;
       Global["TTDiff"] = TTDiff;
-      if (TTDiff["Override"] === true) {
-        Timetable = TTDiff;
-      } else {
-        Timetable = MergeTimetable(TTBase, TTDiff);
+      if (TTDiff !== null) {
+        if (TTDiff["Override"] === true) {
+          Timetable = TTDiff;
+        } else {
+          Timetable = MergeTimetable(TTBase, TTDiff);
+        }
       }
     }
   } else {
@@ -82,16 +85,132 @@ async function PrepareEditor(User) {
   // Currently auto-override
   Timetable["Override"] = true;
 
-   // It does not copy things. Just for easy code!
-   Classes = Timetable["TimeTable"];
-
-  //TODO: apply some options
-
-  SubjectsConfig = await UserSchool.GetConfig("Subjects", User);
+  // It does not copy things. Just for easy code!
+  Classes = Timetable["TimeTable"];
 
   UpdateEditTimetable();
+  return true;
+}
 
-  
+async function PrepareEditor(User) {
+  //TODO: Select groups.
+  // And this is really inefficient.
+  GroupProf = await User.GetGroupProfile();
+  console.info(GroupProf);
+  document.getElementById("Timetable_Group").innerText = GroupProf.DisplayName;
+  //Timetable_Group
+
+  UserSchool = new School(User.GetSchoolProfile().ID);
+  EditingDate = new Date();
+
+  //TODO: apply some options
+  await LoadSchedule(EditingDate);
+
+  document.Options.Daily_Note.addEventListener("change", function () {
+    Timetable["Note"] = document.Options.Daily_Note.value;
+    StartAutoStash();
+  })
+
+  document.Options.Date.addEventListener("change", function () {
+    var AskF = true;
+    if (IsChanged) {
+      AskF = confirm("編集している時間割は確定されず、配信もされません。\n編集中の時間割はサーバーに一定期間保存されるため、日付を変更して一時保存した内容を読み込むと編集を再開できます。\n\n編集する日付を変更しますか？");
+    }
+
+    if (AskF === true) {
+      var Do = async function () {
+        DeployLoadAnim("LOADING", "読み込んでいます...");
+        await UploadStash();
+        await LoadSchedule(new Date(document.Options.Date.value));
+        IsChanged = false;
+        DestructLoadAnim();
+      }
+      Do();
+    } else {
+      UpdateEditTimetable();
+    }
+  })
+
+  document.getElementById("LoadFromStash").onclick = function () {
+    var AskF = true;
+    if (IsChanged) {
+      AskF = confirm("編集している時間割は確定されず、配信もされません。\n編集中の時間割はサーバーに一定期間保存されるため、日付を変更して一時保存した内容を読み込むと編集を再開できます。\n\n一時保存から読み込みますか？");
+    }
+
+    if (AskF === true) {
+      var Do = async function () {
+        DeployLoadAnim("LOADING", "読み込んでいます...");
+        var Flag = await ApplyLocalStash();
+        if (Flag !== true) {
+          alert("一時保存した内容はありません。");
+        }
+        await UpdateEditTimetable();
+        IsChanged = false;
+        CloseIOMenu();
+        DestructLoadAnim();
+      }
+      Do();
+    }
+  }
+
+  document.getElementById("LoadFromServer").onclick = function () {
+    var AskF = true;
+    if (IsChanged) {
+      AskF = confirm("編集している時間割は確定されず、配信もされません。\n編集中の時間割はサーバーに一定期間保存されるため、日付を変更して一時保存した内容を読み込むと編集を再開できます。\n\nサーバーから読み込みますか？");
+    }
+
+    if (AskF === true) {
+      var Do = async function () {
+        DeployLoadAnim("LOADING", "読み込んでいます...");
+        var Flag = await ApplyServerStash();
+        if (Flag === false) {
+          alert("サーバーに一時保存した時間割はありません。");
+        }
+        await UpdateEditTimetable();
+        IsChanged = false;
+        CloseIOMenu();
+        DestructLoadAnim();
+      }
+      Do();
+    }
+  }
+
+  document.getElementById("ResetToBase").onclick = function () {
+    var AskF = false;
+    AskF = confirm("編集している時間割を破棄して、いつもの時間割から編集をやり直しますか？\n確定するまで、時間割は適用されません。");
+    if (AskF) {
+      var Do = async function () {
+        DeployLoadAnim();
+        var TTBase = await User.GetTimeTableBase(EditingDate);
+        if (TTBase !== false) {
+          if (TTBase !== null) {
+            Timetable = TTBase;
+            await UpdateEditTimetable();
+            IsChanged = false;
+          } else {
+            alert("この曜日のいつもの時間割が設定されていません。\n");
+          }
+        } else {
+          alert("いつもの時間割を読み込めませんでした。");
+        }
+        CloseIOMenu();
+        DestructLoadAnim();
+      }
+      Do();
+    }
+  }
+
+  document.getElementById("SaveToStash").onclick = function () {
+    StartAutoStash();
+    CloseIOMenu();
+  }
+
+  document.getElementById("SaveToServer").onclick = function () {
+    UploadStash();
+    CloseIOMenu();
+
+  }
+
   /* メモを編集 のところ、考える
   document.getElementsByClassName("Class_Block").forEach(function (Element) {
     Element.getElementsByClassName("Class_Note_Input")[0].addEventListener(onchange, function (UpElem) {
@@ -99,7 +218,7 @@ async function PrepareEditor(User) {
     })
   });
   */
- 
+
 }
 
 function MergeTimetable(Base, Diff) {
@@ -188,7 +307,7 @@ async function ClassEdit_Setup(EditingClassKey) {
   Edit_Class.Edit_ClassLabel.value = EditingClassKey ?? null;
 
   if (Classes[EditingClassKey].Options) {
-    var Options = Classes[EditingClassKey].Options;  
+    var Options = Classes[EditingClassKey].Options;
     Edit_Class.Edit_Important.checked = Options["Important"];
   } else {
     // initial
@@ -229,7 +348,7 @@ function Edit_Apply() {
     }
   });
   */
-  
+
   if (Classes[EditingKey]["ID"] != Edit_Class.Class_Type.value) {
     IsTimetableUpdated = true;
   }
@@ -267,7 +386,7 @@ function Edit_Apply() {
       NewClasses[Keys[i]] = Classes[Keys[i]]; //Copy
     }
     Classes = NewClasses;
-}
+  }
 
   if (IsTimetableUpdated) {
     Classes[NewKey] = NewClassData;
@@ -306,6 +425,7 @@ function Edit_CompleteConfirm() {
 
   if (Flag === true) {
     Edit_Upload(Timetable);
+    IsChanged = true;
   } else {
     // Do nothing !!!
   }
@@ -336,9 +456,8 @@ function Edit_AddClass() {
   };
 
   // Clear
-  
-  UpdateEditTimetable();
 
+  UpdateEditTimetable();
   StartAutoStash();
 }
 
@@ -364,21 +483,40 @@ async function Edit_ApplyStashConfirm() {
   }
 }
 
-async function Edit_LoadStash() {
+function OpenIOMenu() {
+  document.getElementById("Edit_LoadFromWrapper").style.display = "flex";
+}
+
+function CloseIOMenu() {
+  document.getElementById("Edit_LoadFromWrapper").style.display = "none";
+}
+
+async function ApplyLocalStash() {
   var Local = LoadLocalStash();
   if (Local !== null) {
-    Timetable = JSON.parse(Local);
-    Classes = Timetable["TimeTable"];
-    // Well we may need something to update status text.
-    document.getElementById("Update_Status").innerText = "一時保存した内容を読み込みました";
-    setTimeout(() => {
-      document.getElementById("Update_Status").innerText = "変更があります。確定 を押すと時間割に反映します";
-    }, 5000);
+    try {
+      Timetable = JSON.parse(Local);
+      Classes = Timetable["TimeTable"];
+      // Well we may need something to update status text.
+      document.getElementById("Update_Status").innerText = "一時保存した内容を読み込みました";
+      setTimeout(() => {
+        document.getElementById("Update_Status").innerText = "変更があります。確定 を押すと時間割に反映します";
+      }, 5000);
+    } catch (e) {
+      console.warn(e);
+      return false;
+    }
     return true;
   } else {
-    var UploadedStash = await DownloadStash(EditingDate);
-    if (UploadedStash !== null) {
-      Timetable = JSON.parse(UploadedStash["Body"]);
+    return null;
+  }
+}
+
+async function ApplyServerStash() {
+  var UploadedStash = await DownloadStash(EditingDate);
+  if (UploadedStash !== null) {
+    try {
+      Timetable = UploadedStash["Body"];
       EditingRevision = UploadedStash["Revision"];
       Classes = Timetable["TimeTable"];
       document.getElementById("Update_Status").innerText = "アップロードした内容を読み込みました";
@@ -386,14 +524,29 @@ async function Edit_LoadStash() {
         document.getElementById("Update_Status").innerText = "変更があります。確定 を押すと時間割に反映します";
       }, 5000);
       return true;
-    } else {
-      document.getElementById("Update_Status").innerText = "一時保存した内容が見つかりません";
-      setTimeout(() => {
-        document.getElementById("Update_Status").innerText = "";
-      }, 5000);
-      return null;
+    } catch (e) {
+      console.warn(e);
+      return false;
     }
+  } else {
+    document.getElementById("Update_Status").innerText = "一時保存した内容が見つかりません";
+    setTimeout(() => {
+      document.getElementById("Update_Status").innerText = "";
+    }, 5000);
+    return null;
   }
+}
+
+async function Edit_LoadStash() {
+  var Flag = await ApplyLocalStash();
+  if (Flag !== true) {
+    Flag = await ApplyServerStash();
+    if (!Flag) {
+      return false;
+    }
+    return true;
+  }
+  return true;
 }
 
 function LoadLocalStash() {
@@ -412,25 +565,33 @@ async function DownloadStash(TargetDate) {
     "Date": SqlizeDate(TargetDate)
   });
 
-  var Data = JSON.parse(Info.Content);
-  if (Data["Result"]) {
-    if (Data["Revision"] === -1) {
-      // It's brand new!
-      return null;
-    } else {
-      // It's well-prepared!
-      return {
-        "Revision": Data["Revision"],
-        "Body": Data["Body"]
+  try {
+    var Data = JSON.parse(Info["Body"]);
+    if (Info["Result"]) {
+      if (Data["Revision"] === -1) {
+        // It's brand new!
+        return null;
+      } else {
+        // It's well-prepared!
+        return {
+          "Revision": Info["Revision"],
+          "Body": Data
+        }
       }
+    } else {
+      return false;
     }
-  } else {
+  } catch (e) {
+    console.error("Could not load server stash.");
+    console.error(Info);
+    console.error(e);
     return false;
   }
 }
 
 // Though we need to save THIS to local storage
 async function StartAutoStash() {
+  IsChanged = true;
   document.getElementById("Update_Status").innerText = "一時保存しています...";
   var StoreData = JSON.stringify(Timetable);
   localStorage.setItem("Timetable_Stash", StoreData);
@@ -487,15 +648,17 @@ function UpdateEditTimetable() {
   ApplyDateStrings(EditingDate);
 
   //Just an imitation of SQLizeDate, but what the he-!?
-  document.Timetable_Options.Date.value = "" +EditingDate.getFullYear() + "-" + ("00"+(EditingDate.getMonth() + 1).toString()).slice(-2) + "-"+ ("00"+(EditingDate.getDate()).toString()).slice(-2);
+  document.Options.Date.value = "" + EditingDate.getFullYear() + "-" + ("00" + (EditingDate.getMonth() + 1).toString()).slice(-2) + "-" + ("00" + (EditingDate.getDate()).toString()).slice(-2);
+  if (Timetable["Note"]) {
+    document.Options.Daily_Note.value = Timetable["Note"];
+  }
 
   UpdateClasses(Classes, SubjectsConfig, document.getElementById("Table_Body"), document.getElementById("Class_Base"));
 }
 
 
 var UserID = GetCookie("UserID");
-
-User = new User(UserID);
+User = new UserClass(UserID);
 UserSchool = null;
 UserGroup = null;
 
@@ -503,6 +666,7 @@ SubjectsConfig = null;
 EditingKey = null;
 EditingDate = new Date();
 EditingRevision = null;
+IsChanged = false;
 
 LastSaveTime = 0;
 SaveTimer = null;

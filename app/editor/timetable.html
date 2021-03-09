@@ -20,24 +20,26 @@
         <button id="Edit_Accept" onclick="Edit_CompleteConfirm()">確定</button>
       </div>
       <div>
-        <button id="Edit_Load" onclick="Edit_ApplyStashConfirm()">一時保存した内容を読み込む</button>
+        <button id="Edit_Load" onclick="OpenIOMenu()">一時保存した内容を読み込む</button>
       </div>
     </div>
 
     <hr>
 
-    <h2 id="Date"><span id="Date_Year">----</span><span id="Date_YMSplit">年</span><span
-        id="Date_Month">--</span><span id="Date_MDSplit">月</span><span id="Date_Day">--</span><span
-        id="Date_DSplit">日</span><span id="Date_The_Day">-</span><span id="Date_TDSplit">曜日</span></h2>
+    <h2 id="Date"><span id="Date_Year">----</span><span id="Date_YMSplit">年</span><span id="Date_Month">--</span><span
+        id="Date_MDSplit">月</span><span id="Date_Day">--</span><span id="Date_DSplit">日</span><span
+        id="Date_The_Day">-</span><span id="Date_TDSplit">曜日</span></h2>
 
     <p id="Timetable_GroupText">編集対象のグループ: <span id="Timetable_Group"></span></p>
 
     <section id="Timetable_Options">
-      <form name="Timetable_Options">
-        <label><span class="Edit_Desc">日付</span><input type="date" name="Date" id="Edit_Date"></label>
+      <form name="Options">
+        <label class="OptLabel"><span class="Edit_Desc">日付</span><input type="date" name="Date" id="Edit_Date"></label>
+        <label class="OptLabel" id="OptNote"><span class="Edit_Desc">一日のメモ</span>
+          <textarea id="Daily_Note" class="Daily_Note Daily_Note_Input" name="Daily_Note" type="text"
+            placeholder="一日のメモを入力"></textarea></label>
       </form>
     </section>
-
     <section id="Table_Body">
 
     </section>
@@ -94,6 +96,28 @@
       </div>
     </div>
 
+    <div id="Edit_LoadFromWrapper" style="display: none;">
+      <div id="Edit_LoadFrom">
+        <div id="Edit_LoadFromControl">
+          <h2>時間割を読み込む/保存する</h2>
+          <button id="LoadFrom_Close" onclick="CloseIOMenu()">閉じる</button>
+        </div>
+        <hr>
+        <p>注意: 保存していない内容は失われます。</p>
+        <h3>読み込み</h3>
+        <div class="FlexHBtn">
+          <button id="LoadFromStash">一時保存から読み込む</button>
+          <button id="LoadFromServer">サーバーから読み込む</button>
+          <button id="ResetToBase">いつもの時間割に戻す</button>
+        </div>
+        <h3>保存</h3>
+        <div class="FlexHBtn">
+          <button id="SaveToStash">一時保存する</button>
+          <button id="SaveToServer">サーバーに保存する</button>
+        </div>
+      </div>
+    </div>
+
     <div id="Edit_DialogWrapper" style="display: none;">
       <div id="Edit_Dialog">
         <h2 id="EditD_Title"></h2>
@@ -109,7 +133,7 @@
 </body>
 
 <script src="/bin/web/lib.js"></script>
-<script src="/bin/web/commonloader.js" async></script>
 <script src="/app/editor/timetable.js" async></script>
+<script src="/bin/web/commonloader.js" async></script>
 
 </html>

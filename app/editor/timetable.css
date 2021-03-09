@@ -244,6 +244,107 @@ span.Edit_Desc {
   text-align: center;
 }
 
+#Timetable_Options {
+}
+
+#Timetable_Options > form {
+  display: flex;
+  flex-direction: column;
+}
+
+.Daily_Note_Input {
+  /* 折返し */
+  width: calc(100% - 4rem);
+  margin: 0 2rem;
+  text-align: left;
+  color: #444;
+}
+
+.OptLabel {
+  display: flex;
+  align-content: center;
+  justify-content: center;
+  /*margin: 0.5rem 0;*/
+}
+
+#OptNote {
+  flex-direction: column;
+}
+
+
+div#Edit_LoadFromWrapper {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 20;
+  background-color: #222222d0;
+  align-items: center;
+  justify-content: center;
+}
+
+#Edit_LoadFrom {
+  display: flex;
+  flex-direction: column;
+  width: calc(100% - 2rem);
+  height: calc(100% - 2rem);
+  background-color: #fff;
+  padding: 1rem;
+  max-width: 60rem;
+  max-height: 60rem;
+  vertical-align: middle;
+  border: .1rem #666 solid;
+  box-sizing: border-box;
+  overflow-y: auto;
+}
+
+#Edit_LoadFrom h2{
+  margin: 0 0 0 0;
+}
+
+#Edit_LoadFrom h3 {
+  margin: 0.5rem 0 0.5rem 0;
+}
+
+#Edit_LoadFrom hr {
+  width: 100%;
+  margin: 0 0 0.5rem 0;
+}
+
+#Edit_LoadFrom p {
+  margin: 0.5rem 0;
+}
+
+#Edit_LoadFromControl {
+  display: flex;
+  flex-direction: row;
+}
+
+#Edit_LoadFromControl h2 {
+  width: 100%;
+}
+
+#Edit_LoadFromControl button {
+  white-space: nowrap;
+  min-width: 4rem;
+}
+
+#Edit_LoadFrom button {
+  min-height: 3rem;
+  width: 10rem;
+}
+
+.FlexHBtn {
+  display: flex;
+  flex-direction: row;
+}
+
+.FlexHBtn button {
+  min-height: 3rem;
+  white-space: nowrap;
+  margin: 0.5rem;
+}
 /*
 #Edit_Important::before {
   appearance: none;
