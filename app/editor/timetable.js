@@ -12,8 +12,8 @@ async function LoadSchedule(TargetDate) {
     console.error("Non-date was specified as TargetDate!");
     return false;
   }
-  EditingDate = TargetDate;
 
+  EditingDate = TargetDate;
   // So weird but it actually works.
   FetchCfg = async function () {
     var Res = await UserSchool.FetchConfig(User, "Subjects");
@@ -78,7 +78,7 @@ async function LoadSchedule(TargetDate) {
     Timetable = null;
   }
 
-  if (Timetable === null) {
+  if (!Timetable) {
     Timetable = {};
   }
 
@@ -99,6 +99,21 @@ async function PrepareEditor(User) {
   console.info(GroupProf);
   document.getElementById("Timetable_Group").innerText = GroupProf.DisplayName;
   //Timetable_Group
+
+  DownloadStash(EditingDate).then(function (Ds) {
+    if (Ds !== false) {
+      // TODO: Notify
+    } else {
+      //if (LAST_ERROR === "INSUFFCIENT_PERMISSION") {
+      //  DeployErrorWindow("時間割を編集する権限がありません。");
+      //}
+    }
+  }).catch(function (e) {
+    if (e.ErrorCode === "INSUFFCIENT_PERMISSION") {
+      DeployErrorWindow("時間割を編集する権限がありません。");
+    }
+    console.info(e);
+  });
 
   UserSchool = new School(User.GetSchoolProfile().ID);
   EditingDate = new Date();
@@ -559,6 +574,14 @@ function LoadLocalStash() {
 }
 
 async function DownloadStash(TargetDate) {
+  if (!(TargetDate instanceof Date)) {
+    throw new Error("Specify Date instance.");
+  }
+
+  if (!User.Profile.Group.ID) {
+    await User.UpdateProfile();
+  }
+
   var Info = await APIReq(User, {
     "Action": "GET_EDIT_STASH",
     "GroupID": User.Profile.Group.ID,
@@ -645,6 +668,10 @@ async function UploadStash() {
 function UpdateEditTimetable() {
   // Redefine "Classes"
   Classes = Timetable["TimeTable"];
+  if (Classes === undefined) {
+    Timetable["TimeTable"] = {};
+    Classes = [];
+  }
   ApplyDateStrings(EditingDate);
 
   //Just an imitation of SQLizeDate, but what the he-!?

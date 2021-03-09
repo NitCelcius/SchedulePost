@@ -120,7 +120,7 @@ class UserClass {
 
     //TODO: error handling
     if (Info === false) {
-      throw new Error("There seems to be an error occurred while fetching timetable. " + Info.toString());
+      throw new Error("There seems to be an error occured while fetching timetable. " + Info.toString());
     }
 
     return Info;
@@ -180,6 +180,23 @@ class UserClass {
 class InvalidCredentialsError extends Error {
   constructor(...params) {
     super(...params);
+  }
+}
+
+class APIError extends Error {
+  constructor(ErrCode, ErrMsg, message) {
+    super(message);
+    this.name = "APIError";
+    this.ErrorCode = ErrCode;
+    this.ErrorMessage = ErrMsg;
+  }
+
+  GetErrorCode() {
+    return this.ErrorCode;
+  }
+
+  GetErrorMessage() {
+    return this.ErrorMessage;
   }
 }
 
@@ -307,64 +324,6 @@ function AwaitAjaxy(DestURL, Content, Prot = true) {
   });
 }
 
-async function APIReq_Dep(User, Content) {
-  var Resp;
-  for (var i = 0; i < 3; i++) {
-    Resp = await AwaitAjaxy(API_URL, JSON.stringify(Content));
-    try {
-      var Data = JSON.parse(Resp.Content);
-    } catch (e) {
-      console.error(Resp);
-      console.error(e);
-      console.error("Fatal error occurred in API: Server responded with an error.");
-      throw new Error("Fatal error occurred in API: Server responded with an error.");
-      return false;
-    }
-
-    if (!Data.Result) {
-      var ErrLog = function () {
-        console.error("Fatal error occurred in API: " + Data.ReasonCode + ": " + Data.ReasonText + " Script will suspend.")
-        throw new Error("Fatal error occurred in API: " + Data.ReasonCode + ": " + Data.ReasonText + " Script will suspend.");
-        return false;
-      }
-      switch (Data.ReasonCode) {
-        case "ACCOUNT_SESSION_TOKEN_EXPIRED":
-        case "ACCOUNT_SESSION_TOKEN_INVALID": {
-          var Flag = await User.UpdateSessionToken();
-          if (!Flag) {
-            console.warn("The account session token has expired. Redirecting to the sign-in page.");
-            TransferLoginPage();
-            break;
-          }
-          break;
-        }
-        case "ACCOUNT_LONG_TOKEN_INVALID":
-        case "ACCOUNT_LONG_TOKEN_EXPIRED":
-        case "ACCOUNT_CREDENTIALS_INVALID": {
-          console.warn("The account session token is invalid. Redirecting to the sign-in page.");
-
-          TransferLoginPage();
-          break;
-        }
-        case "SIGNIN_REQUIRED": {
-          console.warn("Please sign in.");
-          TransferLoginPage();
-          break;
-        }
-        default: {
-          ErrLog();
-        }
-      }
-    } else {
-      return Data;
-    }
-  }
-  console.error(Resp);
-  console.error(User);
-  console.error(Content);
-  throw new Error("APIReq failed.");
-}
-
 async function APIReq(User, Content) {
   var Resp;
   for (var i = 0; i < 3; i++) {
@@ -380,17 +339,19 @@ async function APIReq(User, Content) {
       try {
         return resp.json();
       } catch (e) {
+        console.error(Content);
         console.error(Resp);
         console.error(e);
-        console.error("Fatal error occurred in API: Server responded with an error.");
-        throw new Error("Fatal error occurred in API: Server responded with an error.");
+        console.error("Fatal error occured in API: Server responded with an error.");
+        throw new Error("Fatal error occured in API: Server responded with an error.");
         return false;
       }
     }).then(async function (Data) {
       if (!Data.Result) {
         var ErrLog = function () {
-          console.error("Fatal error occurred in API: " + Data.ReasonCode + ": " + Data.ReasonText + " Script will suspend.")
-          throw new Error("Fatal error occurred in API: " + Data.ReasonCode + ": " + Data.ReasonText + " Script will suspend.");
+          LAST_ERROR = Data.ReasonCode;
+          console.error("Fatal error occured in API: " + Data.ReasonCode + ": " + Data.ReasonText + " Script will suspend.")
+          throw new APIError(Data.ReasonCode, Data.ReasonText, "Fatal error occured in API: " + Data.ReasonCode + ": " + Data.ReasonText + " Script will suspend.");
           return false;
         }
         switch (Data.ReasonCode) {
@@ -553,6 +514,50 @@ async function DestructLoadAnim() {
   // Want some animation, but skip.
 }
 
+async function DeployErrorWindow(ErrorText) {
+  OverlayDiv = document.createElement("div");
+  OverlayDiv.id = "LoadIndiWrapper";
+  with(OverlayDiv.style) {
+    display = "flex"
+    position = "fixed";
+    top = 0;
+    width = "100%";
+    height = "100%";
+    zIndex = 128;
+    backgroundColor = "#ddde";
+    alignItems = "center";
+    flexDirection = "column";
+    placeContent = "center";
+  }
+  document.getElementsByTagName("Body")[0].appendChild(OverlayDiv);
+  LoadTitle = document.createElement("h1");
+  LoadTitle.id = "LoadIndiTitle";
+  LoadTitle.innerText = "エラーが発生しました";
+  with(LoadTitle.style) {
+    justifyContent = "center";
+    color = "#000";
+    letterSpacing = "0.2em";
+    fontSize = "1.5rem";
+  }
+  LoadText = document.createElement("p");
+  LoadText.id = "LoadIndiMessage"
+  LoadText.innerText = ErrorText;
+  with (LoadText.style) { }
+  LoadGeneText = document.createElement("p");
+  LoadGeneText.id = "LoadGeneMessage"
+  LoadGeneText.innerHTML = "システム管理者に連絡してください。<br>ユーザーID: "+GetCookie("UserID");
+  with (LoadGeneText.style) {
+    color = "#666"
+    textAlign = "center"
+  }
+
+  with(OverlayDiv) {
+    appendChild(LoadTitle);
+    appendChild(LoadText);
+    appendChild(LoadGeneText);
+  }
+}
+
 function TransferLoginPage() {
   // NOTE: Depending on the last-update time, automatically redirect or recommend to redirect.
   // Referer problem occurs here, but ignoring
@@ -611,7 +616,6 @@ function ApplyDateStrings(TargetDate, YearElement = document.getElementById("Dat
   DayOfTheWeekElement.innerText = DateStrings.DayOfTheWeek;
   // I'm done for.
 }
-
 
 function UpdateClasses(ClassList, SubjectsConfig, TargetNode, BaseNode) {
   TargetNode.innerHTML = "";

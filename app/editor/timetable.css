@@ -256,7 +256,7 @@ span.Edit_Desc {
   /* 折返し */
   width: calc(100% - 4rem);
   margin: 0 2rem;
-  text-align: left;
+  text-align: left !important;
   color: #444;
 }
 
