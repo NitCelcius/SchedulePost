@@ -76,6 +76,10 @@ async function InitPage(User) {
       weekday: "narrow"
     });
 
+    if (DayData["Note"]) {
+      document.getElementById("Daily_Note").innerText = DayData["Note"];
+    }
+
     UpdateClasses(
       DayData["TimeTable"],
       SubjectsConfig,
@@ -192,7 +196,7 @@ setInterval(function () {
 
 var UserID = GetCookie("UserID");
 
-User = new User(UserID);
+User = new UserClass(UserID);
 UserSchool = null;
 UserGroup = null;
 

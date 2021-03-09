@@ -141,6 +141,26 @@ div.Class_Block_Label {
   margin: 0rem 1rem;
 }
 
+.Daily_Note {
+  /* 折返し */
+  width: calc(100% - 1rem);
+  word-wrap: break-word;
+  overflow-wrap: anywhere;
+  margin: 0rem;
+  text-align: center;
+  color: #444;
+}
+
+#Daily_Note {
+  /* 折返し */
+  width: calc(100% - 1rem);
+  word-wrap: break-word;
+  overflow-wrap: anywhere;
+  margin: 0rem;
+  text-align: center;
+  color: #444;
+}
+
 @media (max-width: 55rem) {
   article {
     display: block;

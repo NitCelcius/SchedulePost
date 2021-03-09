@@ -79,7 +79,7 @@ async function InitPage(User) {
 }
 
 var UserID = GetCookie("UserID");
-var SessionToken = GetCookie("SessionToken");
+
 
 User = new User(UserID, SessionToken);
 UserSchool = null;
