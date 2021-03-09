@@ -1,7 +1,7 @@
 // Set here too.
 const API_URL = "/bin/api.php";
 
-class User {
+class UserClass {
   UserID = null;
   // For these properties, if it is false, then it is confirmed to be NULL. Because these need to be fetched from API and can be cached, if API gave the value NULL for a property, then the property is set false - and its getter returns null!
   // Thus,
@@ -68,10 +68,12 @@ class User {
   }
 
   async UpdateProfile(Force_Update = false) {
-    var Cached = (localStorage.getItem("User_Profile") != null ? true : false);
+    //var Cached = (localStorage.getItem("User_Profile") != null ? true : false);
+    var Cached = false;
+    Force_Update = true;
     var Resp = null;
     if (!Force_Update) {
-      var CachedProfile = localStorage.getItem("User_Profile");
+      //var CachedProfile = localStorage.getItem("User_Profile");
       if (CachedProfile != null) {
         //TODO: expire check
         Resp = JSON.parse(CachedProfile);
@@ -85,16 +87,17 @@ class User {
         "Action": "GET_USER_PROFILE"
       });
     }
-    
+
     if (Resp["Result"]) {
       // LITERALLY PRIVATE.
       // This weird code may well be removed
       this.Profile.Self.DisplayName = Resp.Profile.User.DisplayName || null;
-      this.Profile.School.ID = Resp.Profile.School || null;
+      this.Profile.School.ID = Resp.Profile.School.ID || null;
       this.Profile.School.DisplayName = Resp.Profile.School.DisplayName || null;
       this.Profile.Group.ID = Resp.Profile.Group.ID || null;
       this.Profile.Group.DisplayName = Resp.Profile.Group.DisplayName || null;
       // TODO: Cache it if NOT fetched from cache
+      //localStorage.setItem()
 
       return true;
     } else {
@@ -138,8 +141,6 @@ class User {
     });
 
     try {
-      console.error("Base");
-      console.error(Info);
       return Info["Body"];
     } catch (e) {
       console.error(Info);
@@ -167,8 +168,6 @@ class User {
 
     var Info = await APIReq(this, Dt);
     try {
-            console.error("Diff");
-            console.error(Info);
       return Info["Body"];
     } catch (e) {
       console.error(Info);
@@ -186,7 +185,7 @@ class InvalidCredentialsError extends Error {
 
 class School {
   // May need to capsulize these. But wait for now, I'll get some idea...
-  ID = null;
+  ID = false;
   DisplayName = false;
 
   constructor(id = null) {
@@ -284,6 +283,7 @@ function AwaitAjaxy(DestURL, Content, Prot = true) {
 
     Req.onload = function (LoadData) {
       //console.debug(LoadData.target.responseText);
+      console.debug(LoadData);
       if (LoadData.target.status >= 200 && LoadData.target.status < 300) {
         Resolve({
           "status": LoadData.target.status,
@@ -305,12 +305,11 @@ function AwaitAjaxy(DestURL, Content, Prot = true) {
     }
 
     console.debug(Content);
-
     Req.send(Content);
   });
 }
 
-async function APIReq(User, Content) {
+async function APIReq_Dep(User, Content) {
   var Resp;
   for (var i = 0; i < 3; i++) {
     Resp = await AwaitAjaxy(API_URL, JSON.stringify(Content));
@@ -323,10 +322,10 @@ async function APIReq(User, Content) {
       throw new Error("Fatal error occurred in API: Server responded with an error.");
       return false;
     }
-      
+
     if (!Data.Result) {
-      var ErrLog = function() {
-        console.error("Fatal error occurred in API: " + Data.ReasonCode + ": " + Data.ReasonText +" Script will suspend.")
+      var ErrLog = function () {
+        console.error("Fatal error occurred in API: " + Data.ReasonCode + ": " + Data.ReasonText + " Script will suspend.")
         throw new Error("Fatal error occurred in API: " + Data.ReasonCode + ": " + Data.ReasonText + " Script will suspend.");
         return false;
       }
@@ -335,7 +334,7 @@ async function APIReq(User, Content) {
         case "ACCOUNT_SESSION_TOKEN_INVALID": {
           var Flag = await User.UpdateSessionToken();
           if (!Flag) {
-          console.warn("The account session token has expired. Redirecting to the sign-in page.");
+            console.warn("The account session token has expired. Redirecting to the sign-in page.");
             TransferLoginPage();
             break;
           }
@@ -368,6 +367,83 @@ async function APIReq(User, Content) {
   throw new Error("APIReq failed.");
 }
 
+async function APIReq(User, Content) {
+  var Resp;
+  for (var i = 0; i < 3; i++) {
+    Dt = await fetch(API_URL, {
+      method: "post",
+      body: JSON.stringify(Content),
+      credentials: "same-origin",
+      headers: {
+        "Accept": "application/json",
+        "Content-Type": "application/json; charset=UTF-8"
+      }
+    }).then(function (resp) {
+        console.info(resp);
+      try {
+        return resp.json();
+      } catch (e) {
+        console.error(Resp);
+        console.error(e);
+        console.error("Fatal error occurred in API: Server responded with an error.");
+        throw new Error("Fatal error occurred in API: Server responded with an error.");
+        return false;
+      }
+    }).then(async function (Data) {
+      if (!Data.Result) {
+        var ErrLog = function () {
+          console.error("Fatal error occurred in API: " + Data.ReasonCode + ": " + Data.ReasonText + " Script will suspend.")
+          throw new Error("Fatal error occurred in API: " + Data.ReasonCode + ": " + Data.ReasonText + " Script will suspend.");
+          return false;
+        }
+        switch (Data.ReasonCode) {
+          case "ACCOUNT_SESSION_TOKEN_EXPIRED":
+          case "ACCOUNT_SESSION_TOKEN_INVALID": {
+            var Flag = await User.UpdateSessionToken();
+            if (!Flag) {
+              console.warn("The account session token has expired. Redirecting to the sign-in page.");
+              TransferLoginPage();
+              break;
+            }
+            break;
+          }
+          case "ACCOUNT_LONG_TOKEN_INVALID":
+          case "ACCOUNT_LONG_TOKEN_EXPIRED":
+          case "ACCOUNT_CREDENTIALS_INVALID": {
+            console.warn("The account session token is invalid. Redirecting to the sign-in page.");
+
+            TransferLoginPage();
+            break;
+          }
+          case "SIGNIN_REQUIRED": {
+            console.warn("Please sign in.");
+            TransferLoginPage();
+            break;
+          }
+          default: {
+            ErrLog();
+          }
+        }
+      } else {
+        return Data;
+      }
+    });
+    if (Dt !== false) {
+      Resp = Dt;
+      break;
+    }
+  }
+  if (Resp) {
+    console.info(Resp);
+    return Resp;
+  } else {
+    console.error(Resp);
+    console.error(User);
+    console.error(Content);
+    throw new Error("APIReq failed.");
+  }
+}
+
 function SqlizeDate(TargetDate) {
   // What the heck, convert!
   return "" + (TargetDate.getDate()) + "-" + (TargetDate.getMonth() + 1) + "-" + TargetDate.getFullYear() + " 00:00:00";
@@ -387,7 +463,10 @@ function GetCookie(name) {
   }
 }
 
-function SetCookie(Name, Value, ExpiryHour, Options = {secure: true, samesite: "strict"}) {
+function SetCookie(Name, Value, ExpiryHour, Options = {
+  secure: true,
+  samesite: "strict"
+}) {
   try {
     var Exp = "";
     if (ExpiryHour) {
@@ -395,7 +474,7 @@ function SetCookie(Name, Value, ExpiryHour, Options = {secure: true, samesite: "
       DateObj.setTime(DateObj.getTime() + (ExpiryHour * 3600000));
       Exp = "; expires=" + DateObj.toUTCString();
     }
-    
+
     var CookieString = Name + "=" + (Value || "") + Exp + "; ";
     for (var Key in Options) {
       CookieString += "; " + Key;
@@ -403,7 +482,7 @@ function SetCookie(Name, Value, ExpiryHour, Options = {secure: true, samesite: "
         CookieString += "=" + Options[Key];
       }
     };
-      
+
     document.cookie = CookieString;
     return true;
   } catch (err) {
@@ -428,8 +507,6 @@ async function DeployLoadAnim(TitleText = "LOADING", DescText = "読み込んで
   with(OverlayDiv.style) {
     display = "flex"
     position = "fixed";
-    top = 0;
-    left = 0;
     width = "100%";
     height = "100%";
     zIndex = 32;
@@ -452,10 +529,10 @@ async function DeployLoadAnim(TitleText = "LOADING", DescText = "読み込んで
   LoadText = document.createElement("p");
   LoadText.id = "LoadIndiMessage"
   LoadText.innerText = DescText;
-  with (LoadText.style) { }
+  with(LoadText.style) {}
   LoadAnimator = document.createElement("div");
   LoadAnimator.id = "LoadAnimator";
-  with (LoadAnimator.style) {
+  with(LoadAnimator.style) {
     position = "fixed";
     width = "1rem";
     height = "1rem";
@@ -561,7 +638,7 @@ function UpdateClasses(ClassList, SubjectsConfig, TargetNode, BaseNode) {
 function ConstructClassElement(ClassData, SubjectsConfig, BaseNode, LabelText = null) {
   var BaseCopy = BaseNode.cloneNode(true);
 
-  with (BaseCopy) {
+  with(BaseCopy) {
     SubjectColorCode = "eeeeee";
     if (SubjectsConfig[ClassData.ID]) {
       SubjectColorCode = SubjectsConfig[ClassData.ID]["Color"];

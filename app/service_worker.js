@@ -5,7 +5,6 @@ var CacheURLs = [
   "/app/index.js",
   "/bin/web/lib.js",
   "/bin/web/commonloader.js",
-  "/bin/web/headupdate.js",
   "/bin/web/navs.html",
   "/bin/web/theme.css",
   "/resources/images/clock.webp",
@@ -22,20 +21,43 @@ self.addEventListener("install", (Event) => {
 });
 
 self.addEventListener("fetch", (Event) => {
+    console.warn(Event.request);
+
   if (Event.request.method === "POST") {
     console.warn("POST!!!");
     Event.respondWith(
       fetch(Event.request.clone())
         .then(function (response) {
+          console.warn(response);
+          return response;
+        })
+    );
+  } else {
+    Event.respondWith(
+      caches.match(Event.request).then((Resp) => {
+        return Resp || fetch(Event.request)
+      })
+    )
+  }
+});
+
+/*
+self.addEventListener("fetch", (Event) => {
+  if (Event.request.method === "POST") {
+    console.warn("POST!!!");
+    Event.respondWith(
+      fetch(Event.request.clone())
+        .then(function (response) {
+          console.warn(response);
           // Return the (fresh) response
           return response;
         }))
   } else {
     Event.respondWith(
       caches.match(Event.request).then((Resp) => {
-        console.info(Event);
         return Resp || fetch(Event.request)
       })
     )
   }
 });
+*/
