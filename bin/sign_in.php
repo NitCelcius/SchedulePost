@@ -1,32 +1,66 @@
 <?php
 // This might not be necessary, in fact.
 $GLOBALS["API_URL"] = getenv("SP_API_URL");
+
 $GLOBALS["DB_URL"] = getenv("SP_DB_URL");
 $GLOBALS["DB_Username"] = getenv("SP_DB_USER");
 $GLOBALS["DB_PassPhrase"] = getenv("SP_DB_PASSPHRASE");
+$GLOBALS["DB_PORT"] = getenv("SP_DB_PORT");
 $GLOBALS["DB_NAME"] = getenv("SP_DB_NAME");
 //type false exactly!!
-$GLOBALS["PUBLIC_MODE"] = (getenv("SP_PUBLIC_MODE")==="false") ? false : true;
+$GLOBALS["PUBLIC_MODE"] = (getenv("SP_PUBLIC_MODE") === "false") ? false : true;
 
 if (($GLOBALS["DefaultTimeZone"] = getenv("SP_TIMEZONE")) === null) {
   $GLOBALS["DefaultTimeZone"] = "UTC";
 }
 date_default_timezone_set($GLOBALS["DefaultTimeZone"]);
 
-
 $GLOBALS["SessionTokenExpiry"] = getenv("SP_SESSIONTOKENEXPIRY") ?? "30 minutes";
 $GLOBALS["LongTokenExpiry"] = getenv("SP_LONGTOKENEXPIRY") ?? "14 days";
 
-$Result = array(
-  "Result" => "false",
-  "ReasonCode" => "ERROR_UNKNOWN",
-  "ReasonText" => "An unknown error occurred."
-);
+$GLOBALS["Connection"] = null;
 
-$GLOBALS["SessionTokenExpiry"] = getenv("SP_SESSIONTOKENEXPIRY") ?? "30 minutes";
-$GLOBALS["LongTokenExpiry"] = getenv("SP_LONGTOKENEXPIRY") ?? "14 days";
-if (($GLOBALS["DefaultTimeZone"] = getenv("SP_TIMEZONE")) === null) {
-  $GLOBALS["DefaultTimeZone"] = "UTC";
+define("SQL_FORBIDDEN_CHARS", ";");
+
+if (strpbrk($GLOBALS["DB_URL"], SQL_FORBIDDEN_CHARS)) {
+  http_response_code(503);
+  error_log("Database URL contains at least one character that cannot be used! Please check your envilonment variables. Forbidden characters are: " . SQL_FORBIDDEN_CHARS);
+}
+
+if (!is_numeric($GLOBALS["DB_PORT"]) && !intval($GLOBALS["DB_PORT"]) == floatval($GLOBALS["DB_PORT"])) {
+  http_response_code(503);
+  error_log("Database port is invalid! Please specify it in your envilonment variables.");
+  exit("ERROR: The server is not yet set up.");
+}
+
+if (strpbrk($GLOBALS["DB_Username"], SQL_FORBIDDEN_CHARS)) {
+  http_response_code(503);
+  error_log("Database username contains at least one character that cannot be used! Please check your envilonment variables. Forbidden characters are: " . SQL_FORBIDDEN_CHARS);
+  exit("ERROR: The server is not yet set up.");
+}
+
+if (strpbrk($GLOBALS["DB_PassPhrase"], SQL_FORBIDDEN_CHARS)) {
+  http_response_code(503);
+  error_log("Database username contains at least one character that cannot be used! Please check your envilonment variables. Forbidden characters are: " . SQL_FORBIDDEN_CHARS);
+  exit("ERROR: The server is not yet set up.");
+}
+
+if (strpbrk($GLOBALS["DB_NAME"], SQL_FORBIDDEN_CHARS)) {
+  http_response_code(503);
+  error_log("Database username contains at least one character that cannot be used! Please check your envilonment variables. Forbidden characters are: " . SQL_FORBIDDEN_CHARS);
+  exit("ERROR: The server is not yet set up.");
+}
+
+if (DateInterval::createFromDateString($GLOBALS["SessionTokenExpiry"]) === false) {
+  http_response_code(503);
+  error_log("The envilonment variable SP_SESSIONTOKENEXPIRY is invalid! (must be a PHP recognizable date string)");
+  exit("ERROR: The server is not yet set up.");
+}
+
+if (DateInterval::createFromDateString($GLOBALS["LongTokenExpiry"]) === false) {
+  http_response_code(503);
+  error_log("The envilonment variable SP_LONGTOKENEXPIRY is invalid! (must be a PHP recognizable date string)");
+  exit("ERROR: The server is not yet set up.");
 }
 
 $INPUT = json_decode(file_get_contents("php://input"), true) ?? array();
@@ -91,6 +125,7 @@ switch ($Res) {
       } else {
         error_log("sign_in.php: error");
         error_log(print_r($RespObj, true));
+        http_response_code(500);
         $Result = array(
           "Result" => false,
           "ReasonCode" => "INTERNAL_EXCEPTION",
@@ -101,6 +136,7 @@ switch ($Res) {
     }
 
   case false: {
+      http_response_code(400);
       $Result = array(
         "Result" => false,
         "ReasonCode" => "INPUT_MALFORMED",

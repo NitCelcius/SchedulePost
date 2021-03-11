@@ -3,11 +3,15 @@
 // TODO: PHP envilonment requirement
 // WIP.
 
-error_reporting(3);
+// These might be removed
+error_reporting(E_ALL);
+ini_set("log_errors", "On");
+ini_set("display_errors", 0);
 
 $GLOBALS["DB_URL"] = getenv("SP_DB_URL");
 $GLOBALS["DB_Username"] = getenv("SP_DB_USER");
 $GLOBALS["DB_PassPhrase"] = getenv("SP_DB_PASSPHRASE");
+$GLOBALS["DB_PORT"] = getenv("SP_DB_PORT");
 $GLOBALS["DB_NAME"] = getenv("SP_DB_NAME");
 //type false exactly!!
 $GLOBALS["PUBLIC_MODE"] = (getenv("SP_PUBLIC_MODE") === "false") ? false : true;
@@ -22,6 +26,49 @@ $GLOBALS["LongTokenExpiry"] = getenv("SP_LONGTOKENEXPIRY") ?? "14 days";
 
 $GLOBALS["Connection"] = null;
 
+define("SQL_FORBIDDEN_CHARS", ";");
+
+if (strpbrk($GLOBALS["DB_URL"], SQL_FORBIDDEN_CHARS)) {
+  http_response_code(503);
+  error_log("Database URL contains at least one character that cannot be used! Please check your envilonment variables. Forbidden characters are: " . SQL_FORBIDDEN_CHARS);
+}
+
+if (!is_numeric($GLOBALS["DB_PORT"]) && !intval($GLOBALS["DB_PORT"]) == floatval($GLOBALS["DB_PORT"])) {
+  http_response_code(503);
+  error_log("Database port is invalid! Please specify it in your envilonment variables.");
+  exit("ERROR: The server is not yet set up.");
+}
+
+if (strpbrk($GLOBALS["DB_Username"], SQL_FORBIDDEN_CHARS)) {
+  http_response_code(503);
+  error_log("Database username contains at least one character that cannot be used! Please check your envilonment variables. Forbidden characters are: " . SQL_FORBIDDEN_CHARS);
+  exit("ERROR: The server is not yet set up.");
+}
+
+if (strpbrk($GLOBALS["DB_PassPhrase"], SQL_FORBIDDEN_CHARS)) {
+  http_response_code(503);
+  error_log("Database username contains at least one character that cannot be used! Please check your envilonment variables. Forbidden characters are: " . SQL_FORBIDDEN_CHARS);
+  exit("ERROR: The server is not yet set up.");
+}
+
+if (strpbrk($GLOBALS["DB_NAME"], SQL_FORBIDDEN_CHARS)) {
+  http_response_code(503);
+  error_log("Database username contains at least one character that cannot be used! Please check your envilonment variables. Forbidden characters are: " . SQL_FORBIDDEN_CHARS);
+  exit("ERROR: The server is not yet set up.");
+}
+
+if (DateInterval::createFromDateString($GLOBALS["SessionTokenExpiry"]) === false) {
+  http_response_code(503);
+  error_log("The envilonment variable SP_SESSIONTOKENEXPIRY is invalid! (must be a PHP recognizable date string)");
+  exit("ERROR: The server is not yet set up.");
+}
+
+if (DateInterval::createFromDateString($GLOBALS["LongTokenExpiry"]) === false) {
+  http_response_code(503);
+  error_log("The envilonment variable SP_LONGTOKENEXPIRY is invalid! (must be a PHP recognizable date string)");
+  exit("ERROR: The server is not yet set up.");
+}
+
 // RIP JSON data structure.
 //$ProfilePathFormat = "/Data/Profiles/{School_UUID}/{Group_UUID}.json";
 //$TimeTablePathFormat = "/Data/Schedules/{School_UUID}/{Group_UUID}/{Year}/{Month}/{Day}/{Version}.json";
@@ -33,7 +80,6 @@ define("ACCOUNT_LONG_TOKEN_INVALID", -3);
 define("ACCOUNT_LONG_TOKEN_EXPIRED", -4);
 define("ACCOUNT_CREDENTIALS_INVALID", -5);
 define("ACCOUNT_INSUFFCIENT_PERMISSION", -10);
-
 
 define("INTERNAL_EXCEPTION", -100);
 
@@ -180,21 +226,28 @@ class DBConnection {
         $GLOBALS["Connection"] = null;
       }
       if ($GLOBALS["Connection"] === null) {
-        $Connection = new PDO(
-          sprintf(
-            "mysql:host=%s;dbname=%s;charset=utf8",
-            $GLOBALS["DB_URL"],
-            $GLOBALS["DB_NAME"]
-          ),
-          $GLOBALS["DB_Username"],
-          $GLOBALS["DB_PassPhrase"],
-          array(
-            PDO::MYSQL_ATTR_INIT_COMMAND => "SET CHARACTER SET 'utf8mb4'",
-            PDO::MYSQL_ATTR_FOUND_ROWS => true
-          )
-        );
-        $Connection->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-        $GLOBALS["Connection"] = $Connection;
+        try {
+          $Connection = new PDO(
+            sprintf(
+              "mysql:host=%s;port=%s;dbname=%s;charset=utf8mb4",
+              $GLOBALS["DB_URL"],
+              $GLOBALS["DB_PORT"],
+              $GLOBALS["DB_NAME"]
+            ),
+            $GLOBALS["DB_Username"],
+            $GLOBALS["DB_PassPhrase"],
+            array(
+              PDO::MYSQL_ATTR_FOUND_ROWS => true
+            )
+          );
+          $Connection->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+          if ($Connection === false) {
+            throw new InvalidArgumentException("PDO initialization failed. Check DB-related settings in your envilonment variables!");
+          }
+          $GLOBALS["Connection"] = $Connection;
+        } catch (Exception $e) {
+          error_log("Cannot connect to the database! Error info:".$e->getMessage());
+        }
         return $Connection;
       } else {
         return $GLOBALS["Connection"];
@@ -1103,6 +1156,22 @@ class Messages {
     "SIGNIN_REQUIRED" => "You need to be signed in to do that."
   );
 
+  public const ErrorHTTPCodes = array(
+    "ERROR_UNKNOWN" => 500,
+    "INPUT_MALFORMED" => 400,
+    "UNEXPECTED_ARGUMENT" => 400,
+    "INTERNAL_EXCEPTION" => 500,
+    "INVALID_CREDENTIALS" => 403,
+    "INSUFFCIENT_PERMISSION" => 403,
+    "ACCOUNT_SESSION_TOKEN_EXPIRED" => 403,
+    "ACCOUNT_SESSION_TOKEN_INVALID" => 403,
+    "ACCOUNT_LONG_TOKEN_INVALID" => 403,
+    "ACCOUNT_LONG_TOKEN_EXPIRED" => 403,
+    "ACCOUNT_CREDENTIALS_INVALID" => 403,
+    "ILLEGAL_CALL" => 400,
+    "SIGNIN_REQUIRED" => 401
+  );
+
   static function GenerateErrorJSON(string $Code, $Message = null) {
     if ($Message === null) {
       $Message = Messages::GetErrorMessage($Code);
@@ -1471,9 +1540,9 @@ while (true) {
         $Permitted = false;
         switch ($Recv["Item"]) {
           case "Subjects": {
-            $PermKey = "Config.Subjects.View";
-            break;
-          }
+              $PermKey = "Config.Subjects.View";
+              break;
+            }
         }
 
         if ($PermKey === false) {
@@ -1649,96 +1718,96 @@ while (true) {
         }
 
         try {
-        $TargetGroupID = "";
-        if (array_key_exists("GroupID", $Recv)) {
-          $TargetGroupID = $Recv["GroupID"];
-        } else {
-          $TargetGroupID = $User->GetGroupID();
-        }
-
-        if ($TargetGroupID == null) {
-          $Resp = Messages::GenerateErrorJSON("ILLEGAL_CALL", "The user is not in a group or in multiple group. Specify one group.");
-          break;
-        }
-
-        if ($User->IsPermitted("Timetable.Edit", DEST_GROUP, $TargetGroupID)) {
-        } else {
-          throw new InsuffcientPermissionException("You cannot view the timetable of that group.");
-        }
-
-        $Date = null;
-        try {
-          if (array_key_exists("Date", $Recv)) {
-            $Date = new DateTime($Recv["Date"]);
-          }
-        } catch (Exception $e) {
-          $Resp = Messages::GenerateErrorJSON("UNEXPECTED_ARGUMENT", "The specified date is invalid.");
-          break;
-        }
-        if ($Date === null) {
-          $Resp = Messages::GenerateErrorJSON("ILLEGAL_CALL", "Specify Date.");
-          break;
-        }
-
-        $TargetRevision = null;
-        $ReturnData = null;
-        if (array_key_exists("Revision", $Recv)) {
-          if (is_int($Recv["Revision"])) {
-            $TargetRevision = intval($Recv["Revision"]);
+          $TargetGroupID = "";
+          if (array_key_exists("GroupID", $Recv)) {
+            $TargetGroupID = $Recv["GroupID"];
           } else {
-            $Resp = Messages::GenerateErrorJSON("INPUT_MALFORMED", "The specified revision is not an integer or out of range.");
+            $TargetGroupID = $User->GetGroupID();
+          }
+
+          if ($TargetGroupID == null) {
+            $Resp = Messages::GenerateErrorJSON("ILLEGAL_CALL", "The user is not in a group or in multiple group. Specify one group.");
             break;
           }
-        }
 
-        $Connection = DBConnection::Connect();
-        $PDOstt = $Connection->prepare("select Revision, StashData, CreatedAt from edit_stash where UserID = :UserID AND DestGroupID = :GroupID AND TargetDate = :TargetDate ORDER BY 'Revision' DESC");
-        $PDOstt->bindValue(":UserID", $User->GetUserID());
-        $PDOstt->bindValue(":GroupID", $TargetGroupID);
-        $PDOstt->bindValue(":TargetDate", $Date->format("Y-m-d"));
-        $PDOstt->execute();
-        $Data = $PDOstt->fetchAll();
-
-        if ($Data === false) {
-          error_log("An error occurred in action GET_EDIT_STASH: Could not fetch data from `edit_stash`. TargetUserID: " . $User->GetUserID() . ", DestGroupID: $TargetGroupID. This GroupID might not exist.");
-          $Resp = Messages::GenerateErrorJSON("INTERNAL_EXCEPTION", "There was an internal error while trying to fetch stash. Group ID might be invalid!");
-          break;
-        } else if (empty($Data)) {
-          $Resp = array(
-            "Result" => true,
-            "Revision" => -1,
-            "Content" => null
-          );
-        } else {
-          // It's damn inefficient
-          if ($TargetRevision === null) {
-            $TargetRevision = 0;
-            foreach ($Data as $Segment) {
-              $SegRev = intval($Segment["Revision"]);
-              if ($SegRev > $TargetRevision) {
-                $TargetRevision = $SegRev;
-              }
-            }
+          if ($User->IsPermitted("Timetable.Edit", DEST_GROUP, $TargetGroupID)) {
+          } else {
+            throw new InsuffcientPermissionException("You cannot view the timetable of that group.");
           }
 
-          foreach ($Data as $Entry) {
-            if (intval($Entry["Revision"]) === $TargetRevision) {
-              $ReturnData = $Entry;
+          $Date = null;
+          try {
+            if (array_key_exists("Date", $Recv)) {
+              $Date = new DateTime($Recv["Date"]);
+            }
+          } catch (Exception $e) {
+            $Resp = Messages::GenerateErrorJSON("UNEXPECTED_ARGUMENT", "The specified date is invalid.");
+            break;
+          }
+          if ($Date === null) {
+            $Resp = Messages::GenerateErrorJSON("ILLEGAL_CALL", "Specify Date.");
+            break;
+          }
+
+          $TargetRevision = null;
+          $ReturnData = null;
+          if (array_key_exists("Revision", $Recv)) {
+            if (is_int($Recv["Revision"])) {
+              $TargetRevision = intval($Recv["Revision"]);
+            } else {
+              $Resp = Messages::GenerateErrorJSON("INPUT_MALFORMED", "The specified revision is not an integer or out of range.");
               break;
             }
           }
 
-          $Resp = array(
-            "Result" => true,
-            "Revision" => intval($ReturnData["Revision"]),
-            "CreatedAt" => $ReturnData["CreatedAt"],
-            "Body" => $ReturnData["StashData"]
-          );
+          $Connection = DBConnection::Connect();
+          $PDOstt = $Connection->prepare("select Revision, StashData, CreatedAt from edit_stash where UserID = :UserID AND DestGroupID = :GroupID AND TargetDate = :TargetDate ORDER BY 'Revision' DESC");
+          $PDOstt->bindValue(":UserID", $User->GetUserID());
+          $PDOstt->bindValue(":GroupID", $TargetGroupID);
+          $PDOstt->bindValue(":TargetDate", $Date->format("Y-m-d"));
+          $PDOstt->execute();
+          $Data = $PDOstt->fetchAll();
+
+          if ($Data === false) {
+            error_log("An error occurred in action GET_EDIT_STASH: Could not fetch data from `edit_stash`. TargetUserID: " . $User->GetUserID() . ", DestGroupID: $TargetGroupID. This GroupID might not exist.");
+            $Resp = Messages::GenerateErrorJSON("INTERNAL_EXCEPTION", "There was an internal error while trying to fetch stash. Group ID might be invalid!");
+            break;
+          } else if (empty($Data)) {
+            $Resp = array(
+              "Result" => true,
+              "Revision" => -1,
+              "Content" => null
+            );
+          } else {
+            // It's damn inefficient
+            if ($TargetRevision === null) {
+              $TargetRevision = 0;
+              foreach ($Data as $Segment) {
+                $SegRev = intval($Segment["Revision"]);
+                if ($SegRev > $TargetRevision) {
+                  $TargetRevision = $SegRev;
+                }
+              }
+            }
+
+            foreach ($Data as $Entry) {
+              if (intval($Entry["Revision"]) === $TargetRevision) {
+                $ReturnData = $Entry;
+                break;
+              }
+            }
+
+            $Resp = array(
+              "Result" => true,
+              "Revision" => intval($ReturnData["Revision"]),
+              "CreatedAt" => $ReturnData["CreatedAt"],
+              "Body" => $ReturnData["StashData"]
+            );
+          }
+        } catch (InsuffcientPermissionException $e) {
+          $Resp = Messages::GenerateErrorJSON("INSUFFCIENT_PERMISSION", "You do not have permission to edit that group's timetable.");
+          break;
         }
-      } catch (InsuffcientPermissionException $e) {
-        $Resp = Messages::GenerateErrorJSON("INSUFFCIENT_PERMISSION", "You do not have permission to edit that group's timetable.");
-        break;
-      }
         break;
       }
 
@@ -1764,84 +1833,84 @@ while (true) {
         }
 
         try {
-        $TargetGroupID = "";
-        if (array_key_exists("GroupID", $Recv)) {
-          $TargetGroupID = $Recv["GroupID"];
-        } else {
-          $TargetGroupID = $User->GetGroupID();
-        }
-
-        if ($TargetGroupID == null) {
-          $Resp = Messages::GenerateErrorJSON("UNEXPECTED_ARGUMENT", "The group ID is not found.");
-          break;
-        }
-
-        $Date = null;
-        try {
-          if (array_key_exists("Date", $Recv)) {
-            $Date = new DateTime($Recv["Date"]);
+          $TargetGroupID = "";
+          if (array_key_exists("GroupID", $Recv)) {
+            $TargetGroupID = $Recv["GroupID"];
+          } else {
+            $TargetGroupID = $User->GetGroupID();
           }
-        } catch (Exception $e) {
-          $Resp = Messages::GenerateErrorJSON("UNEXPECTED_ARGUMENT", "The specified date is invalid.");
-          break;
-        }
-        if ($Date === null) {
-          $Resp = Messages::GenerateErrorJSON("ILLEGAL_CALL", "Specify Date.");
-          break;
-        }
 
-        if ($User->IsPermitted("Timetable.Edit", DEST_GROUP, $TargetGroupID)) {
-        } else {
-          throw new InsuffcientPermissionException("You cannot view the timetable of that group.");
-        }
+          if ($TargetGroupID == null) {
+            $Resp = Messages::GenerateErrorJSON("UNEXPECTED_ARGUMENT", "The group ID is not found.");
+            break;
+          }
 
-        $NewRevision = null;
-        $Connection = DBConnection::Connect();
-        $PDOstt = $Connection->prepare("select Revision, StashData, CreatedAt from edit_stash where UserID = :UserID AND DestGroupID = :GroupID AND TargetDate = :SetDate");
-        $PDOstt->bindValue(":UserID", $User->GetUserID());
-        $PDOstt->bindValue(":GroupID", $TargetGroupID);
-        $PDOstt->bindValue(":SetDate", $Date->format("Y-m-d"));
-        $PDOstt->execute();
-        $Data = $PDOstt->fetchAll();
-
-        // Not really efficient, but due to ORDER BY Revision not really working
-        if ($Data === false) {
-          $Resp = Messages::GenerateErrorJSON("INTERNAL_EXCEPTION", "There was an internal error while trying to fetch stashed data. The group ID might be invalid!");
-          break;
-        } else if (empty($Data)) {
-          $NewRevision = 0;
-        } else {
-          $NewRevision = -1;
-          foreach ($Data as $Segment) {
-            $SegRev = intval($Segment["Revision"]);
-            if ($SegRev > $NewRevision) {
-              $NewRevision = $SegRev;
+          $Date = null;
+          try {
+            if (array_key_exists("Date", $Recv)) {
+              $Date = new DateTime($Recv["Date"]);
             }
+          } catch (Exception $e) {
+            $Resp = Messages::GenerateErrorJSON("UNEXPECTED_ARGUMENT", "The specified date is invalid.");
+            break;
           }
-          $NewRevision = $SegRev + 1;
-        }
+          if ($Date === null) {
+            $Resp = Messages::GenerateErrorJSON("ILLEGAL_CALL", "Specify Date.");
+            break;
+          }
 
-        $PDOstt = $Connection->prepare("insert into edit_stash (`UserID`, `DestGroupID`, `TargetDate`, `Revision`, `StashData`) VALUES (:UserID, :GroupID, :TargetDate, :Revision, :StashData)");
-        $PDOstt->bindValue(":UserID", $User->GetUserID());
-        $PDOstt->bindValue(":GroupID", $TargetGroupID);
-        $PDOstt->bindValue(":TargetDate", $Date->format("Y-m-d"));
-        $PDOstt->bindValue(":Revision", $NewRevision);
-        $PDOstt->bindValue(":StashData", $Recv["Body"]);
-        $Result = $PDOstt->execute();
+          if ($User->IsPermitted("Timetable.Edit", DEST_GROUP, $TargetGroupID)) {
+          } else {
+            throw new InsuffcientPermissionException("You cannot view the timetable of that group.");
+          }
 
-        if ($Result) {
-          $Resp = array(
-            "Result" => true,
-            "Revision" => $NewRevision
-          );
-        } else {
-          $Resp = Messages::GenerateErrorJSON("INTERNAL_EXCEPTION", "There was an internal error occurred while connecting to the database.");
-          error_log("There was an error while trying to add stash data: " . $PDOstt->errorCode());
-        }
-      } catch (InsuffcientPermissionException $e) {
+          $NewRevision = null;
+          $Connection = DBConnection::Connect();
+          $PDOstt = $Connection->prepare("select Revision, StashData, CreatedAt from edit_stash where UserID = :UserID AND DestGroupID = :GroupID AND TargetDate = :SetDate");
+          $PDOstt->bindValue(":UserID", $User->GetUserID());
+          $PDOstt->bindValue(":GroupID", $TargetGroupID);
+          $PDOstt->bindValue(":SetDate", $Date->format("Y-m-d"));
+          $PDOstt->execute();
+          $Data = $PDOstt->fetchAll();
+
+          // Not really efficient, but due to ORDER BY Revision not really working
+          if ($Data === false) {
+            $Resp = Messages::GenerateErrorJSON("INTERNAL_EXCEPTION", "There was an internal error while trying to fetch stashed data. The group ID might be invalid!");
+            break;
+          } else if (empty($Data)) {
+            $NewRevision = 0;
+          } else {
+            $NewRevision = -1;
+            foreach ($Data as $Segment) {
+              $SegRev = intval($Segment["Revision"]);
+              if ($SegRev > $NewRevision) {
+                $NewRevision = $SegRev;
+              }
+            }
+            $NewRevision = $SegRev + 1;
+          }
+
+          $PDOstt = $Connection->prepare("insert into edit_stash (`UserID`, `DestGroupID`, `TargetDate`, `Revision`, `StashData`) VALUES (:UserID, :GroupID, :TargetDate, :Revision, :StashData)");
+          $PDOstt->bindValue(":UserID", $User->GetUserID());
+          $PDOstt->bindValue(":GroupID", $TargetGroupID);
+          $PDOstt->bindValue(":TargetDate", $Date->format("Y-m-d"));
+          $PDOstt->bindValue(":Revision", $NewRevision);
+          $PDOstt->bindValue(":StashData", $Recv["Body"]);
+          $Result = $PDOstt->execute();
+
+          if ($Result) {
+            $Resp = array(
+              "Result" => true,
+              "Revision" => $NewRevision
+            );
+          } else {
+            $Resp = Messages::GenerateErrorJSON("INTERNAL_EXCEPTION", "There was an internal error occurred while connecting to the database.");
+            error_log("There was an error while trying to add stash data: " . $PDOstt->errorCode());
+          }
+        } catch (InsuffcientPermissionException $e) {
           $Resp = Messages::GenerateErrorJSON("INSUFFCIENT_PERMISSION", "You do not have permission to edit that group's timetable.");
           break;
-      }
+        }
         break;
       }
 
@@ -1956,6 +2025,10 @@ while (true) {
   }
 
   break;
+}
+
+if ($Resp["Result"] === false) {
+  http_response_code(Messages::ErrorHTTPCodes[$Resp["ReasonCode"]] ?? 500);
 }
 
 echo json_api_encode($Resp);
