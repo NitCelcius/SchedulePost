@@ -9,9 +9,9 @@ async function LoadCommonNodes() {
   var CommonRaw;
   while (true) {
     try {
-      CommonRaw = await AwaitLoady("/bin/web/navs.html");
+      CommonRaw = await fetch("/bin/web/navs.html").then(response => response.text());
 
-      if (CommonRaw["Content"] != null) {
+      if (CommonRaw) {
         break;
       }
     } catch (e) {
@@ -34,7 +34,7 @@ async function LoadCommonNodes() {
   }
   */
       Field = document.createElement("div");
-      Field.innerHTML = CommonRaw["Content"];
+      Field.innerHTML = CommonRaw;
 
       for (var i = 0; i < Field.childNodes.length; i++) {
         switch (Field.childNodes[i].tagName) {
@@ -59,12 +59,10 @@ async function LoadCommonNodes() {
 async function LoadSidebarProfile() {
     // May be waste. Already loaded
     var Prof = await User.FetchPersonalInfo();
-    console.info(Prof.Content);
 
-    var Resp = JSON.parse(Prof.Content);
-    if (Resp["Result"]) {
-      document.getElementById("Group_Label").innerHTML = Resp.Profile.Group.DisplayName;
-      document.getElementById("Group_Label").innerHTML = Resp.Profile.School.DisplayName;
+    if (Prof["Result"]) {
+      document.getElementById("Group_Label").innerText = Prof.Profile.Group.DisplayName;
+      document.getElementById("Group_Label").innerText = Prof.Profile.School.DisplayName;
     }
 }
 
@@ -73,13 +71,13 @@ LoadCommonNodes().then(async function () {
   User = new UserClass(UserID);
   User.GetGroupProfile().then(function (GroupProf) {
     if (GroupProf.DisplayName) {
-      document.getElementById("Group_Label").innerHTML = GroupProf.DisplayName;
+      document.getElementById("Group_Label").innerText = GroupProf.DisplayName;
     }
   });
   SchoolProf = await User.GetSchoolProfile();
-    console.warn(SchoolProf);
+    console.info(SchoolProf);
     if (SchoolProf.DisplayName) {
-      document.getElementById("School_Label").innerHTML = SchoolProf.DisplayName;
+      document.getElementById("School_Label").innerText = SchoolProf.DisplayName;
     };
 
   User.GetSchoolProfile().then(function (SchoolProf) {

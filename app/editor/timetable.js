@@ -14,29 +14,6 @@ async function LoadSchedule(TargetDate) {
   }
 
   EditingDate = TargetDate;
-  // So weird but it actually works.
-  FetchCfg = async function () {
-    var Res = await UserSchool.FetchConfig(User, "Subjects");
-    return {
-      "Result": Res
-    };
-  }
-
-  // No local, neither cloud saves!
-  AttemptFunc = async (Tryer) => {
-    for (var i = 0; i < 3; i++) {
-      var Data = await Tryer;
-      if (Data !== false) {
-        return Tryer;
-      } else {
-        await Delay(2000);
-      }
-      if (i == 2) {
-        console.warn("AttemptFunc failed!");
-        return false;
-      }
-    }
-  }
 
   //Wait, are they necessary?
   //BUG: These returns same things
@@ -45,10 +22,10 @@ async function LoadSchedule(TargetDate) {
   var TTDiff = null;
   var Cfg = null;
   [CfgState, TTBase, TTDiff, Cfg] = await Promise.all([
-    AttemptFunc(FetchCfg()),
-    AttemptFunc(User.GetTimeTableBase(EditingDate)),
-    AttemptFunc(User.GetTimeTableDiff(EditingDate)),
-    AttemptFunc(UserSchool.GetConfig("Subjects", User))
+    UserSchool.FetchConfig(User, "Subjects"),
+    User.GetTimeTableBase(EditingDate),
+    User.GetTimeTableDiff(EditingDate),
+    UserSchool.GetConfig("Subjects", User)
   ]);
 
   console.info(TTBase);
@@ -109,7 +86,9 @@ async function PrepareEditor(User) {
       //}
     }
   }).catch(function (e) {
-    if (e.ErrorCode === "INSUFFCIENT_PERMISSION") {
+    console.error("Eeeeeeee");
+    console.error(e)
+    if (e.GetErrorCode() === "INSUFFCIENT_PERMISSION") {
       DeployErrorWindow("時間割を編集する権限がありません。");
     }
     console.info(e);

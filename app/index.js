@@ -16,8 +16,9 @@ for (var i = 0; i < InterSectNodes.length; i++) {
 async function InitPage(User) {
   DeployLoadAnim();
   try {
-    var Prof = await User.UpdateProfile();
+    /*
 
+    var Prof = await User.UpdateProfile();
     var Resp = Prof;
     if (Resp["Result"]) {
 
@@ -48,26 +49,28 @@ async function InitPage(User) {
         }
       }
     }
+    */
+    
+    var Tb;
 
-    var SchoolID = await User.GetSchoolProfile();
-    UserSchool = new School(SchoolID.ID);
-    var Res = false;
-    for (var i = 0; i < 3; i++) {
-      Res = await UserSchool.FetchConfig(User, "Subjects");
-      if (Res) {
-        break;
-      } else {
-        setTimeout(1000);
-      }
-      if (i == 2) {
-        throw new Error("Could not fetch school information.");
-      }
-    }
+    [SubjectsCofnig, Tb] = await Promise.all([
+      async function () { // It does not really look nice though
+        await User.UpdateProfile();
+        var SchoolID = await User.GetSchoolProfile(); // automatically defined
+        UserSchool = new School(SchoolID.ID);
+        return await UserSchool.FetchConfig(User, "Subjects", SchoolID.ID);
+      },
+      User.GetTimeTable(), // TODO: What if user belongs in 2 or more groups?
+    ])
 
+    //var Prof = await User.UpdateProfile();
+
+    /*
     var Tb = await User.GetTimeTable();
 
     var DayData = JSON.parse(Tb.Body);
     var SubjectsConfig = await UserSchool.GetConfig("Subjects", User);
+    */
 
     var TimetableDate = new Date(DayData["Date"] + " 00:00:00");
     document.getElementById("Date_Month").innerText = TimetableDate.getMonth() + 1;

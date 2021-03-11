@@ -25,13 +25,17 @@ class UserClass {
   }
 
   async UpdateSessionToken() {
+    var Info = await APIReq(User, {
+      "Action": "SIGN_IN"
+    })
+    /*
     var Info = await AwaitAjaxy(API_URL, JSON.stringify({
       "Action": "SIGN_IN"
     }), false);
+    */
 
     try {
-      var Resp = JSON.parse(Info["Content"]);
-      if (Resp["Result"] === true) {
+      if (Info["Result"] === true) {
         return true;
       } else {
         console.error(Info);
@@ -105,7 +109,7 @@ class UserClass {
     }
   }
 
-  async GetTimeTable(TargetDate = null) {
+  async GetTimeTable(TargetDate = null, TargetGroupID = null) {
     if (!TargetDate) {
       //TODO: Just fix this. Normalize.
       TargetDate = new Date();
@@ -113,10 +117,16 @@ class UserClass {
     // mm-dd-YY
     var TargetDateString = SqlizeDate(TargetDate);
 
-    var Info = await APIReq(this, {
+    var Dt = {
       "Action": "GET_SCHEDULE",
       "Date": TargetDateString
-    });
+    };
+
+    if (TargetGroupID !== null) {
+      Dt["TargetGroupID"] = TargetGroupID.toString();
+    }
+
+    var Info = await APIReq(this, Dt);
 
     //TODO: error handling
     if (Info === false) {
@@ -232,11 +242,16 @@ class School {
     }
   }
 
-  async FetchConfig(User, Key) {
-    var Data = await APIReq(User, {
+  async FetchConfig(User, Key, TargetSchoolID = null) {
+    var Dt = {
       "Action": "GET_SCHOOL_CONFIG",
       "Item": Key
-    });
+    };
+    if (TargetSchoolID !== null) {
+      Dt["TargetSchoolID"] = TargetSchoolID.toString();
+    }
+
+    var Data = await APIReq(User, Dt);
     this.Config[Key] = Data.Content;
     return true;
   }
@@ -261,6 +276,7 @@ class School {
   }
 }
 
+// Deprecated, and will be using fetch(). Thanks man
 function AwaitLoady(URL) {
   return new Promise(function (Resolve, Reject) {
     let Req = new XMLHttpRequest();
@@ -292,6 +308,7 @@ function AwaitLoady(URL) {
   });
 }
 
+// Also deprecated, RIP
 function AwaitAjaxy(DestURL, Content, Prot = true) {
   return new Promise(function (Resolve, Reject) {
     let Req = new XMLHttpRequest();
@@ -326,7 +343,11 @@ function AwaitAjaxy(DestURL, Content, Prot = true) {
 
 async function APIReq(User, Content) {
   var Resp;
+  if (!Content) {
+    throw new Error("Do not specify null !!!");
+  }
   for (var i = 0; i < 3; i++) {
+    console.warn(JSON.stringify(Content))
     Dt = await fetch(API_URL, {
       method: "post",
       body: JSON.stringify(Content),
@@ -343,7 +364,7 @@ async function APIReq(User, Content) {
         console.error(Resp);
         console.error(e);
         console.error("Fatal error occured in API: Server responded with an error.");
-        throw new Error("Fatal error occured in API: Server responded with an error.");
+        throw new APIError("ERROR_UNKNOWN","Server responded with an error.","Fatal error occured in API: Server responded with an error.");
         return false;
       }
     }).then(async function (Data) {
@@ -376,6 +397,11 @@ async function APIReq(User, Content) {
           case "SIGNIN_REQUIRED": {
             console.warn("Please sign in.");
             TransferLoginPage();
+            break;
+          }
+          case "INPUT_MALFORMED": {
+            ErrLog();
+            DeployErrorWindow("内部処理でエラーが発生しました (プログラムの不具合の可能性があります)");
             break;
           }
           default: {
@@ -545,10 +571,11 @@ async function DeployErrorWindow(ErrorText) {
   with (LoadText.style) { }
   LoadGeneText = document.createElement("p");
   LoadGeneText.id = "LoadGeneMessage"
-  LoadGeneText.innerHTML = "システム管理者に連絡してください。<br>ユーザーID: "+GetCookie("UserID");
+  LoadGeneText.innerText = "システム管理者に連絡してください。ユーザーID: "+GetCookie("UserID");
   with (LoadGeneText.style) {
-    color = "#666"
-    textAlign = "center"
+    color = "#666";
+    textAlign = "center";
+    overflowWrap = "break-word"
   }
 
   with(OverlayDiv) {
@@ -578,7 +605,7 @@ function TransferLoginPage() {
   }
   document.getElementsByTagName("Body")[0].appendChild(OverlayDiv);
   LoadTitle = document.createElement("h1");
-  LoadTitle.innerHTML = "REDIRECTING";
+  LoadTitle.innerText = "REDIRECTING";
   with(LoadTitle.style) {
     justifyContent = "center";
     color = "#666";
@@ -587,13 +614,13 @@ function TransferLoginPage() {
     margin = 0;
   }
   LoadText = document.createElement("p");
-  LoadText.innerHTML = "ログインページに移動しています...";
+  LoadText.innerText = "ログインページに移動しています...";
   with(LoadText.style) {}
   with(OverlayDiv) {
     appendChild(LoadTitle);
     appendChild(LoadText);
   }
-  location.href = encodeURI("/login.html?auth_callback=" + location.pathname);
+  location.href = "/login.html?auth_callback=" + encodeURIComponent(location.pathname);
 }
 
 function GetDateStrings(TargetDate) {
@@ -622,7 +649,7 @@ function UpdateClasses(ClassList, SubjectsConfig, TargetNode, BaseNode) {
   if (ClassList == null || Object.keys(ClassList).length === 0) {
     EmptyDesc = document.createElement("p");
     EmptyDesc.class = "Timetable_Desc";
-    EmptyDesc.innerHTML = "時間割はまだ入力されていません";
+    EmptyDesc.innerText = "時間割はまだ入力されていません";
     TargetNode.appendChild(EmptyDesc);
   } else {
     Object.keys(ClassList).sort(function (p, q) {
@@ -673,4 +700,24 @@ function ConstructClassElement(ClassData, SubjectsConfig, BaseNode, LabelText = 
   BaseCopy.getElementsByClassName("Class_Note")[0].textContent = ClassData["Note"];
 
   return BaseCopy;
+}
+
+async function Delay(duration) {
+  return new Promise(
+    resolve => setTimeout(resolve, duration)
+  );
+}
+
+async function AttemptFunc(Tryer) {
+  for (var i = 0; i < 3; i++) {
+    Data = await Tryer;
+    if (Tryer["Result"]) {
+      return Tryer;
+    } else {
+      await Delay(2000);
+    }
+    if (i == 2) {
+      return false;
+    }
+  }
 }
