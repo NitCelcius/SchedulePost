@@ -21,8 +21,18 @@ h1#Table_Date {
   font-size: 2rem;
   /*margin: 1rem 0;*/
   margin: 0;
-  /* 相殺防止のため padding */
-  padding: 1rem 0;
+  padding: 0;
+}
+
+@media (max-width: 28rem) {
+  #Date_Next {
+    display: none;
+  }
+
+  #Date_Back {
+    display: none;
+  }
+
 }
 
 span#Date_Year,
@@ -52,3 +62,72 @@ h2.Head {
   border-bottom: 2px solid #aaa;
 }
 
+.Date_Control {
+  color: #888;
+  appearance: none;
+  font-size: 1.2rem;
+  padding: 1rem;
+  background: none;
+  border: none;
+  outline: none;
+  border: 1px #0000 solid;
+  box-sizing: border-box;
+  transition: 0.3s;
+  transition-property: color, background, border, transform;
+}
+
+.Date_Control:hover {
+  color: #000;
+  background-color: #ddd;
+  border: 1px #888 dashed;
+}
+
+#Date_Prev:hover {
+  transform: translateX(-0.3rem);
+}
+
+#Date_Next:hover {
+  transform: translateX(0.3rem);
+}
+
+#Timetable_Control {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1rem;
+}
+
+#Timetable_DateSwitch {
+  font-size: 150%;
+  appearance: none;
+  outline: none;
+  padding: 0.5rem;
+  border: #888 2px solid;
+  border-radius: .8rem;
+}
+
+#Control_Hide {
+  margin-left: 2rem;
+  font-size: 200%;
+  max-height: 3.5rem;
+  appearance: none;
+  color: #444;
+  border: 1px #888 dashed;
+  background-color: #ddd;
+}
+
+#HolidayTitle {
+  text-align: center;
+  margin: 2rem 0;
+}
+
+#Undefined_Warn {
+  box-sizing: border-box;
+  display: table-cell;
+  padding: 1rem;
+  margin: 0rem 2rem;
+  text-align: center;
+  overflow-wrap: break-word;
+  border: #ccc 2px solid;
+  background-color: #ffc;
+}

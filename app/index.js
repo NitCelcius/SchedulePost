@@ -14,85 +14,88 @@ for (var i = 0; i < InterSectNodes.length; i++) {
 }
 
 async function InitPage(User) {
+  DispDate = new Date();
+
+  await LoadSchedule(DispDate);
+
+  document.getElementById("Timetable_DateSwitch").addEventListener("change", function (v) {
+    var Dt = new Date(v.target.value);
+    if (Dt) {
+      LoadSchedule(Dt);
+    }
+  })
+}
+
+async function LoadSchedule(TargetDate) {
   DeployLoadAnim();
   try {
-    /*
-
-    var Prof = await User.UpdateProfile();
-    var Resp = Prof;
-    if (Resp["Result"]) {
-
-    } else {
-      // May need to copy these
-      switch (Resp["ReasonCode"]) {
-        case "ACCOUNT_SESSION_TOKEN_INVALID":
-        case "ACCOUNT_SESSION_TOKEN_EXPIRED": {
-          try {
-            UpdateRes = await UpdateSessionToken();
-            if (UpdateRes) {
-              // We can continue
-              break;
-            } else {
-              // RIP, LongToken wasn't right
-              TransferLoginPage();
-              break;
-            }
-          } catch (e) {
-            // In fact this catch might not be necessary.
-            TransferLoginPage();
-            break;
-          }
-        }
-        case "INVALID_CREDENTIALS": {
-          TransferLoginPage();
-          break;
-        }
-      }
-    }
-    */
-    
-    var Tb;
-
-    [SubjectsCofnig, Tb] = await Promise.all([
+    [SubjectsConfig, DayData] = await Promise.all([
       async function () { // It does not really look nice though
-        await User.UpdateProfile();
-        var SchoolID = await User.GetSchoolProfile(); // automatically defined
-        UserSchool = new School(SchoolID.ID);
-        return await UserSchool.FetchConfig(User, "Subjects", SchoolID.ID);
-      },
-      User.GetTimeTable(), // TODO: What if user belongs in 2 or more groups?
+          await User.UpdateProfile();
+          var SchoolID = await User.GetSchoolProfile(); // automatically defined
+          UserSchool = new School(SchoolID.ID);
+          var Conf = await UserSchool.GetConfig("Subjects", User);
+          return Conf;
+        }(),
+        User.GetTimeTable(TargetDate), // TODO: What if user belongs in 2 or more groups?
     ])
 
-    //var Prof = await User.UpdateProfile();
+    DispDate = TargetDate; //new Date(DayData["Date"] + " 00:00:00");
+
+    ApplyDateStrings(TargetDate);
+
+    if (DayData["Revision"] === -1) {
+      document.getElementById("Undefined_Warn").style.display = ""
+    } else {
+      document.getElementById("Undefined_Warn").style.display = "none"
+    }
 
     /*
-    var Tb = await User.GetTimeTable();
-
-    var DayData = JSON.parse(Tb.Body);
-    var SubjectsConfig = await UserSchool.GetConfig("Subjects", User);
-    */
-
-    var TimetableDate = new Date(DayData["Date"] + " 00:00:00");
     document.getElementById("Date_Month").innerText = TimetableDate.getMonth() + 1;
     document.getElementById("Date_Day").innerText = TimetableDate.getDate();
     document.getElementById("Date_The_Day").innerText = TimetableDate.toLocaleString(window.navigator.language, {
       weekday: "narrow"
     });
+    */
 
     if (DayData["Note"]) {
       document.getElementById("Daily_Note").innerText = DayData["Note"];
+    } else {
+      document.getElementById("Daily_Note").innerText = "メモはありません"
     }
 
-    UpdateClasses(
-      DayData["TimeTable"],
-      SubjectsConfig,
-      document.getElementById("Table_Body"),
-      document.getElementById("Class_Base")
-    );
+    if (!DayData["Holiday"]) {
+      UpdateClasses(
+        DayData["TimeTable"],
+        SubjectsConfig,
+        document.getElementById("Table_Body"),
+        document.getElementById("Class_Base")
+      );
+    } else {
+      HolidaySt = document.createElement("p");
+      HolidaySt.id = "HolidayTitle";
+      HolidaySt.innerText = "この日は休みです";
+
+      document.getElementById("Table_Body").appendChild(HolidaySt);
+    }
+
+      Timetable = DayData;
+      DispDate = TargetDate;
   } catch (e) {
     console.error(e);
   }
   DestructLoadAnim();
+}
+
+function Timetable_Back() {
+  LoadSchedule(new Date(DispDate.setDate(DispDate.getDate() - 1)));
+}
+
+function Timetable_Next() {
+  LoadSchedule(new Date(DispDate.setDate(DispDate.getDate() + 1)));
+}
+
+function Timetable_SelectDate() {
 }
 
 function Scroll_Update(Elements, Obj) {
@@ -128,6 +131,16 @@ function Scroll_Update(Elements, Obj) {
     }
 */
   });
+}
+
+function Timetable_ShowControl() {
+  document.getElementById("Timetable_Control").style.display = "";
+  document.getElementById("Table_Date").style.display = "none";
+}
+
+function Timetable_HideControl() {
+  document.getElementById("Timetable_Control").style.display = "none";
+  document.getElementById("Table_Date").style.display = "";
 }
 
 function Header_Update(ElementID) {
@@ -203,10 +216,13 @@ User = new UserClass(UserID);
 UserSchool = null;
 UserGroup = null;
 
-/*
-if (UserID == false || SessionToken == false) {
+DispDate = null;
+Timetable = null;
+SubjectsConfig = null;
+
+
+if (UserID == false) {
   TransferLoginPage();
 }
-*/
 
 InitPage(User);

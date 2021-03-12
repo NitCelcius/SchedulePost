@@ -17,14 +17,22 @@
   <article>
     <section id="Table_Head">
       <h1 id="Table_Date">
+        <button class="Date_Control" id="Date_Back" onclick="Timetable_Back()"><</button>
+        <span onclick="Timetable_ShowControl()">
         <span id="Date_Year">----</span><span id="Date_YMSplit">年</span><span id="Date_Month">--</span><span
           id="Date_MDSplit">月</span><span id="Date_Day">-</span><span id="Date_DSplit">日</span><span
           id="Date_The_Day">-</span><span id="Date_TDSplit">曜日</span>
+        </span>
+        <button class="Date_Control" id="Date_Next" onclick="Timetable_Next()">></button>
       </h1>
+      <div id="Timetable_Control" style="display: none;">
+        <input type="date" id="Timetable_DateSwitch">
+        <button id="Control_Hide" onclick="Timetable_HideControl()">×</button>
+      </div>
     <p id="Daily_Note">メモメモ</p>
-
-      <h2 class="Head">時間割</h2>
+      <h2 id="Head_Title">時間割</h2>
     </section>
+    <p id="Undefined_Warn" style="display: none;">この日の時間割が入力されていないので、いつもの時間割を表示しています。変更があるかもしれません</p>
     <section id="Table_Body">
 
     </section>
