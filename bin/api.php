@@ -24,6 +24,8 @@ date_default_timezone_set($GLOBALS["DefaultTimeZone"]);
 $GLOBALS["SessionTokenExpiry"] = getenv("SP_SESSIONTOKENEXPIRY") ?? "30 minutes";
 $GLOBALS["LongTokenExpiry"] = getenv("SP_LONGTOKENEXPIRY") ?? "14 days";
 
+$GLOBALS["SIGNIN_DELAY"] = getenv("SP_SIGNINDELAY") ?? (30*1000);
+
 $GLOBALS["Connection"] = null;
 
 define("SQL_FORBIDDEN_CHARS", ";");
@@ -69,6 +71,15 @@ if (DateInterval::createFromDateString($GLOBALS["LongTokenExpiry"]) === false) {
   exit("ERROR: The server is not yet set up.");
 }
 
+if (!is_numeric($GLOBALS["SIGNIN_DELAY"]) && !intval($GLOBALS["SIGNIN_DELAY"]) == floatval($GLOBALS["SIGNIN_DELAY"])) {
+  http_response_code(503);
+  error_log("SIGNIN_DELAY is invalid (it must contain an integer)! Please specify it in your envilonment variables.");
+  exit("ERROR: The server is not yet set up.");
+} else {
+  $GLOBALS["SIGNIN_DELAY"] = intval($GLOBALS["SIGNIN_DELAY"]);
+}
+
+
 // RIP JSON data structure.
 //$ProfilePathFormat = "/Data/Profiles/{School_UUID}/{Group_UUID}.json";
 //$TimeTablePathFormat = "/Data/Schedules/{School_UUID}/{Group_UUID}/{Year}/{Month}/{Day}/{Version}.json";
@@ -80,6 +91,7 @@ define("ACCOUNT_LONG_TOKEN_INVALID", -3);
 define("ACCOUNT_LONG_TOKEN_EXPIRED", -4);
 define("ACCOUNT_CREDENTIALS_INVALID", -5);
 define("ACCOUNT_INSUFFCIENT_PERMISSION", -10);
+define("TOO_MANY_REQUESTS", -50);
 
 define("INTERNAL_EXCEPTION", -100);
 
@@ -181,6 +193,20 @@ class ConnectionException extends Exception {
 
   public function __toString() {
     return "Connection Error. Additional information: " . $this->Message . " Location: " . $this->Location;
+  }
+}
+
+class TooManyRequestsException extends Exception {
+  private $Message;
+
+  public function __construct($Message, $Location = null, $Prev = null) {
+    $this->Message = $Message;
+    $this->Location = $Location;
+    parent::__construct($Message, 0, null);
+  }
+
+  public function __toString() {
+    return "Too many requests received. Additional information: " . $this->Message . " Location: " . $this->Location;
   }
 }
 
@@ -313,7 +339,7 @@ class UserAuth {
    * @return true|false If succeed, returns true. Otherwise returns false. Refer to $GetError() for more info.
    */
   function SignInFromUserIDAndLongToken(string $UserID, string $LongToken) {
-    $SessionToken = $this->GetSessionTokenFromLongToken($LongToken);
+      $SessionToken = $this->GetSessionTokenFromLongToken($LongToken);
 
     if ($SessionToken !== false && $SessionToken !== NULL) {
       $this->UpdateLastActivity();
@@ -796,6 +822,9 @@ class UserAuth {
       $PDOstt->execute();
       $Data = $PDOstt->fetch(PDO::FETCH_ASSOC);
       $VerifyHash = $Data["PassHash"];
+    } catch (TooManyRequestsException $e) {
+      throw $e;
+      return false;
     } catch (Exception $e) {
       error_log("Error whilst trying to fetch from table 'accounts'. UserID:'$this->UserID', Info:" . implode(",", $PDOstt->errorInfo()));
       throw new ConnectionException("Could not process connection properly.", "Internal function");
@@ -818,10 +847,14 @@ class UserAuth {
         $Data = $PDOstt->fetch(PDO::FETCH_ASSOC);
 
         // Perhaps this is unnecessary.
-        $this->UpdateSessionToken();
+        // $this->UpdateSessionToken();
+        // It was.
 
         return $LongToken;
       } catch (ConnectionException $e) {
+        throw $e;
+        return false;
+      } catch (TooManyRequestsException $e) {
         throw $e;
         return false;
       } catch (Exception $e) {
@@ -841,6 +874,7 @@ class UserAuth {
     }
 
     $Connection = DBConnection::Connect();
+
     $PDOstt = $Connection->prepare("select LongTokenGenAt from accounts where UserID = :UserID AND LongToken = :LongToken");
     if ($PDOstt === false) {
       // TODO: Is this error handling correct?
@@ -879,9 +913,26 @@ class UserAuth {
     // TODO: May have to fix this kind of error handling.
     try {
       $Connection = DBConnection::Connect();
-      $Updater = $Connection->prepare("Update `accounts` set `LastSigninAt` = :LoginDateTime,`SessionToken` = :SessionToken WHERE UserID = :UserID");
+
+      $stt = $Connection->prepare("Select LastSigninAt from `accounts` where UserID = :UserID");
+      $stt->bindValue(":UserID", $this->UserID, PDO::PARAM_STR);
+      $stt->execute();
+      $Dt = $stt->fetch();
+      if ($Dt === false) {
+        error_log("An error occurred in UpdateSessionToken(): The table `accounts` does not have corresponding column LastSigninAt. TargetUserID: $this->UserID" . ", " . implode(",", $stt->errorinfo()));
+      }
+
+      $LastTry = new DateTime($Dt["LastSigninAt"]) ?? PHP_INT_MIN;
+      $Now = new DateTime();
+      if (abs($Now->getTimestamp() - $LastTry->getTimestamp()) < $GLOBALS["SIGNIN_DELAY"]) {
+        throw new TooManyRequestsException("Please wait before you can update sessiontoken. ". abs($Now->getTimestamp() - $LastTry->getTimestamp()));
+        return false;
+      }
+
+      $Updater = $Connection->prepare("Update `accounts` set `LastSigninAt` = :LoginDateTime,`SessionToken` = :SessionToken,`LastActivityAt` = :LastActivityAt WHERE UserID = :UserID");
       $Token = bin2hex(openssl_random_pseudo_bytes(32));
       $LoginDateTime = new DateTime("now", new DateTimeZone($GLOBALS["DefaultTimeZone"]));
+      $Updater->bindValue(":LastActivityAt", $LoginDateTime->format("Y-m-d H:i:s"), PDO::PARAM_STR);
       $Updater->bindValue(":LoginDateTime", $LoginDateTime->format("Y-m-d H:i:s"), PDO::PARAM_STR);
       $Updater->bindValue(":SessionToken", $Token);
       $Updater->bindValue(":UserID", $this->UserID, PDO::PARAM_STR);
@@ -896,6 +947,9 @@ class UserAuth {
       $this->Token = $Token;
       $this->SessionTokenExpiry = $Expiry;
       return true;
+    } catch (TooManyRequestsException $e) {
+      throw $e;
+      return false;
     } catch (Exception $e) {
       error_log("An error occurred in UpdateSessionToken(): " . $e->getMessage() . " TargetUserID: $this->UserID" . ", " . implode(",", $Updater->errorinfo()));
       throw new ConnectionException("Could not update database: " . $e->getMessage(), "Internal function");
@@ -1153,7 +1207,8 @@ class Messages {
     "ACCOUNT_LONG_TOKEN_EXPIRED" => "",
     "ACCOUNT_CREDENTIALS_INVALID" => "",
     "ILLEGAL_CALL" => "Some of necessary arguments are missing or malformed.",
-    "SIGNIN_REQUIRED" => "You need to be signed in to do that."
+    "SIGNIN_REQUIRED" => "You need to be signed in to do that.",
+    "TOO_MANY_REQUESTS" => "Please wait until you can do that again."
   );
 
   public const ErrorHTTPCodes = array(
@@ -1169,7 +1224,8 @@ class Messages {
     "ACCOUNT_LONG_TOKEN_EXPIRED" => 403,
     "ACCOUNT_CREDENTIALS_INVALID" => 403,
     "ILLEGAL_CALL" => 400,
-    "SIGNIN_REQUIRED" => 401
+    "SIGNIN_REQUIRED" => 401,
+    "TOO_MANY_REQUESTS" => 429
   );
 
   static function GenerateErrorJSON(string $Code, $Message = null) {
@@ -1311,6 +1367,8 @@ while (true) {
                   "samesite" => "Strict"
                 ));
               case false:
+                $Resp = Messages::GenerateErrorJSON($User->GetError()["Code"]);
+
                 break;
             }
           } catch (ConnectionException $e) {
@@ -1320,6 +1378,8 @@ while (true) {
             $Resp = Messages::GenerateErrorJSON("INVALID_CREDENTIALS", "The passphrase provided is invalid. " . $e->getMessage());
           } catch (InvalidArgumentException $e) {
             $Resp = Messages::GenerateErrorJSON("INVALID_CREDENTIALS", "The Email address provided is invalid. " . $e->getMessage());
+          } catch (TooManyRequestsException $e) {
+            $Resp = Messages::GenerateErrorJSON("TOO_MANY_REQUESTS", "Please wait before you can log-in / update session again. " .$e->getMessage());
           } catch (Exception $e) {
             $Resp = Messages::GenerateErrorJSON("INTERNAL_EXCEPTION", "There was an internal exception whilst trying to sign in. " . $e->getMessage());
           }
@@ -1327,6 +1387,7 @@ while (true) {
           if ($UserID != null && $LongToken != null) {
             try {
               $User = new UserAuth($UserID);
+
               switch ($User->SignInFromUserIDAndLongToken($UserID, $LongToken)) {
                 case true:
                   $Resp = array(
@@ -1355,6 +1416,9 @@ while (true) {
                   break;
 
                 case false:
+                  $Resp = Messages::GenerateErrorJSON($User->GetError()["Code"]);
+                  //var_dump("U/L detect");
+
                   break;
               }
             } catch (ConnectionException $e) {
@@ -1362,8 +1426,11 @@ while (true) {
               error_log("SIGNIN: An error occurred whilst trying to sign in using long token. " . $e->getMessage() . " Stack trace:" . $e->getTraceAsString());
             } catch (InvalidCredentialsException $e) {
               $Resp = Messages::GenerateErrorJSON("INVALID_CREDENTIALS", "The long token provided is invalid. " . $e->getMessage());
+            } catch (TooManyRequestsException $e) {
+              $Resp = Messages::GenerateErrorJSON("TOO_MANY_REQUESTS", "Please wait before you can log-in or update session again.");
             } catch (Exception $e) {
               $Resp = Messages::GenerateErrorJSON("INTERNAL_EXCEPTION", "There was an internal exception whilst trying to sign in. " . $e->getMessage());
+              error_log("SIGNIN: An error occurred whilst trying to sign in using long token. " . $e->getMessage() . " Stack trace:" . $e->getTraceAsString());
             }
           }
         }
