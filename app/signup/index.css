@@ -1,0 +1,49 @@
+article {
+  margin: 1rem;
+}
+
+.WelcomePic {
+  width: 100%;
+}
+
+form {
+  display: flex;
+  flex-direction: column;
+  align-content: center;
+  justify-content: center;
+}
+
+form>label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+form>input {
+  
+}
+
+#SignupForm input {
+  font-family: inherit;
+  font-size: 1rem;
+  appearance: none;
+  border: 1px #bbb solid;
+  border-bottom: 2px #888 solid;
+  margin: 0.5rem;
+  padding: 0.5rem;
+  width: 80%;
+  max-width: 20rem;
+  line-height: 2;
+  border-radius: 2px;
+  text-align: center;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+}
+
+footer {
+  text-align: center;
+}
