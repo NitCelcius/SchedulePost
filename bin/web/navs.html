@@ -7,10 +7,11 @@
         <br>
         <span id="Group_Label">(グループ名)</span>
       </p>
-      <li><a href="/app/index.html">Feed</a></li>
-      <li><a href="/app/editor/index.html">Editor</a></li>
+      <li><a href="/app/index.html">ホーム</a></li>
+      <li><a href="/app/editor/index.html">エディタ</a></li>
       <li>...</li>
     </ul>
+    <a href="/logout.php">ログアウトする</a>
   </div>
   <script src="/bin/web/headupdate.js" async></script>
 </nav>
@@ -30,11 +31,11 @@
 
 <footer>
   <ul>
-    <li>
-      <p>aaaaa<br>1</p>
+    <li id="Footer_Feed">
+      <p><img src="/resources/images/clock.webp" alt="時間割" width="2rem" height="2rem"><br>ホーム</p>
     </li>
-    <li class="Active">
-      <p><img src="/resources/images/clock.webp" alt="時間割" width="2rem" height="2rem"><br>LNK-2</p>
+    <li id="Footer_Edit">
+      <p><img src="/resources/images/clock.webp" alt="編集" width="2rem" height="2rem"><br>エディタ(β)</p>
     </li>
     <li>
       <p>LNK-3</p>
@@ -47,252 +48,259 @@
 
 <style>
   header {
-  display: flex;
-  top: 0;
-  height: 3rem;
-  width: 100%;
-  background-color: rgb(240, 240, 220);
-  position: fixed;
-  z-index: 5;
-}
+    display: flex;
+    top: 0;
+    height: 3rem;
+    width: 100%;
+    background-color: rgb(240, 240, 220);
+    position: fixed;
+    z-index: 5;
+  }
 
   #Sidebar_OpenButton {
-  display: none;
-  position: fixed;
-  top: 0;
-  right: 0;
-  z-index: 0;
-  background: #0d7;
-  border: none;
-  width: 3rem;
-  height: 3rem;
-}
+    display: none;
+    position: fixed;
+    top: 0;
+    right: 0;
+    z-index: 0;
+    background: #0d7;
+    border: none;
+    width: 3rem;
+    height: 3rem;
+  }
 
-.Sidebar_Text {
-  opacity: 0.0;
-}
+  .Sidebar_Text {
+    opacity: 0.0;
+  }
 
-/* ここからハードコード / 3rem x 3rem にはめる*/
-.Sidebar_Visual {
-  position: absolute;
-  margin: auto;
-  right: 0.4rem;
-  height: 2px;
-  width: 2rem;
-  background-color: white;
-}
+  /* ここからハードコード / 3rem x 3rem にはめる*/
+  .Sidebar_Visual {
+    position: absolute;
+    margin: auto;
+    right: 0.4rem;
+    height: 2px;
+    width: 2rem;
+    background-color: white;
+  }
 
-.Sidebar_Visual::before,
-.Sidebar_Visual::after {
-  position: absolute;
-  height: 2px;
-  width: 2rem;
-  left: 0;
-  content: " ";
-  background-color: white;
-}
+  .Sidebar_Visual::before,
+  .Sidebar_Visual::after {
+    position: absolute;
+    height: 2px;
+    width: 2rem;
+    left: 0;
+    content: " ";
+    background-color: white;
+  }
 
-.Sidebar_Visual::before {
-  top: -0.6rem;
-}
+  .Sidebar_Visual::before {
+    top: -0.6rem;
+  }
 
-.Sidebar_Visual::after {
-  top: 0.6rem;
-}
+  .Sidebar_Visual::after {
+    top: 0.6rem;
+  }
+
   /* この nav をウィンドウのタテサイズの最大まで大きくしたい */
-nav {
-  position: sticky;
-  top: 4rem;
-  left: -25rem;
-  /* 1 rem あけている */
-  width: 25rem;
-  height: calc(100% - 6rem);
-  margin-right: 1rem;
-  /* height の値に関係なくタテのサイズが固定される。なんでだ？ */
-  overflow-y: scroll;
-  overflow-x: hidden;
-  border-right: 1px solid black;
-  z-index: 10;
+  nav {
+    position: sticky;
+    top: 4rem;
+    left: -25rem;
+    /* 1 rem あけている */
+    width: 25rem;
+    height: calc(100% - 6rem);
+    margin-right: 1rem;
+    /* height の値に関係なくタテのサイズが固定される。なんでだ？ */
+    overflow-y: scroll;
+    overflow-x: hidden;
+    border-right: 1px solid black;
+    z-index: 10;
 
-  /* ここから無理やり。スクロールバー非表示なので、矢印とかを、あとではじっこにつけたい */
-  /* Edge */
-  -ms-overflow-style: none;
-  /* Firefox */
-  scrollbar-width: none;
-}
+    /* ここから無理やり。スクロールバー非表示なので、矢印とかを、あとではじっこにつけたい */
+    /* Edge */
+    -ms-overflow-style: none;
+    /* Firefox */
+    scrollbar-width: none;
+  }
 
-/* Chrome */
-nav::-webkit-scrollbar {
-  display: none;
-}
-div#Nav_Body {
-  padding: 1rem;
-}
+  /* Chrome */
+  nav::-webkit-scrollbar {
+    display: none;
+  }
 
+  div#Nav_Body {
+    padding: 1rem;
+  }
 
   nav ul {
-  margin: 0;
-  padding: 0rem 1rem 0rem 1rem;
-  margin: 1rem 0;
-}
+    margin: 0;
+    padding: 0rem 1rem 0rem 1rem;
+    margin: 1rem 0;
+  }
 
-nav li {
-  list-style: none;
-}
+  nav li {
+    list-style: none;
+    margin-bottom: 0.5rem;
+  }
 
-nav p#Brief_Profile {
-  border-bottom: 1px dashed black;
-  margin: 1rem 0;
-}
+  nav li>a {
+    line-height: 1.5;
+    font-size: 120%;
+  }
 
-nav #Group_Label {
-  font-size: 180%;
-}
+  nav p#Brief_Profile {
+    border-bottom: 1px dashed black;
+    margin: 1rem 0;
+  }
 
-nav #School_Label {
-  font-size: 80%;
-  color: #444;
-  margin: 0;
-}
+  nav #Group_Label {
+    font-size: 180%;
+  }
 
-#Nav_Title {
-  font-size: 200%;
-  margin: 0;
-}
+  nav #School_Label {
+    font-size: 80%;
+    color: #444;
+    margin: 0;
+  }
 
-div#Nav_Wrapper {
-  position: sticky;
-  top: 3rem;
-  left: 0;
-}
+  #Nav_Title {
+    font-size: 200%;
+    margin: 0;
+  }
 
-div#Nav_Overlay {
-  display: none;
-}
+  div#Nav_Wrapper {
+    position: sticky;
+    top: 3rem;
+    left: 0;
+  }
 
-button#Sidebar_CloseButton {
-  display: none;
-  height: 3rem;
-  width: 100%;
-}
+  div#Nav_Overlay {
+    display: none;
+  }
+
+  button#Sidebar_CloseButton {
+    display: none;
+    height: 3rem;
+    width: 100%;
+  }
+
   footer {
-  position: fixed;
-  background-color: #eee;
-  bottom: 0;
-  overflow: hidden;
-  height: 4rem;
-  width: 100%;
+    position: fixed;
+    background-color: #eee;
+    bottom: 0;
+    overflow: hidden;
+    height: 4rem;
+    width: 100%;
+    z-index: 2;
+  }
 
-  z-index: 2;
-}
+  footer ul {
+    display: flex;
+    flex-direction: row;
+    vertical-align: bottom;
+    list-style: none;
+    width: calc(100% - 2rem);
+    margin: 0 auto;
+    height: 4rem;
+    padding: 0 1rem;
+    max-width: 50rem;
+  }
 
-footer ul {
-  display: flex;
-  flex-direction: row;
-  vertical-align: bottom;
-  list-style: none;
-  width: calc(100% - 2rem);
-  margin: 0 auto;
-  height: 4rem;
-  padding: 0 1rem;
-  max-width: 50rem;
-}
+  footer li {
+    /* flex でこれ使うと下揃えにできる。 */
+    display: flex;
+    flex-direction: column-reverse;
+    box-sizing: border-box;
+    width: calc(25% - 3px);
+    height: 100%;
+    text-align: center;
+    vertical-align: bottom;
 
-footer li {
-  /* flex でこれ使うと下揃えにできる。 */
-  display: flex;
-  flex-direction: column-reverse;
-  box-sizing: border-box;
-  width: calc(25% - 3px);
-  height: 100%;
-  text-align: center;
-  vertical-align: bottom;
+    transition: 0.2s linear;
+    transition-property: background-color, transform;
+    background-color: #ddd;
+  }
 
-  transition: 0.2s linear;
-  transition-property: background-color, transform;
-  background-color: #ddd;
-}
+  footer li:hover {
+    transition: 0.2s linear;
+    transition-property: background-color, transform;
+    background-color: darkgray;
+    /*transform: translateY(-0.5rem);*/
+  }
 
-footer li:hover {
-  transition: 0.2s linear;
-  transition-property: background-color, transform;
-  background-color: darkgray;
-  /*transform: translateY(-0.5rem);*/
-}
+  footer li.Footer_Active {
+    transition: 0.2s linear;
+    transition-property: background-color, transform;
+    background-color: #fff;
+    border-top: 1px solid #ddd;
+    /*transform: translateY(-1rem);*/
+  }
 
-footer li.Active {
-  transition: 0.2s linear;
-  transition-property: background-color, transform;
-  background-color: #fff;
-  border-top: 1px solid #ddd;
-  /*transform: translateY(-1rem);*/
-}
-
-footer p {
-  display: inline-block;
-  margin: 0;
-  font-size: 0.8rem;
-  color: #444;
-  font-weight: bolder;
-  transform: scale(0.9, 1);
-  letter-spacing: 3px;
-  /*
+  footer p {
+    display: inline-block;
+    margin: 0;
+    font-size: 0.8rem;
+    color: #444;
+    font-weight: bolder;
+    transform: scale(0.9, 1);
+    letter-spacing: 3px;
+    /*
   display: block;
   height: 100%;
   width: 100%;
   vertical-align: middle;
   */
-}
-
-footer img {
-  width: auto;
-  height: 2rem;
-  width: 2rem;
-}
-
-@media (max-width: 55rem) {
-  nav {
-    display: none;
-    position: fixed;
-    top: 0;
-    left: 0;
-    height: 100%;
-    max-width: 100%;
-    background: white;
-
-    box-shadow: 2rem 0rem 1rem 0rem rgba(0, 0, 0, 0.8)
   }
 
-  div#Nav_Wrapper {
-    position: fixed;
-    top: 0;
-    left: 0;
-
-    width: 25rem;
+  footer img {
+    width: auto;
+    height: 2rem;
+    width: 2rem;
   }
 
-  div#Nav_Overlay {
-    position: fixed;
-    z-index: 5;
-    top: 0;
-    left: 0;
-    background-color: rgba(0, 0, 0, 0.8);
-    height: 100%;
-    width: 100%;
-  }
+  @media (max-width: 55rem) {
+    nav {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      height: 100%;
+      max-width: 100%;
+      background: white;
 
-  /* これ意味あるんかな
+      box-shadow: 2rem 0rem 1rem 0rem rgba(0, 0, 0, 0.8)
+    }
+
+    div#Nav_Wrapper {
+      position: fixed;
+      top: 0;
+      left: 0;
+
+      width: 25rem;
+    }
+
+    div#Nav_Overlay {
+      position: fixed;
+      z-index: 5;
+      top: 0;
+      left: 0;
+      background-color: rgba(0, 0, 0, 0.8);
+      height: 100%;
+      width: 100%;
+    }
+
+    /* これ意味あるんかな
   div#Body_Wrapper {
     padding: 0rem 0rem;
   }
   */
 
-  button#Sidebar_OpenButton {
-    display: block;
-  }
+    button#Sidebar_OpenButton {
+      display: block;
+    }
 
-  button#Sidebar_CloseButton {
-    display: block;
+    button#Sidebar_CloseButton {
+      display: block;
+    }
   }
-}
 </style>
