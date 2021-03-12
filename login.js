@@ -9,7 +9,10 @@ document.getElementById("LoginButton").addEventListener("click", async function 
   var Resp = JSON.parse(Info.Content);
   if (Resp["Result"]) {
     console.info("Moving on...");
-    location.pathname = new URL(window.location.href).searchParams.get("auth_callback");
+    var Sp = new URL(window.location.href).searchParams;
+    var Dest = Sp.get("auth_callback");
+    Sp.delete("auth_callback")
+    location.pathname = Dest;
   } else {
     // err
   }
