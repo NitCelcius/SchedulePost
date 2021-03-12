@@ -74,13 +74,28 @@ LoadCommonNodes().then(async function () {
       document.getElementById("Group_Label").innerText = GroupProf.DisplayName;
     }
   });
-  SchoolProf = await User.GetSchoolProfile();
-    console.info(SchoolProf);
+  User.GetSchoolProfile().then((SchoolProf) => {
+    ;
     if (SchoolProf.DisplayName) {
       document.getElementById("School_Label").innerText = SchoolProf.DisplayName;
     };
+  });
 
-  User.GetSchoolProfile().then(function (SchoolProf) {
-  })
+  var ActivefooterID = null;
+  switch (this.location.pathname) {
+    case "/app/index.html": {
+      ActivefooterID = "Footer_Feed";
+      break;
+    }
+
+    case "app/editor/timetable.html": {
+      ActivefooterID = "Footer_Edit";
+      break;
+    }
+  }
+
+  if (ActivefooterID) {
+    document.getElementById(ActivefooterID).classList.add("Footer_Active");
+  }
 });
 
