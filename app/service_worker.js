@@ -1,4 +1,4 @@
-var CACHE_NAME = "Schedulepost-cached-v4";
+var CACHE_NAME = "Schedulepost-cached-v5";
 var CacheURLs = [
   "/app/index.html",
   "/app/index.css",
@@ -21,14 +21,10 @@ self.addEventListener("install", (Event) => {
 });
 
 self.addEventListener("fetch", (Event) => {
-    console.warn(Event.request);
-
   if (Event.request.method === "POST") {
-    console.warn("POST!!!");
     Event.respondWith(
       fetch(Event.request.clone())
         .then(function (response) {
-          console.warn(response);
           return response;
         })
     );
