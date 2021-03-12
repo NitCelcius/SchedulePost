@@ -5,7 +5,7 @@ body {
   margin: 0rem auto;
   /* If unnecessary, remove this */
   background-image: url("/resources/images/grid.webp");
-  
+
   display: flex;
   flex-direction: row-reverse;
 }
@@ -15,15 +15,18 @@ body>* {
 }
 
 article {
-  margin: 3rem auto 3rem auto;
+  margin: 4rem auto 3rem auto;
   width: 100%;
   max-width: 90vw;
   /* Overscroll */
   padding-bottom: 50%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 
 article>* {
-  width:100%;
+  width: 100%;
 }
 
 #Title {
@@ -38,13 +41,6 @@ article>* {
   line-height: 3rem;
 }
 
-article {
-  display: flex;
-  flex-direction: column;
-  margin-top: 3rem;
-  justify-content: center;
-}
-
 div.Class_Block {
   display: flex;
   flex-direction: row;
@@ -54,17 +50,6 @@ div.Class_Block {
   border: 1px solid #aaa;
   box-sizing: border-box;
 }
-
-/*
-div.Class_Block > label::before {
-  content: "|";
-  text-align: left;
-  position: relative;
-  left: -4px;
-  width: 1.5em;
-  background-color: var(--subject-color);
-}
-*/
 
 label.Class_Label {
   display: flex;
@@ -81,7 +66,7 @@ div.Class_Block.important {
   border: 2px #000 solid;
 }
 
-div.Class_Block.important label{
+div.Class_Block.important label {
   color: white;
   font-weight: bolder;
   background-color: var(--subject-emphasize-color);
@@ -134,7 +119,7 @@ div.Class_Block_Label {
 
 .Class_Note {
   /* 折返し */
-  width: calc( 100% - 1rem);
+  width: calc(100% - 1rem);
   word-wrap: break-word;
   overflow-wrap: anywhere;
   text-align: left;
@@ -168,34 +153,34 @@ div.Class_Block_Label {
 }
 
 @keyframes LoadBox {
-    0% {
-      background-color: #f33;
-      transform: rotateX(180deg);
-    }
+  0% {
+    background-color: #f33;
+    transform: rotateX(180deg);
+  }
 
-    25% {
-      background-color: #55f;
-      transform: rotateY(180deg);
-    }
+  25% {
+    background-color: #55f;
+    transform: rotateY(180deg);
+  }
 
-    50% {
-      background-color: #5c5;
-      transform: rotateX(-180deg);
-    }
+  50% {
+    background-color: #5c5;
+    transform: rotateX(-180deg);
+  }
 
-    75% {
-      background-color: #bb2;
-      transform: rotateY(-180deg);
-    }
+  75% {
+    background-color: #bb2;
+    transform: rotateY(-180deg);
+  }
 
-    99.9% {
-      transform: rotate(1440deg);
-    }
+  99.9% {
+    transform: rotate(1440deg);
+  }
 
-    100% {
-      transform: rotate(0deg);
-      background-color: #f33;
-    }
+  100% {
+    transform: rotate(0deg);
+    background-color: #f33;
+  }
 }
 
 @keyframes LoadBox-2 {
