@@ -34,7 +34,11 @@
 
     <section id="Timetable_Options">
       <form name="Options">
+        <div>
         <label class="OptLabel"><span class="Edit_Desc">日付</span><input type="date" name="Date" id="Edit_Date"></label>
+        <label class="OptLabel">休日として設定
+        <input type="checkbox" name="IsHoliday" id="IsHoliday" onclick="Edit_SwitchHoliday(this.checked)"></label>
+        </div>
         <label class="OptLabel" id="OptNote"><span class="Edit_Desc">一日のメモ</span>
           <textarea id="Daily_Note" class="Daily_Note Daily_Note_Input" name="Daily_Note" type="text"
             placeholder="一日のメモを入力"></textarea></label>

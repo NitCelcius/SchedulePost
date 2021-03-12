@@ -102,8 +102,19 @@ async function PrepareEditor(User) {
 
   document.Options.Daily_Note.addEventListener("change", function () {
     Timetable["Note"] = document.Options.Daily_Note.value;
+
     StartAutoStash();
   })
+
+  document.Options.Daily_Note.addEventListener("keyup", () => {
+    var Target = document.Options.Daily_Note;
+    var lh = Number(2);
+    while (Target.scrollHeight > Target.offsetHeight && lh < 30) {
+      lh++;
+      Target.setAttribute("rows", lh);
+    }
+  });
+
 
   document.Options.Date.addEventListener("change", function () {
     var AskF = true;
@@ -261,7 +272,6 @@ function Class_Edit(Obj) {
   document.getElementById("Edit_Page_Wrapper").style.display = "flex";
 
   EditingKey = Obj.parentElement.style.getPropertyValue("--Key");
-
   ClassEdit_Setup(Obj.parentElement.style.getPropertyValue("--Key"));
 }
 
@@ -304,6 +314,7 @@ async function ClassEdit_Setup(EditingClassKey) {
     var Options = Classes[EditingClassKey].Options;
     Edit_Class.Edit_Important.checked = Options["Important"];
   } else {
+    Edit_Class.Edit_Important.checked = false;
     // initial
   }
 }
@@ -660,6 +671,16 @@ function UpdateEditTimetable() {
   }
 
   UpdateClasses(Classes, SubjectsConfig, document.getElementById("Table_Body"), document.getElementById("Class_Base"));
+}
+
+function Edit_SwitchHoliday(flag) {
+  if (flag) {
+    Timetable["Holiday"] = true;
+    document.getElementById("Table_Body").style.display = "none";
+  } else {
+    Timetable["Holiday"] = false;
+    document.getElementById("Table_Body").style.display = "";
+  }
 }
 
 

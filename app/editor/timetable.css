@@ -218,10 +218,12 @@ span.Edit_Desc {
 }
 
 #Edit_Important {
-  appearance: none;
   height: 1.5rem;
   width: 1.5rem;
+/*
+  appearance: none;
   background-color: #888;
+  */
 }
 
 #Edit_Important:checked {
@@ -237,7 +239,9 @@ span.Edit_Desc {
 }
 
 #Edit_Date {
+  font-size: inherit;
   font-size: 120%;
+  font-family: inherit;
 }
 
 #Timetable_GroupText {
@@ -252,19 +256,39 @@ span.Edit_Desc {
   flex-direction: column;
 }
 
+#Timetable_Options>form>div {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+}
+
+#Timetable_Options>form>div>label {
+  margin: 0 0.5rem;
+}
+
+#IsHoliday {
+height: 1.5rem;
+width: 1.5rem;
+}
+
 .Daily_Note_Input {
   /* 折返し */
   width: calc(100% - 4rem);
   margin: 0 2rem;
   text-align: left !important;
   color: #444;
+  font-size: inherit;
+  font-family: inherit;
 }
 
 .OptLabel {
+  /*
   display: flex;
   align-content: center;
   justify-content: center;
-  /*margin: 0.5rem 0;*/
+  margin: 0.5rem 0;
+  */
 }
 
 #OptNote {
