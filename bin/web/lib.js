@@ -1,5 +1,8 @@
 // Set here too.
 const API_URL = "/bin/api.php";
+SessionTransaction = [
+
+];
 
 class UserClass {
   UserID = null;
@@ -22,30 +25,78 @@ class UserClass {
 
   constructor(InUserID) {
     this.UserID = InUserID;
+    this.LastSessionUpdateTime = -14254781999;
+    this.MIN_SESSION_INTERVAL = 30 * 1000;
   }
 
   async UpdateSessionToken() {
-    var Info = await APIReq(User, {
-      "Action": "SIGN_IN"
+    var Info;
+
+    if (!SessionTransaction[this.UserID]) {
+      SessionTransaction[this.UserID] = APIReq(User, {
+        "Action": "SIGN_IN"
+      });
+      console.debug("Updating session... ");
+        setTimeout(() => {
+          SessionTransaction[this.UserID] = null;
+        }, 30000);
+    }
+
+    return new Promise((resolve, reject) => {
+      SessionTransaction[this.UserID].then((Data) => {
+        if (Data["Result"] === true) {
+          console.debug("Update complete!!");
+          resolve(true);
+        } else {
+          console.error("Session update fail!!");
+          console.error(Data);
+          resolve(false);
+        }
+      })
     })
+
+    /*
+    if (this.SessionTransaction !== null) {
+      console.warn("Multiple session token request detected!");
+      Info = await this.SessionTransaction;
+    } else {
+      var tdif = Math.abs(new Date().getTime - this.LastSessionUpdateTime);
+      tdif = isNaN(tdif) ? this.MIN_SESSION_INTERVAL + 1 : tdif;
+      if (tdif > this.MIN_SESSION_INTERVAL) {
+        this.LastSessionUpdateTime = new Date().getTime;
+        this.SessionTransaction = APIReq(User, {
+          "Action": "SIGN_IN"
+        }).then((Info) => {
+          Info = this.SessionTransaction;
+          this.SessionTransaction = null;
+          try {
+            if (Info["Result"] === true) {
+              return true;
+            } else {
+              console.error(Info);
+              return false;
+            }
+          } catch (e) {
+            console.error(Info);
+            console.error(e);
+            return false;
+          }
+        });
+      } else {
+        console.warn(Math.abs(new Date().getTime - this.LastSessionUpdateTime));
+        console.warn("Repeated session token request detected!");
+        return true;
+      }
+    }
+    */
+
     /*
     var Info = await AwaitAjaxy(API_URL, JSON.stringify({
       "Action": "SIGN_IN"
     }), false);
     */
 
-    try {
-      if (Info["Result"] === true) {
-        return true;
-      } else {
-        console.error(Info);
-        return false;
-      }
-    } catch (e) {
-      console.error(Info);
-      console.error(e);
-      return false;
-    }
+
   }
 
   async GetUserProfile() {
@@ -133,7 +184,7 @@ class UserClass {
       throw new Error("There seems to be an error occured while fetching timetable. " + Info.toString());
     }
 
-    return Info;
+    return JSON.parse(Info["Body"]);
   }
 
   async GetTimeTableBase(TargetDate = null) {
@@ -342,12 +393,12 @@ function AwaitAjaxy(DestURL, Content, Prot = true) {
 }
 
 async function APIReq(User, Content) {
-  var Resp;
+  var RespCont;
   if (!Content) {
     throw new Error("Do not specify null !!!");
   }
   for (var i = 0; i < 3; i++) {
-    console.warn(JSON.stringify(Content))
+    console.debug(JSON.stringify(Content))
     Dt = await fetch(API_URL, {
       method: "post",
       body: JSON.stringify(Content),
@@ -358,16 +409,26 @@ async function APIReq(User, Content) {
       }
     }).then(function (resp) {
       try {
-        return resp.json();
+        return resp.text();
       } catch (e) {
         console.error(Content);
-        console.error(Resp);
+        console.error(resp);
         console.error(e);
         console.error("Fatal error occured in API: Server responded with an error.");
-        throw new APIError("ERROR_UNKNOWN","Server responded with an error.","Fatal error occured in API: Server responded with an error.");
+        throw new APIError("ERROR_UNKNOWN", "Server responded with an error.", "Fatal error occured in API: Server responded with an error.");
         return false;
       }
-    }).then(async function (Data) {
+    }).then(async function (RespRaw) {
+      try {
+        RespCont = RespRaw;
+        var Data = JSON.parse(RespRaw);
+      } catch (e) {
+        console.error(Content);
+        console.error(RespRaw);
+        console.error(e);
+        console.error("Fatal error occured in API: Server responded with an error.");
+        throw new APIError("ERROR_UNKNOWN", "Server responded with an error.", "Fatal error occured in API: Server responded with an error.");
+      }
       if (!Data.Result) {
         var ErrLog = function () {
           LAST_ERROR = Data.ReasonCode;
@@ -377,27 +438,28 @@ async function APIReq(User, Content) {
         }
         switch (Data.ReasonCode) {
           case "ACCOUNT_SESSION_TOKEN_EXPIRED":
-          case "ACCOUNT_SESSION_TOKEN_INVALID": {
+          case "ACCOUNT_SESSION_TOKEN_INVALID":
+          case "SIGNIN_REQUIRED": {
             var Flag = await User.UpdateSessionToken();
             if (!Flag) {
               console.warn("The account session token has expired. Redirecting to the sign-in page.");
               TransferLoginPage();
               break;
+            } else {
             }
             break;
           }
           case "ACCOUNT_LONG_TOKEN_INVALID":
           case "ACCOUNT_LONG_TOKEN_EXPIRED":
-          case "ACCOUNT_CREDENTIALS_INVALID": {
+          case "ACCOUNT_CREDENTIALS_INVALID":
+          case "INVALID_CREDENTIALS": {
             console.warn("The account session token is invalid. Redirecting to the sign-in page.");
 
             TransferLoginPage();
             break;
           }
-          case "SIGNIN_REQUIRED": {
-            console.warn("Please sign in.");
+          case "UNEXPECTED_ARGUMENT": {
             TransferLoginPage();
-            break;
           }
           case "INPUT_MALFORMED": {
             ErrLog();
@@ -408,6 +470,7 @@ async function APIReq(User, Content) {
             ErrLog();
           }
         }
+        return false;
       } else {
         return Data;
       }
@@ -416,12 +479,13 @@ async function APIReq(User, Content) {
       Resp = Dt;
       break;
     }
+    await Delay(500);
   }
+
   if (Resp) {
-    console.info(Resp);
     return Resp;
   } else {
-    console.error(Resp);
+    console.error(RespCont);
     console.error(User);
     console.error(Content);
     throw new Error("APIReq failed.");
@@ -568,11 +632,11 @@ async function DeployErrorWindow(ErrorText) {
   LoadText = document.createElement("p");
   LoadText.id = "LoadIndiMessage"
   LoadText.innerText = ErrorText;
-  with (LoadText.style) { }
+  with(LoadText.style) {}
   LoadGeneText = document.createElement("p");
   LoadGeneText.id = "LoadGeneMessage"
-  LoadGeneText.innerText = "システム管理者に連絡してください。ユーザーID: "+GetCookie("UserID");
-  with (LoadGeneText.style) {
+  LoadGeneText.innerText = "システム管理者に連絡してください。ユーザーID: " + GetCookie("UserID");
+  with(LoadGeneText.style) {
     color = "#666";
     textAlign = "center";
     overflowWrap = "break-word"
@@ -629,7 +693,7 @@ function GetDateStrings(TargetDate) {
     Month: (TargetDate.getMonth() + 1),
     DayOfTheMonth: TargetDate.getDate(),
     DayOfTheWeek: TargetDate.toLocaleString(window.navigator.language, {
-      weekday: "narrow"
+      weekday: "short"
     })
   };
 }
@@ -641,6 +705,54 @@ function ApplyDateStrings(TargetDate, YearElement = document.getElementById("Dat
   MonthElement.innerText = DateStrings.Month;
   DayOfTheMonthElement.innerText = DateStrings.DayOfTheMonth;
   DayOfTheWeekElement.innerText = DateStrings.DayOfTheWeek;
+
+  var tg = document.getElementById("Head_Title");
+  if (tg) {
+    var Prefix = "";
+    var TodayRaw = new Date();
+    var TargetRaw = new Date(TargetDate.toString());
+    TodayRaw.setHours(0, 0, 0, 0);
+    TargetRaw.setHours(0, 0, 0, 0);
+    console.info(TodayRaw);
+    console.info(TargetRaw);
+    var PastTodayD = Math.floor(TodayRaw.getTime() / (1000*60*60*24));
+    var PastTargetD = Math.floor(TargetDate.getTime() / (1000 * 60 * 60 * 24));
+    var DaysDiff = PastTargetD - PastTodayD - 1;
+
+    switch (DaysDiff) {
+      case -1: {
+        Prefix = "きのう";
+        break;
+      }
+      case 0: {
+        Prefix = "今日";
+        break;
+      }
+      case 1: {
+        Prefix = "明日";
+        break;
+      }
+        case 2: {
+          Prefix = "あさって";
+          break;
+      }
+      case 3: {
+        Prefix = "しあさって";
+        break;
+      }
+        /* It's not popular 
+        case 4: {
+          Prefix = "やのあさって";
+          break;
+        }
+        */
+    }
+    if (Prefix !== "") {
+      tg.innerText = Prefix + "の" + "時間割";
+    } else {
+      tg.innerText = "時間割";
+    }
+  }
   // I'm done for.
 }
 
@@ -649,7 +761,9 @@ function UpdateClasses(ClassList, SubjectsConfig, TargetNode, BaseNode) {
   if (ClassList == null || Object.keys(ClassList).length === 0) {
     EmptyDesc = document.createElement("p");
     EmptyDesc.class = "Timetable_Desc";
-    EmptyDesc.innerText = "時間割はまだ入力されていません";
+    EmptyDesc.innerText = "時間割データがありません";
+    EmptyDesc.color = "#444";
+    EmptyDesc.textAlign = "center";
     TargetNode.appendChild(EmptyDesc);
   } else {
     Object.keys(ClassList).sort(function (p, q) {
