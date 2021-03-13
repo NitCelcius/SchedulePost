@@ -1,0 +1,58 @@
+h1 {
+  margin-bottom: 0.5rem;
+}
+
+#Welcome_Left {
+  flex: 2;
+  display: flex;
+  flex-direction: column;
+  margin: 0 1rem;
+}
+
+#Signup_Info {
+  padding-left: 1rem;
+  white-space: nowrap;
+}
+
+#School_Name {
+  font-size: 150%;
+  margin: 0;
+}
+
+#Group_Name {
+  font-size: 200%;
+  margin: 0;
+}
+
+.Column_Wrap {
+  display: flex;
+  flex-wrap: wrap;
+  flex-direction: row;
+}
+
+#Welcome {
+  display: flex;
+  max-width: 40rem;
+  align-self: center;
+  margin: 2rem 0;
+}
+
+#Add_Form {
+  display: flex;
+  max-width: 20rem;
+  flex: 3;
+  align-content: flex-end;
+}
+
+#Add_Form button {
+  width: 20rem;
+  max-width: 20rem;
+  text-align: center;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.Center_Desc {
+  color: #444;
+  text-align: center;
+}

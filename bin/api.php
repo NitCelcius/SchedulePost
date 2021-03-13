@@ -221,6 +221,7 @@ while (true) {
 
           if ($User->IsPermitted("Timetable.View", DEST_GROUP, $TargetGroupID)) {
           } else {
+            error_log("User ".$User->GetUserID()." is not permitted in $TargetGroupID??");
             throw new InsuffcientPermissionException("You cannot view the timetable of that group.");
           }
 
@@ -556,7 +557,7 @@ while (true) {
 
           if ($User->IsPermitted("Timetable.Edit", DEST_GROUP, $TargetGroupID)) {
           } else {
-            throw new InsuffcientPermissionException("You cannot view the timetable of that group.");
+            throw new InsuffcientPermissionException("You cannot edit the timetable stash of that group.");
           }
 
           $Date = null;
@@ -685,7 +686,7 @@ while (true) {
 
           if ($User->IsPermitted("Timetable.Edit", DEST_GROUP, $TargetGroupID)) {
           } else {
-            throw new InsuffcientPermissionException("You cannot view the timetable of that group.");
+            throw new InsuffcientPermissionException("You cannot set the timetable stash of that group.");
           }
 
           $NewRevision = null;

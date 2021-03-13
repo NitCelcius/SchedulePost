@@ -912,9 +912,16 @@ if ($CurrentTime < $Expiry) { $this->UpdateSessionToken();
   error_log("An error occurred in UpdateSessionToken(): The table `accounts` does not have corresponding column LastSigninAt. TargetUserID: $this->UserID" . ", " . implode(",", $stt->errorinfo()));
   }
 
-  $LastTry = new DateTime($Dt["LastSigninAt"]) ?? PHP_INT_MIN;
+  $LastTry = new DateTime("1970/01/01 00:00:00");
+  if (isset($Dt["LastSigninAt"])) {
+    $LastTry = new DateTime($Dt["LastSigninAt"]);
+  }
   $Now = new DateTime();
-  if (abs($Now->getTimestamp() - $LastTry->getTimestamp()) < $GLOBALS["SIGNIN_DELAY"]) { throw new TooManyRequestsException("Please wait before you can update sessiontoken. ". abs($Now->getTimestamp() - $LastTry->getTimestamp()));
+  error_log("UPDATE!!!");
+  error_log($LastTry->getTimestamp());
+  error_log($Now->getTimestamp());
+
+  if (abs($Now->getTimestamp() - $LastTry->getTimestamp()) <= $GLOBALS["SIGNIN_DELAY"]) { throw new TooManyRequestsException("Please wait before you can update sessiontoken. ". abs($Now->getTimestamp() - $LastTry->getTimestamp()));
         return false;
       }
 
