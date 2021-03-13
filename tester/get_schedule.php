@@ -1,5 +1,6 @@
 <?php
   $API_URL = getenv("SP_API_URL");
+  //$API_URL = "https://schedulepost.herokuapp.com/bin/api.php";
 
   $RawPost = file_get_contents("./test_data.json");
   // 実際はクライアントから送信されるが...テストとして json のやつを使う。
