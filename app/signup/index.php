@@ -34,7 +34,7 @@ $_SESSION["Tk"] = $Tk;
     <p>SchedulePost は開発中のサービスです。このサービスで発生したいかなる損害に対して責任は負えませんが、なるべく不具合のないように頑張っております。</p>
     <p>開発版のため、招待コードが必要です。</p>
     <hr>
-    <form name="Signup" id="SignupForm" action="/app/signup/inv_up.html" method="post">
+    <form name="Signup" id="SignupForm" action="/app/signup/inv_up.php" method="post">
       <label>ID(現在はメールアドレスでなくても登録できます)
         <br>
         <input required type="text" name="id" type="email" placeholder="メールアドレスかID"></label>
