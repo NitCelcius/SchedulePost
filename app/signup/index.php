@@ -51,7 +51,7 @@ $_SESSION["Tk"] = $Tk;
       </label>
       <label>招待コード
         <br>
-        <input required type="tel" name="Invitation_Code">
+        <input required type="text" name="Invitation_Code">
       </label>
       <input type="hidden" name="tk" value="<?php echo $Tk; ?>">
       <button type="submit">次へ</button>
