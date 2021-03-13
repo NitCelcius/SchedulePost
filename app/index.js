@@ -72,10 +72,10 @@ async function LoadSchedule(TargetDate) {
         document.getElementById("Class_Base")
       );
     } else {
+      document.getElementById("Table_Body").innerHTML = "";
       HolidaySt = document.createElement("p");
       HolidaySt.id = "HolidayTitle";
       HolidaySt.innerText = "この日は休みです";
-
       document.getElementById("Table_Body").appendChild(HolidaySt);
     }
 
