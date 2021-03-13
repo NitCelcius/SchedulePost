@@ -36,7 +36,7 @@
 if (!isset($_POST)) {
   exit();
 }
-require "bin\lib.php";
+require "/bin/lib.php";
 
 // These might be removed
 error_reporting(E_ALL);
