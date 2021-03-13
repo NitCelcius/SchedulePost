@@ -3,7 +3,7 @@
 // TODO: PHP envilonment requirement
 // WIP.
 
-require "bin\lib.php";
+require "bin/lib.php";
 
 // These might be removed
 error_reporting(E_ALL);
