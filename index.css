@@ -1,0 +1,140 @@
+body {
+  display: flex;
+  flex-direction: column;
+  flex-wrap: wrap;
+  margin: 1rem;
+}
+
+#Wrapper {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 10;
+  background-color: #fff;
+  animation: FadeOut 0.5s linear;
+}
+
+.columned {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+}
+
+* {
+  text-align: center;
+  line-height: 2;
+  font-size: 130%:
+}
+
+@keyframes LogoIn {
+  0% {
+    transform: translateY(40vh);
+  }
+  
+  50% {
+    transform: translateY(40vh);
+  }
+  
+  100% {
+    transform: translateY(0%);
+  }
+}
+
+@keyframes FadeOut {
+  0% {
+    opacity: 1;
+  }
+  
+  100% {
+    opacity: 0;
+  }
+}
+
+.WelcomePic {
+  display: flex;
+  flex-direction: row;
+  margin: 0 15%;
+  z-index: 15;
+  animation: LogoIn 0.5s ease-out;
+}
+
+#WelcomePic_Favicon {
+  max-width: 100%;
+  flex: 293;
+}
+
+#WelcomePic_Name {
+  max-width: 100%;
+
+  flex: 706;
+}
+
+picture * {
+  max-width: 100%;
+}
+
+
+#TitleWrapper {
+  margin: 2rem 1rem 2rem 2rem;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  flex: 2;
+  flex-grow: 1;
+  /*background: #f2f2f2d0;*/
+  /*box-shadow: 0 0 1.0rem .15rem #2226;*/
+}
+
+#TitleWrapper p {
+  text-align: right;
+  text-indent: 1rem;
+}
+
+h1 {
+  margin: 0;
+}
+
+h2 {
+  margin: 0;
+}
+
+p {
+  margin: 0rem 0;
+  line-height: 2;
+}
+
+nav {
+  flex: 1;
+  flex-grow: 1;
+  margin: 2rem 2rem 2rem 1rem;
+  padding: 2rem 0;
+  border-left: .1rem #ddd solid;
+}
+
+@media (max-width: 40rem) {
+  .columned {
+    flex-direction: column;
+    margin: 1rem;
+  }
+  
+  nav {
+    border: .2rem #ddd solid;
+    padding: 1rem;
+    margin: 1rem 0;
+  }
+  
+  #TitleWrapper {
+    display: block;
+    margin: 2rem 0 1rem 0;
+  }
+  
+  #TitleWrapper * {
+  }
+  
+  #TitleWrapper p {
+    text-align: center;
+    text-indent: 1rem;
+  }
+}

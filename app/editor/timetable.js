@@ -595,9 +595,9 @@ async function DownloadStash(TargetDate) {
       return false;
     }
   } catch (e) {
-    console.error("Could not load server stash.");
-    console.error(Info);
-    console.error(e);
+    console.warn("Could not load server stash.");
+    console.warn(Info);
+    console.warn(e);
     return false;
   }
 }
@@ -668,6 +668,21 @@ function UpdateEditTimetable() {
   document.Options.Date.value = "" + EditingDate.getFullYear() + "-" + ("00" + (EditingDate.getMonth() + 1).toString()).slice(-2) + "-" + ("00" + (EditingDate.getDate()).toString()).slice(-2);
   if (Timetable["Note"]) {
     document.Options.Daily_Note.value = Timetable["Note"];
+  } else {
+    document.Options.Daily_Note.value = "";
+  }
+
+  if (Timetable["Holiday"] === true) {
+    document.Options.IsHoliday.checked = true;
+  } else {
+    document.Options.IsHoliday.checked = false;
+  }
+
+  if (Timetable["Options"]) {
+    var Options = Timetable["Options"];
+    
+  } else {
+    //Default
   }
 
   UpdateClasses(Classes, SubjectsConfig, document.getElementById("Table_Body"), document.getElementById("Class_Base"));

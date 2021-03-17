@@ -122,10 +122,11 @@ switch ($Res) {
           "Result" => true,
           "UserID" => $RespObj["UserID"]
         );
+        
       } else {
         error_log("sign_in.php: error");
         error_log(print_r($RespObj, true));
-        http_response_code(500);
+        http_response_code(403);
         $Result = array(
           "Result" => false,
           "ReasonCode" => "INTERNAL_EXCEPTION",

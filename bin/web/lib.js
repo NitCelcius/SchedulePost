@@ -1,8 +1,102 @@
 // Set here too.
 const API_URL = "/bin/api.php";
-SessionTransaction = [
+SessionTransaction = [];
+const DB_DATA_NAME = "SchedulePost-data";
 
-];
+async function OpenDBByName(Name) {
+  return new Promise((Resolve, Reject) => {
+    var db = indexedDB.open(Name);
+    db.onupgradeneeded = function (ev) {
+      const db = ev.target.result;
+      ev.target.transaction.onerror = function (e) {
+        console.error(e);
+      }
+      if (db.objectStoreNames.contains(Name)) {
+        db.deleteObjectStore(Name);
+      }
+      switch (Name) {
+        case DB_DATA_NAME: {
+          var Obs = db.createObjectStore("Cache", {
+            keyPath: "Name"
+          });
+          Obs.createIndex("Value", "Value", { unique: false });
+          break;
+        }
+
+        default: {
+          console.error("The DB with that name is not defined!")
+          Reject(false);
+        }
+      }
+    }
+
+    db.onsuccess = function (ev) {
+      var ev = ev.target.result;
+      Resolve(ev);
+    }
+
+    db.onerror = function (ev) {
+      console.warn("Could not open IndexedDB:");
+      console.warn(ev);
+      Reject(false);
+    }
+  });
+}
+
+async function GetFromDB(DBObj, TableName, Key) {
+  return new Promise((Resolve, Reject) => {
+    var Trans = DBObj.transaction(TableName, "readonly");
+    var St = Trans.objectStore(TableName).get(Key);
+
+    St.onsuccess = function (ev) {
+      Resolve(ev);
+    }
+
+    St.onerror = function (ev) {
+      console.warn("An error occurred while reading from DB:")
+      console.warn(ev);
+      Reject(false);
+    }
+  });
+}
+
+async function PutToDB(DBObj, TableName, KVObj) {
+  return new Promise((Resolve, Reject) => {
+    var Trans = DBObj.transaction(TableName, "readwrite");
+    var Req = Trans.objectStore(TableName).put(KVObj);
+
+    Req.onsuccess = function () {
+      Resolve(true);
+    }
+
+    Req.onerror = function () {
+      Reject(false);
+    }
+  });
+}
+
+// More like local storage but it constantly closes connection
+async function PutToCache(Key, Value) {
+  db = await OpenDBByName(DB_DATA_NAME);
+  if (!db) { return false; }
+  res = await PutToDB(db, "Cache", {
+    "Name": Key,
+    "Value": Value
+  });
+  if (!db) { return false; }
+  db.close();
+  return true;
+}
+
+async function GetFromCache(Key) {
+  db = await OpenDBByName(DB_DATA_NAME);
+  if (!db) { return false; }
+  res = await GetFromDB(db, "Cache", Key);
+  if (!db) { return false; }
+  db.close();
+
+  return res.target.result.Value;
+}
 
 class UserClass {
   UserID = null;
@@ -37,9 +131,9 @@ class UserClass {
         "Action": "SIGN_IN"
       });
       console.debug("Updating session... ");
-        setTimeout(() => {
-          SessionTransaction[this.UserID] = null;
-        }, 30000);
+      setTimeout(() => {
+        SessionTransaction[this.UserID] = null;
+      }, 30000);
     }
 
     return new Promise((resolve, reject) => {
@@ -328,6 +422,7 @@ class School {
 }
 
 // Deprecated, and will be using fetch(). Thanks man
+/*
 function AwaitLoady(URL) {
   return new Promise(function (Resolve, Reject) {
     let Req = new XMLHttpRequest();
@@ -391,6 +486,7 @@ function AwaitAjaxy(DestURL, Content, Prot = true) {
     Req.send(Content);
   });
 }
+*/
 
 async function APIReq(User, Content) {
   var RespCont;
@@ -445,8 +541,7 @@ async function APIReq(User, Content) {
               console.warn("The account session token has expired. Redirecting to the sign-in page.");
               TransferLoginPage();
               break;
-            } else {
-            }
+            } else {}
             break;
           }
           case "ACCOUNT_LONG_TOKEN_INVALID":
@@ -491,6 +586,8 @@ async function APIReq(User, Content) {
     throw new Error("APIReq failed.");
   }
 }
+
+
 
 function SqlizeDate(TargetDate) {
   // What the heck, convert!
@@ -715,7 +812,7 @@ function ApplyDateStrings(TargetDate, YearElement = document.getElementById("Dat
     TargetRaw.setHours(0, 0, 0, 0);
     console.info(TodayRaw);
     console.info(TargetRaw);
-    var PastTodayD = Math.floor(TodayRaw.getTime() / (1000*60*60*24));
+    var PastTodayD = Math.floor(TodayRaw.getTime() / (1000 * 60 * 60 * 24));
     var PastTargetD = Math.floor(TargetDate.getTime() / (1000 * 60 * 60 * 24));
     var DaysDiff = PastTargetD - PastTodayD - 1;
 
@@ -732,20 +829,20 @@ function ApplyDateStrings(TargetDate, YearElement = document.getElementById("Dat
         Prefix = "明日";
         break;
       }
-        case 2: {
-          Prefix = "あさって";
-          break;
+      case 2: {
+        Prefix = "あさって";
+        break;
       }
       case 3: {
         Prefix = "しあさって";
         break;
       }
-        /* It's not popular 
-        case 4: {
-          Prefix = "やのあさって";
-          break;
-        }
-        */
+      /* It's not popular 
+      case 4: {
+        Prefix = "やのあさって";
+        break;
+      }
+      */
     }
     if (Prefix !== "") {
       tg.innerText = Prefix + "の" + "時間割";
