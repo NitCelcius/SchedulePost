@@ -15,6 +15,7 @@ for (var i = 0; i < InterSectNodes.length; i++) {
 
 async function InitPage(User) {
   DispDate = new Date();
+  DispDate.setHours(DispDate.getHours() + 8);
 
   await LoadSchedule(DispDate);
 

@@ -814,7 +814,7 @@ function ApplyDateStrings(TargetDate, YearElement = document.getElementById("Dat
     console.info(TargetRaw);
     var PastTodayD = Math.floor(TodayRaw.getTime() / (1000 * 60 * 60 * 24));
     var PastTargetD = Math.floor(TargetDate.getTime() / (1000 * 60 * 60 * 24));
-    var DaysDiff = PastTargetD - PastTodayD - 1;
+    var DaysDiff = PastTargetD - PastTodayD;
 
     switch (DaysDiff) {
       case -1: {
