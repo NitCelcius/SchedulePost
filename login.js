@@ -33,6 +33,7 @@ document.getElementById("LoginButton").addEventListener("click", async function 
         }
       } else {
         // err
+        alert("IDかパスワードが間違っているため、ログインできませんでした。\n\n" + Resp["ReasonCode"] + "\n" + Resp["ReasonText"]);
       }
     } catch (e) {
       alert("ログインできません (ID/パスワードを確認してください)\n\n" + e.message);
