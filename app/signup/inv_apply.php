@@ -36,7 +36,7 @@
 if (!isset($_POST)) {
   exit();
 }
-require "bin\lib.php";
+require "bin/lib.php";
 
 // These might be removed
 error_reporting(E_ALL);
@@ -47,14 +47,14 @@ session_start();
 while (true) {
   if ($_POST["Tk"] !== $_SESSION["Tk"]) {
     http_response_code(403);
-    header("Location: /app/signup/index.html?emsg=INV_ARGS");
+    header("Location: /app/signup/index.php?emsg=INV_ARGS");
   }
 
   $Uname = $_POST["UserName"];
 
   if ($Uname == null || strlen($Uname) >= 33) {
     http_response_code(403);
-    header("Location: /app/signup/index.html?emsg=INV_UNAME");
+    header("Location: /app/signup/index.php?emsg=INV_UNAME");
   }
 
   $Connection = DBConnection::Connect();
@@ -71,7 +71,7 @@ while (true) {
 
   if ($Dt === null || $Dt === false) {
     http_response_code(400);
-    header("Location: /app/signup/index.html?emsg=INVI_INVA");
+    header("Location: /app/signup/index.php?emsg=INVI_INVA");
     break;
   }
 
@@ -80,14 +80,14 @@ while (true) {
 
   if ($ExpDate < $CDate) {
     http_response_code(400);
-    header("Location: /app/signup/index.html?emsg=INVI_INVA");
+    header("Location: /app/signup/index.php?emsg=INVI_INVA");
     break;
   }
 
   $Usesleft = intval($Dt["Uses"]);
   if ($Usesleft <= 0) {
     http_response_code(400);
-    header("Location: /app/signup/index.html?emsg=INVI_INVA");
+    header("Location: /app/signup/index.php?emsg=INVI_INVA");
     break;
   }
 
@@ -98,7 +98,7 @@ while (true) {
 
   if ($Dt === false || $Dt === null) {
     http_response_code(400);
-    header("Location: /app/signup/index.html?emsg=GROUP_GONE");
+    header("Location: /app/signup/index.php?emsg=GROUP_GONE");
     break;
   }
 
@@ -112,7 +112,7 @@ while (true) {
 
   if ($Data === false || $Data === null) {
     http_response_code(400);
-    header("Location: /app/signup/index.html?emsg=INV_ARGS");
+    header("Location: /app/signup/index.php?emsg=INV_ARGS");
     break;
   }
 
@@ -130,7 +130,7 @@ while (true) {
   }
   if ($UID === null) {
     http_response_code(400);
-    header("Location: /app/signup/index.html?emsg=INV_ARGS");
+    header("Location: /app/signup/index.php?emsg=INV_ARGS");
     break;
   }
 
@@ -147,7 +147,7 @@ while (true) {
   if ($Res === false) {
     error_log("SIGN_UP: Could not update user_profile.");
     http_response_code(400);
-    header("Location: /app/signup/index.html?emsg=INV_ARGS");
+    header("Location: /app/signup/index.php?emsg=INV_ARGS");
     break;
   }
 
@@ -160,7 +160,7 @@ while (true) {
   if ($Res === false) {
     error_log("SIGN_UP: Could not update school_permissions.");
     http_response_code(400);
-    header("Location: /app/signup/index.html?emsg=INV_ARGS");
+    header("Location: /app/signup/index.php?emsg=INV_ARGS");
     break;
   }
 
@@ -173,7 +173,7 @@ while (true) {
   if ($Res === false) {
     error_log("SIGN_UP: Could not update group_permissions.");
     http_response_code(400);
-    header("Location: /app/signup/index.html?emsg=INV_ARGS");
+    header("Location: /app/signup/index.php?emsg=INV_ARGS");
     break;
   }
 
@@ -186,7 +186,7 @@ while (true) {
   if ($Res === false) {
     error_log("SIGN_UP: Could not update accounts.");
     http_response_code(400);
-    header("Location: /app/signup/index.html?emsg=INV_ARGS");
+    header("Location: /app/signup/index.php?emsg=INV_ARGS");
     break;
   }
 
@@ -196,12 +196,12 @@ while (true) {
   if ($Res === false) {
     error_log("SIGN_UP: Could not update invitations.");
     http_response_code(400);
-    header("Location: /app/signup/index.html?emsg=INV_ARGS");
+    header("Location: /app/signup/index.php?emsg=INV_ARGS");
     break;
   }
 
   http_response_code(200);
-  header("Location: /app/signup/complete.html");
+  header("Location: /app/signup/complete.php");
   break;
 }
 ?>

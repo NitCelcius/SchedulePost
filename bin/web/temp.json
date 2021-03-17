@@ -1,0 +1,58 @@
+{
+  "DAY_MONDAY": {
+    "TimeTable": {
+    }
+  },
+  "DAY_TUESDAY": {
+    "TimeTable": {
+    }
+  },
+  "DAY_WEDNESDAY": {
+    "TimeTable": {
+
+    }
+  },
+  "DAY_THURSDAY": {
+    "TimeTable": {
+
+    }
+  },
+  "DAY_FRIDAY": {
+    "TimeTable": {
+      "1": {
+        "ID": "World_History_A",
+        "Note": ""
+      },
+      "2": {
+        "ID": "Modern_Japanese",
+        "Note": ""
+      },
+      "3": {
+        "ID": "Math_3",
+        "Note": ""
+      },
+      "4": {
+        "ID": "Chemistry",
+        "Note": ""
+      },
+      "5": {
+        "ID": "Math_B",
+        "Note": ""
+      },
+      "6": {
+        "ID": "English_Communication",
+        "Note": ""
+      }
+    }
+  },
+  "DAY_SATURDAY": {
+    "Holiday": true,
+    "HolidayName": "休み",
+    "TimeTable": null
+  },
+  "DAY_SUNDAY": {
+    "Holiday": true,
+    "HolidayName": "休み",
+    "TimeTable": null
+  }
+}

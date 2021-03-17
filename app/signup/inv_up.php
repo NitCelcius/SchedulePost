@@ -2,7 +2,7 @@
 if (!isset($_POST)) {
   exit();
 }
-require "bin\lib.php";
+require "bin/lib.php";
 
 // These might be removed
 error_reporting(E_ALL);
@@ -13,12 +13,12 @@ session_start();
 while (true) {
   if ($_POST["tk"] !== $_SESSION["Tk"]) {
     http_response_code(403);
-    header("Location: /app/signup/index.html?emsg=INV_ARGS");
+    header("Location: /app/signup/index.php?emsg=INV_ARGS");
   }
 
   if ($_POST["Passphrase"] === null || $_POST["Passphrase_Re"] === null || $_POST["Passphrase"] !== $_POST["Passphrase_Re"]) {
     http_response_code(400);
-    header("Location: /app/signup/index.html?emsg=PASS_CONF");
+    header("Location: /app/signup/index.php?emsg=PASS_CONF");
     break;
   }
 
@@ -42,7 +42,7 @@ while (true) {
 
   if ($Dt === null || $Dt === false) {
     http_response_code(400);
-    header("Location: /app/signup/index.html?emsg=INVI_INVA");
+    header("Location: /app/signup/index.php?emsg=INVI_INVA");
     break;
   }
 
@@ -51,14 +51,14 @@ while (true) {
 
   if ($ExpDate < $CDate) {
     http_response_code(400);
-header("Location: /app/signup/index.html?emsg=INVI_INVA");
+header("Location: /app/signup/index.php?emsg=INVI_INVA");
     break;
   }
 
   $Usesleft = intval($Dt["Uses"]);
   if ($Usesleft <= 0) {
     http_response_code(400);
-    header("Location: /app/signup/index.html?emsg=INVI_INVA");
+    header("Location: /app/signup/index.php?emsg=INVI_INVA");
     break;
   }
 
@@ -69,7 +69,7 @@ header("Location: /app/signup/index.html?emsg=INVI_INVA");
 
   if ($Data !== null && $Data !== false) {
     http_response_code(400);
-    header("Location: /app/signup/index.html?emsg=MAIL_USED");
+    header("Location: /app/signup/index.php?emsg=MAIL_USED");
     break;
   }
 
@@ -81,7 +81,7 @@ header("Location: /app/signup/index.html?emsg=INVI_INVA");
 
   if ($Dt === false || $Dt === null) {
     http_response_code(400);
-    header("Location: /app/signup/index.html?emsg=GROUP_GONE");
+    header("Location: /app/signup/index.php?emsg=GROUP_GONE");
     break;
   }
 
@@ -108,7 +108,7 @@ header("Location: /app/signup/index.html?emsg=INVI_INVA");
 
   if (!$Res) {
     http_response_code(400);
-    header("Location: /app/signup/index.html?emsg=INV_ARGS");
+    header("Location: /app/signup/index.php?emsg=INV_ARGS");
     break;
   }
 
@@ -150,7 +150,7 @@ header("Location: /app/signup/index.html?emsg=INVI_INVA");
       <p>へようこそ。</p>
       </div>
     </div>
-    <form id="Add_Form" name="Add_Form" action="/app/signup/inv_apply.html" method="post">
+    <form id="Add_Form" name="Add_Form" action="/app/signup/inv_apply.php" method="post">
       <label>登録する名前を入力
         <input type="text" name="UserName">
         <input type="hidden" name="Tk" value="<?php echo $tk; ?>">
