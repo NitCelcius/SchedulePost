@@ -33,37 +33,37 @@ async function LoadCommonNodes() {
     Target.appendChild(Field.children[i]);
   }
   */
-      Field = document.createElement("div");
-      Field.innerHTML = CommonRaw;
+  Field = document.createElement("div");
+  Field.innerHTML = CommonRaw;
 
-      for (var i = 0; i < Field.childNodes.length; i++) {
-        switch (Field.childNodes[i].tagName) {
-          case "NAV": {
-            // NAV needs some space.
-            Nav = document.getElementsByTagName("nav")[0];
-            Field.childNodes[i].childNodes.forEach(function (Node) {
-              cp = Node.cloneNode(true);
-              Nav.appendChild(cp);
-            })
-            break;
-          }
-          default: {
-            cp = Field.childNodes[i].cloneNode(true);
-            Target.appendChild(cp);
-            break;
-          }
-        }
+  for (var i = 0; i < Field.childNodes.length; i++) {
+    switch (Field.childNodes[i].tagName) {
+      case "NAV": {
+        // NAV needs some space.
+        Nav = document.getElementsByTagName("nav")[0];
+        Field.childNodes[i].childNodes.forEach(function (Node) {
+          cp = Node.cloneNode(true);
+          Nav.appendChild(cp);
+        })
+        break;
       }
+      default: {
+        cp = Field.childNodes[i].cloneNode(true);
+        Target.appendChild(cp);
+        break;
+      }
+    }
+  }
 }
 
 async function LoadSidebarProfile() {
-    // May be waste. Already loaded
-    var Prof = await User.FetchPersonalInfo();
+  // May be waste. Already loaded
+  var Prof = await User.FetchPersonalInfo();
 
-    if (Prof["Result"]) {
-      document.getElementById("Group_Label").innerText = Prof.Profile.Group.DisplayName;
-      document.getElementById("Group_Label").innerText = Prof.Profile.School.DisplayName;
-    }
+  if (Prof["Result"]) {
+    document.getElementById("Group_Label").innerText = Prof.Profile.Group.DisplayName;
+    document.getElementById("Group_Label").innerText = Prof.Profile.School.DisplayName;
+  }
 }
 
 LoadCommonNodes().then(async function () {
@@ -82,20 +82,34 @@ LoadCommonNodes().then(async function () {
   });
 
   var ActivefooterID = null;
-  switch (this.location.pathname) {
-    case "/app/index.html": {
-      ActivefooterID = "Footer_Feed";
-      break;
-    }
+  var Loc = this.location.pathname;
+  const FooterDic = {
+    "/app/editor/": "Footer_Edit"
+  };
 
-    case "app/editor/timetable.html": {
-      ActivefooterID = "Footer_Edit";
-      break;
+  console.info("aaaaa");
+  var Candidate = Object.keys(FooterDic).filter((val) => {
+    return (Loc.indexOf(val) === 0);
+  })
+  if (Candidate.length > 0) {
+    console.info(Candidate);
+    document.getElementById(FooterDic[Candidate[0]]).classList.add("Footer_Active");
+  } else {
+    document.getElementById("Footer_Feed").classList.add("Footer_Active");
+  }
+
+  Redirector = function (Obj) {
+    console.info(Obj.target);
+    var attr = Obj.target.getAttribute("href");
+    if (attr) {
+      location.href = attr;
     }
   }
 
-  if (ActivefooterID) {
-    document.getElementById(ActivefooterID).classList.add("Footer_Active");
-  }
+  FooterLi = document.querySelectorAll("footer>ul>li");
+
+  FooterLi.forEach(function (liobj) {
+    console.info(liobj);
+    liobj.addEventListener("click", Redirector);
+  });
 });
-

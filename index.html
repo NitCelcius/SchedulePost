@@ -3,32 +3,47 @@
 
 <head>
   <title>SchedulePost</title>
-  <link href="/app/index.css" rel="stylesheet">
-  <link href="/login.css" rel="stylesheet">
-
-
+  <link href="/index.css" rel="stylesheet">
   <meta lang="ja">
   <meta name="viewport" content="width=device-width,initial-scale=1.0,minimum-scale=1.0">
 </head>
 
 <body>
+  <div id="Wrapper">
+    
+  </div>
+  <div class="WelcomePic">
+  <picture id="WelcomePic_Favicon">
+    <source srcset="/resources/images/SchedulePost-favicon.webp" type="image/webp">
+    <img id="WelcomeFavicon" src="/resources/images/SchedulePost-favicon.png">
+  </picture>
+  <picture id="WelcomePic_Name">
+    <source srcset="/resources/images/SchedulePost-TransName.webp" type="image/webp">
+    <img id="WelcomePic_Name" src="/resources/images/Schedulepost-TransName.png">
+  </picture>
+  </div>
+  <!--
+  <picture class="WelcomePic">
+    <source srcset="/resources/images/Schedulepost-header.webp" type="image/webp">
+    <img class="WelcomePic" src="/resources/images/Schedulepost-header.png" width="100%">
+  </picture>
+-->
+  <div class="columned">
+  <div id="TitleWrapper">
   <h1>SchedulePost</h1>
+  <p>SchedulePost は、生徒と教師の時間割・学校行事の管理をサポートするサービスです。</p>
+  </div>
+  <nav>
   <h2>ジャンプ用ページ</h2>
   <a href="/app/index.html">フィードを開く</a>
   <br>
   <a href="/app/signup/index.html">招待コードで登録</a>
 </body>
 
-
-<script src="/bin/web/lib.js"></script>
-<script src="/bin/web/commonloader.js" async></script>
+<script>
+  document.getElementById("Wrapper").addEventListener("animationend", function() {
+    document.getElementById("Wrapper").style.display = "none";
+  })
+</script>
 
 </html>
-
-<style>
-  * {
-    text-align: center;
-    line-height: 2;
-    font-size: 130%:
-  }
-</style>

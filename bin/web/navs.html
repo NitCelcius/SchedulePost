@@ -31,10 +31,10 @@
 
 <footer>
   <ul>
-    <li id="Footer_Feed">
+    <li id="Footer_Feed" href="/app/">
       <p><img src="/resources/images/clock.webp" alt="時間割" width="2rem" height="2rem"><br>ホーム</p>
     </li>
-    <li id="Footer_Edit">
+    <li id="Footer_Edit" href="/app/editor/">
       <p><img src="/resources/images/clock.webp" alt="編集" width="2rem" height="2rem"><br>エディタ(β)</p>
     </li>
     <li>
@@ -146,6 +146,10 @@
   nav li>a {
     line-height: 1.5;
     font-size: 120%;
+  }
+
+  footer li * {
+    pointer-events: none;
   }
 
   nav p#Brief_Profile {
