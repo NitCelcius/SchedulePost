@@ -652,13 +652,32 @@ function SetURLQuery(name, value) {
 }
 
 function Sidebar_Open() {
-  document.getElementsByTagName("nav")[0].style.display = "block";
-  document.getElementById("Nav_Overlay").style.display = "block";
+  const Nav = document.getElementsByTagName("nav")[0]
+  const NavLay = document.getElementById("Nav_Overlay");
+
+  Nav.style.display = "block";
+  Nav.removeEventListener("animationend", HideIt);
+  Nav.style.animation = ".2s InFromLeft";
+
+  NavLay.style.display = "block";
+  NavLay.style.animation = ".2s FadeIn";
+  NavLay.removeEventListener("animationend", HideIt)
 }
 
 function Sidebar_Close() {
-  document.getElementsByTagName("nav")[0].style.display = "none";
-  document.getElementById("Nav_Overlay").style.display = "none";
+  const Nav = document.getElementsByTagName("nav")[0]
+  const NavLay = document.getElementById("Nav_Overlay");
+
+  Nav.style.animation = ".2s OutToLeft";
+  Nav.addEventListener("animationend", HideIt)
+  
+  NavLay.style.animation = ".2s FadeOut";
+  NavLay.addEventListener("animationend", HideIt);
+
+}
+
+function HideIt(e) {
+  e.target.style.display = "none";
 }
 
 async function DeployLoadAnim(TitleText = "LOADING", DescText = "読み込んでいます...") {

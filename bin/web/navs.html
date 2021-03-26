@@ -267,6 +267,10 @@
     width: 2rem;
   }
 
+  #Sidebar_CloseButton {
+      display: none;
+  }
+
   @media (max-width: 55rem) {
     nav {
       display: none;
@@ -276,8 +280,11 @@
       height: 100%;
       max-width: 100%;
       background: white;
-
       box-shadow: 2rem 0rem 1rem 0rem rgba(0, 0, 0, 0.8)
+    }
+
+    #Sidebar_CloseButton {
+      display: block;
     }
 
     div#Nav_Wrapper {

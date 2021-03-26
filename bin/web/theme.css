@@ -283,3 +283,23 @@ div.Class_Block_Label {
     scale: 1.3;
   }
 }
+
+@keyframes InFromLeft {
+  0% {
+    transform: translateX(-100%);
+  }
+
+  100% {
+    transform: translateX(0%);
+  }
+}
+
+@keyframes OutToLeft {
+  0% {
+    transform: translateX(0%);
+  }
+
+  100% {
+    transform: translateX(-100%);
+  }
+}
