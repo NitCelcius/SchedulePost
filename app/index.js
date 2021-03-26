@@ -33,26 +33,28 @@ async function InitPage(User) {
     }
   })
 
-  SetSwipeObserver(document.getElementsByTagName("article")[0], () => Timetable_JumpBy(-1), () => Timetable_JumpBy(1));
+  SetSwipeObserver(document.getElementsByTagName("article")[0], () => Timetable_JumpBy(1), () => Timetable_JumpBy(-1));
 }
 
 function SetSwipeObserver(TargetElem, left = undefined, right = undefined) {
-  const SwipeRatio = 3;
+  const SwipeRatio = 0.3;
   let firstX, firstY, lastX, lastY;
   const TargetStyle = window.getComputedStyle(TargetElem);
-  let MinDist = Math.min(parseInt(TargetStyle.width), parseInt(TargetStyle.height)) * SwipeRatio;
+  let MinDist = Math.min(parseFloat(TargetStyle.width), parseFloat(TargetStyle.height)) * SwipeRatio;
 
-  TargetElem.
-    addEventListener("touchstart", (e) => {
-      firstX = e.touches[0].pageX;
-      firstY = e.touches[0].pageY;
-    })
-  addEventListener("touchmove", (e) => {
+  TargetElem.addEventListener("touchstart", (e) => {
+    firstX = e.touches[0].pageX;
+    firstY = e.touches[0].pageY;
+    lastX = e.touches[0].pageX;
+    lastY = e.touches[0].pageY;
+  });
+  TargetElem.addEventListener("touchmove", (e) => {
     lastX = e.changedTouches[0].pageX;
     lastY = e.changedTouches[0].pageY;
-  })
-  addEventListener("touchend", (e) => {
-    console.debug(firstX + "->" + lastX + "/"+MinDist);
+  });
+  TargetElem.addEventListener("touchend", (e) => {
+    if (e.currentTarget != TargetElem) { return; }
+    console.debug(firstX + "->" + lastX + "/" + MinDist);
     if (firstX > lastX + MinDist) {
       if (typeof left === "function") {
         left();
