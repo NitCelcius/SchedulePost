@@ -32,7 +32,42 @@ async function InitPage(User) {
       LoadSchedule(Dt);
     }
   })
+
+  SetSwipeObserver(document.getElementsByTagName("article")[0], () => Timetable_JumpBy(-1), () => Timetable_JumpBy(1));
 }
+
+function SetSwipeObserver(TargetElem, left = undefined, right = undefined) {
+  const SwipeRatio = 3;
+  let firstX, firstY, lastX, lastY;
+  const TargetStyle = window.getComputedStyle(TargetElem);
+  let MinDist = Math.min(parseInt(TargetStyle.width), parseInt(TargetStyle.height)) * SwipeRatio;
+
+  TargetElem.
+    addEventListener("touchstart", (e) => {
+      firstX = e.touches[0].pageX;
+      firstY = e.touches[0].pageY;
+    })
+  addEventListener("touchmove", (e) => {
+    lastX = e.changedTouches[0].pageX;
+    lastY = e.changedTouches[0].pageY;
+  })
+  addEventListener("touchend", (e) => {
+    console.debug(firstX + "->" + lastX + "/"+MinDist);
+    if (firstX > lastX + MinDist) {
+      if (typeof left === "function") {
+        left();
+      }
+    }
+
+    if (firstX < lastX - MinDist) {
+      if (typeof left === "function") {
+        right();
+      }
+    }
+
+  })
+}
+
 
 async function LoadSchedule(TargetDate) {
   DeployLoadAnim();
@@ -98,12 +133,12 @@ async function LoadSchedule(TargetDate) {
   DestructLoadAnim();
 }
 
-function Timetable_Back() {
-  LoadSchedule(new Date(DispDate.setDate(DispDate.getDate() - 1)));
-}
-
-function Timetable_Next() {
-  LoadSchedule(new Date(DispDate.setDate(DispDate.getDate() + 1)));
+function Timetable_JumpBy(days) {
+  if (typeof days === "number") {
+    LoadSchedule(new Date(DispDate.setDate(DispDate.getDate() + days)));
+  } else {
+    console.error("Timetable_JumpBy: the argument days (" + days + ") is invalid!");
+  }
 }
 
 function Timetable_SelectDate() {
