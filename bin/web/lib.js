@@ -587,11 +587,13 @@ async function APIReq(User, Content) {
   }
 }
 
-
-
 function SqlizeDate(TargetDate) {
   // What the heck, convert!
   return "" + (TargetDate.getDate()) + "-" + (TargetDate.getMonth() + 1) + "-" + TargetDate.getFullYear() + " 00:00:00";
+}
+
+function DateToYMDStr(TargetDate) {
+  return TargetDate.getFullYear() + "-" + (TargetDate.getMonth() + 1) + "-" + TargetDate.getDate();
 }
 
 function GetCookie(name) {
@@ -636,6 +638,19 @@ function SetCookie(Name, Value, ExpiryHour, Options = {
   }
 }
 
+function GetURLQuery(name = null) {
+  const Params = new URLSearchParams(location.search.slice(1));
+
+  return Params.get(name);
+}
+
+function SetURLQuery(name, value) {
+  const Params = new URLSearchParams(location.search.slice(1));
+
+  Params.set(name, value);
+  window.history.replaceState({}, "", location.pathname + "?" + Params);
+}
+
 function Sidebar_Open() {
   document.getElementsByTagName("nav")[0].style.display = "block";
   document.getElementById("Nav_Overlay").style.display = "block";
@@ -655,7 +670,7 @@ async function DeployLoadAnim(TitleText = "LOADING", DescText = "読み込んで
     top = 0;
     width = "100%";
     height = "100%";
-    zIndex = 32;
+    zIndex = 1;
     backgroundColor = "#fffe";
     alignItems = "center";
     flexDirection = "column";
@@ -814,7 +829,7 @@ function ApplyDateStrings(TargetDate, YearElement = document.getElementById("Dat
     console.info(TargetRaw);
     var PastTodayD = Math.floor(TodayRaw.getTime() / (1000 * 60 * 60 * 24));
     var PastTargetD = Math.floor(TargetDate.getTime() / (1000 * 60 * 60 * 24));
-    var DaysDiff = PastTargetD - PastTodayD - 1;
+    var DaysDiff = PastTargetD - PastTodayD;
 
     switch (DaysDiff) {
       case -1: {

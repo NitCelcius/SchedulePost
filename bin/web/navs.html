@@ -189,6 +189,7 @@
   }
 
   footer {
+    display: flex;
     position: fixed;
     background-color: #eee;
     bottom: 0;
@@ -201,24 +202,24 @@
   footer ul {
     display: flex;
     flex-direction: row;
-    vertical-align: bottom;
     list-style: none;
-    width: calc(100% - 2rem);
-    margin: 0 auto;
+    margin: 0;
     height: 4rem;
-    padding: 0 1rem;
     max-width: 50rem;
+    padding: 0;
+    width: 100%;
   }
 
   footer li {
     /* flex でこれ使うと下揃えにできる。 */
     display: flex;
-    flex-direction: column-reverse;
     box-sizing: border-box;
-    width: calc(25% - 3px);
+    width: 100%;
     height: 100%;
     text-align: center;
     vertical-align: bottom;
+    align-items: flex-end;
+    justify-content: center;
 
     transition: 0.2s linear;
     transition-property: background-color, transform;
@@ -229,6 +230,7 @@
     transition: 0.2s linear;
     transition-property: background-color, transform;
     background-color: darkgray;
+    cursor: pointer;
     /*transform: translateY(-0.5rem);*/
   }
 
@@ -293,18 +295,9 @@
       width: 100%;
     }
 
-    /* これ意味あるんかな
-  div#Body_Wrapper {
-    padding: 0rem 0rem;
-  }
-  */
-
     button#Sidebar_OpenButton {
       display: block;
-    }
-
-    button#Sidebar_CloseButton {
-      display: block;
+      cursor: pointer;
     }
   }
 </style>

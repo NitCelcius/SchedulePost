@@ -17,14 +17,19 @@
   <article>
     <section id="Table_Head">
       <h1 id="Table_Date">
-        <button class="Date_Control" id="Date_Back" onclick="Timetable_Back()"><</button>
+        <button class="Date_Control" onclick="Timetable_Back()"><</button>
         <span onclick="Timetable_ShowControl()">
         <span id="Date_Year">----</span><span id="Date_YMSplit">年</span><span id="Date_Month">--</span><span
           id="Date_MDSplit">月</span><span id="Date_Day">-</span><span id="Date_DSplit">日</span><span
           id="Date_The_Day">-</span><span id="Date_TDSplit">曜日</span>
         </span>
-        <button class="Date_Control" id="Date_Next" onclick="Timetable_Next()">></button>
+        <button class="Date_Control" onclick="Timetable_Next()">></button>
       </h1>
+      <div id="Date_AltWrapper">
+        <button class="Date_AltControl ControlBtn" onclick="Timetable_Back()">前の日へ</button>
+        <button class="Date_AltControl ControlBtn"  onclick="Timetable_Next()">次の日へ</button>
+          
+      </div>
       <div id="Timetable_Control" style="display: none;">
         <input type="date" id="Timetable_DateSwitch">
         <button id="Control_Hide" onclick="Timetable_HideControl()">×</button>
@@ -52,7 +57,6 @@
         </div>
       </div>
     </div>
-
 
   </article>
   <nav></nav>

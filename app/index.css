@@ -24,15 +24,23 @@ h1#Table_Date {
   padding: 0;
 }
 
+#Date_AltWrapper {
+  display: none;
+}
+
 @media (max-width: 28rem) {
-  #Date_Next {
+  .Date_Control {
     display: none;
   }
 
-  #Date_Back {
-    display: none;
+  #Date_AltWrapper {
+    display: flex;
+    justify-content: center;
   }
 
+  #Date_AltWrapper button {
+    margin: .5rem .5rem;
+  }
 }
 
 span#Date_Year,

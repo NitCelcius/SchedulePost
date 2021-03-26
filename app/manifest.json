@@ -1,11 +1,24 @@
 {
   "short_name": "SchedulePost",
   "name": "SchedulePost",
-  "display": "minimal-ui",
+  "display": "standalone",
   "start_url": "/app/index.html",
   "background_color": "#E2F0D9",
   "theme_color": "#CEEDA9",
-  "description": "Deal with your timetable easily.",
+  "description": "Deal with your school's timetable easily.",
+  "category": ["education", "productivity"],
+  "lang": "ja-JP",
+  "shortcuts" : [
+    {
+      "name": "フィードを開く",
+      "url": "/app/index.html",
+      "description": "次の時間割を表示します。"
+  },
+  {
+    "name": "日程を編集",
+    "url": "/app/editor/",
+    "description": "時間割や課題を編集します。"
+  }],
   "icons": [
     {
       "src": "/resources/favicon/favicon-full.png",

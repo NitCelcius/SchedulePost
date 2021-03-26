@@ -15,6 +15,14 @@ for (var i = 0; i < InterSectNodes.length; i++) {
 
 async function InitPage(User) {
   DispDate = new Date();
+  DispDate.setHours(DispDate.getHours() + 8);
+
+  const QueryDate = GetURLQuery("date");
+  if (QueryDate) {
+    if (!isNaN(new Date(QueryDate).getTime())) {
+      DispDate = new Date(QueryDate);
+    }
+  }
 
   await LoadSchedule(DispDate);
 
@@ -79,8 +87,11 @@ async function LoadSchedule(TargetDate) {
       document.getElementById("Table_Body").appendChild(HolidaySt);
     }
 
-      Timetable = DayData;
-      DispDate = TargetDate;
+    Timetable = DayData;
+    DispDate = TargetDate;
+    SetURLQuery("date", DateToYMDStr(DispDate));
+
+    document.URL
   } catch (e) {
     console.error(e);
   }
@@ -136,11 +147,13 @@ function Scroll_Update(Elements, Obj) {
 function Timetable_ShowControl() {
   document.getElementById("Timetable_Control").style.display = "";
   document.getElementById("Table_Date").style.display = "none";
+  document.getElementById("Date_AltWrapper").style.display = "none";
 }
 
 function Timetable_HideControl() {
   document.getElementById("Timetable_Control").style.display = "none";
   document.getElementById("Table_Date").style.display = "";
+  document.getElementById("Date_AltWrapper").style.display = "";
 }
 
 function Header_Update(ElementID) {

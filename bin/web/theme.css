@@ -146,6 +146,22 @@ div.Class_Block_Label {
   color: #444;
 }
 
+.ControlBtn {
+  appearance: none;
+  background: inherit;
+  border: 1px #aaa solid;
+  border-radius: .5rem;
+  padding: .5rem;
+  transition: .2s linear;
+  transition-property: background border;
+}
+
+.ControlBtn:hover {
+  background: #aaa;
+  border: 1px #666 solid;
+  cursor: pointer;
+}
+
 @media (max-width: 55rem) {
   article {
     display: block;
