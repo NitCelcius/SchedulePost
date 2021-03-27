@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+  <title>HOME</title>
+  <link href="/bin/web/theme.css" rel="stylesheet">
+  <link href="/app/index.css" rel="stylesheet">
+  <meta lang="ja">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,minimum-scale=1.0">
+  <link href="/app/manifest.json" rel="manifest">
+  <link href="/resources/favicon/favicon-apple.png" rel="apple-touch-icon">
+  <meta name="theme-color" content="#CEEDA9">
+  <meta name="description" content="SchedulePost updates">
+</head>
+
+<body>
+  <article>
+    <h1>更新情報</h1>
+    <div id="2021-03-27">
+      <h2>V8 2021.03.27</h2>
+      <p>ページの最適化や更新情報の追加を行いました</p>
+      <ul>
+        <li>webp に対応していないブラウザでは画像に .png が使われます。</li>
+        <li>「時間割」ページでスワイプして日付を移動できるようにしました。実験的に PosterView を実装するつもりですが、調整中です</li>
+        <li>(PWA) アプリとしてインストールした際に「ショートカット」が使えるようになりました</li>
+        <li>Service Worker を書き直しました。ホーム画面から一度削除/追加しないと更新されない不具合が残っている場合があります。</li>
+        <li>レイアウト上の不具合をいくつか修正しました</li>
+        <li>SchedulePost のヘッダーをクリックできるようにしました</li>
+      </ul>
+      <p>不具合が起きたときは3回ページを再読み込みするか、キャッシュを削除してみてください。</p>
+    </div>
+  </article>
+  <nav></nav>
+</body>
+  
+<script src="/bin/web/lib.js"></script>
+<script src="/bin/web/commonloader.js" async></script>
+
+</html>
