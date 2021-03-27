@@ -13,7 +13,7 @@
     </ul>
     <a href="/logout.php">ログアウトする</a>
   </div>
-  <script src="/bin/web/headupdate.js" async></script>
+  <p>ver 8</p>
 </nav>
 
 <header>
@@ -24,7 +24,7 @@
       <span class="Sidebar_Text">MENU</span>
     </span>
   </button>
-  <p id="Title">SchedulePost</p>
+  <p id="Title"><a href="/app/">SchedulePost</a></p>
   <div id="Nav_Overlay" style="display: none" onclick="Sidebar_Close()">
   </div>
 </header>
@@ -32,16 +32,16 @@
 <footer>
   <ul>
     <li id="Footer_Feed" href="/app/">
-      <p><img src="/resources/images/clock.webp" alt="時間割" width="2rem" height="2rem"><br>ホーム</p>
+      <p><picture><source srcset="/resources/images/clock.webp"><img src="/resources/images/clock.png" alt="時間割" width="2rem" height="2rem"><br>ホーム</picture></p>
     </li>
     <li id="Footer_Edit" href="/app/editor/">
-      <p><img src="/resources/images/clock.webp" alt="編集" width="2rem" height="2rem"><br>エディタ(β)</p>
+      <p><picture><source srcset="/resources/images/clock.webp"><img src="/resources/images/clock.png" alt="編集" width="2rem" height="2rem"><br>エディタ(β)</picture></p>
     </li>
     <li>
       <p>LNK-3</p>
     </li>
-    <li>
-      <p>LNK-4</p>
+    <li id="Footer_Updates" href="/app/updates">
+      <p><picture><source srcset="/resources/images/Updates.webp"><img src="/resources/images/Updates.png" alt="更新情報" width="2rem" height="2rem"></picture><br>更新情報</p>
     </li>
   </ul>
 </footer>
@@ -54,7 +54,7 @@
     width: 100%;
     background-color: rgb(240, 240, 220);
     position: fixed;
-    z-index: 5;
+    z-index: 20;
   }
 
   #Sidebar_OpenButton {
@@ -114,13 +114,23 @@
     overflow-y: scroll;
     overflow-x: hidden;
     border-right: 1px solid black;
-    z-index: 10;
+    z-index: 5;
 
     /* ここから無理やり。スクロールバー非表示なので、矢印とかを、あとではじっこにつけたい */
     /* Edge */
     -ms-overflow-style: none;
     /* Firefox */
     scrollbar-width: none;
+  }
+  
+  #Title a {
+    color: inherit;
+    text-decoration: inherit;
+  }
+  
+  #Title a:visited {
+    color: inherit;
+    text-decoration: inherit;
   }
 
   /* Chrome */
@@ -199,7 +209,8 @@
     overflow: hidden;
     height: 4rem;
     width: 100%;
-    z-index: 2;
+    z-index: 10;
+    justify-content: center;
   }
 
   footer ul {
@@ -268,7 +279,8 @@
   }
 
   #Sidebar_CloseButton {
-      display: none;
+    z-index: 30;
+    display: none;
   }
 
   @media (max-width: 55rem) {
@@ -280,6 +292,7 @@
       height: 100%;
       max-width: 100%;
       background: white;
+      z-index: 50;
       box-shadow: 2rem 0rem 1rem 0rem rgba(0, 0, 0, 0.8)
     }
 
@@ -297,7 +310,7 @@
 
     div#Nav_Overlay {
       position: fixed;
-      z-index: 5;
+      z-index: 30;
       top: 0;
       left: 0;
       background-color: rgba(0, 0, 0, 0.8);

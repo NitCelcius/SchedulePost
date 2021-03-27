@@ -84,10 +84,10 @@ LoadCommonNodes().then(async function () {
   var ActivefooterID = null;
   var Loc = this.location.pathname;
   const FooterDic = {
-    "/app/editor/": "Footer_Edit"
+    "/app/editor/": "Footer_Edit",
+    "/app/updates/": "Footer_Updates"
   };
 
-  console.info("aaaaa");
   var Candidate = Object.keys(FooterDic).filter((val) => {
     return (Loc.indexOf(val) === 0);
   })
@@ -99,7 +99,6 @@ LoadCommonNodes().then(async function () {
   }
 
   Redirector = function (Obj) {
-    console.info(Obj.target);
     var attr = Obj.target.getAttribute("href");
     if (attr) {
       location.href = attr;
@@ -109,7 +108,6 @@ LoadCommonNodes().then(async function () {
   FooterLi = document.querySelectorAll("footer>ul>li");
 
   FooterLi.forEach(function (liobj) {
-    console.info(liobj);
     liobj.addEventListener("click", Redirector);
   });
 });
