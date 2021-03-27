@@ -126,9 +126,16 @@ async function LoadSchedule(TargetDate) {
 
     Timetable = DayData;
     DispDate = TargetDate;
-    SetURLQuery("date", DateToYMDStr(DispDate));
 
-    document.URL
+    var IntendedDate = new Date();
+    IntendedDate.setHours(IntendedDate.getHours() + 8);
+
+    if (IntendedDate.getDate() !== DispDate.getDate()) {
+      SetURLQuery("date", DateToYMDStr(DispDate));
+    } else {
+      SetURLQuery("date", null);
+    }
+
   } catch (e) {
     console.error(e);
   }

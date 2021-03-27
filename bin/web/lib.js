@@ -647,8 +647,17 @@ function GetURLQuery(name = null) {
 function SetURLQuery(name, value) {
   const Params = new URLSearchParams(location.search.slice(1));
 
-  Params.set(name, value);
-  window.history.replaceState({}, "", location.pathname + "?" + Params);
+  if (value) {
+    Params.set(name, value);
+    window.history.replaceState({}, "", location.pathname + "?" + Params);
+  } else {
+    Params.delete(name);
+    if (Params.length > 0) {
+      window.history.replaceState({}, "", location.pathname + "?" + Params);
+    } else {
+      window.history.replaceState({}, "", location.pathname);
+    }
+  }
 }
 
 function Sidebar_Open() {
@@ -689,7 +698,7 @@ async function DeployLoadAnim(TitleText = "LOADING", DescText = "読み込んで
     top = 0;
     width = "100%";
     height = "100%";
-    zIndex = 1;
+    zIndex = 5;
     backgroundColor = "#fffe";
     alignItems = "center";
     flexDirection = "column";
@@ -844,10 +853,8 @@ function ApplyDateStrings(TargetDate, YearElement = document.getElementById("Dat
     var TargetRaw = new Date(TargetDate.toString());
     TodayRaw.setHours(0, 0, 0, 0);
     TargetRaw.setHours(0, 0, 0, 0);
-    console.info(TodayRaw);
-    console.info(TargetRaw);
     var PastTodayD = Math.floor(TodayRaw.getTime() / (1000 * 60 * 60 * 24));
-    var PastTargetD = Math.floor(TargetDate.getTime() / (1000 * 60 * 60 * 24));
+    var PastTargetD = Math.floor(TargetRaw.getTime() / (1000 * 60 * 60 * 24));
     var DaysDiff = PastTargetD - PastTodayD;
 
     switch (DaysDiff) {
