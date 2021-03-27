@@ -47,11 +47,11 @@ function SetSwipeObserver(TargetElem, left = undefined, right = undefined) {
     firstY = e.touches[0].pageY;
     lastX = e.touches[0].pageX;
     lastY = e.touches[0].pageY;
-  });
+  }, {passive: true});
   TargetElem.addEventListener("touchmove", (e) => {
     lastX = e.changedTouches[0].pageX;
     lastY = e.changedTouches[0].pageY;
-  });
+  }, {passive: true});
   TargetElem.addEventListener("touchend", (e) => {
     if (e.currentTarget != TargetElem) { return; }
     console.debug(firstX + "->" + lastX + "/" + MinDist);
