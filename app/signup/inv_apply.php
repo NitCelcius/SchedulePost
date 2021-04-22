@@ -7,7 +7,8 @@
   <link href="/app/signup/inv_up.css" rel="stylesheet">
   <link href="/app/signup/signup_general.css" rel="stylesheet">
   <meta lang="ja">
-  <meta name="viewport" content="width=device-width,initial-scale=1.0,minimum-scale=1.0">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <meta charset="utf-8">
   <meta name="theme-color" content="#CEEDA9">
   <meta name="description" content="Welcome to SchedulePost">
 </head>
@@ -123,7 +124,7 @@ while (true) {
     $PDOstt->bindValue(":UID", $TryUID);
     $PDOstt->execute();
     $Dt = $PDOstt->fetch();
-    if ($Dt===false || $PDOstt->rowCount() === 0) {
+    if ($Dt === false || $PDOstt->rowCount() === 0) {
       $UID = $TryUID;
       break;
     }

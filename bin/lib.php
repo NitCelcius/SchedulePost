@@ -824,9 +824,12 @@ case
 
     if (password_verify($PassPhrase, $VerifyHash)) {
       try {
+        $Connection = DBConnection::Connect();
+
         $LongToken = bin2hex(openssl_random_pseudo_bytes(64));
         $PDOstt = $Connection->prepare("update accounts set LongToken = :LongToken,LongTokenGenAt = :LongTokenGenAt where UserID = :UserID");
         if ($PDOstt === false) {
+          error_log("Could not generate PDOStatement. This is possibly a bug!");
           throw new ConnectionException("Could not connect to the database.", "Database: SchedulePost");
           return false;
         }
@@ -835,8 +838,12 @@ case
         $PDOstt->bindValue(":LongToken", $LongToken);
         $PDOstt->bindValue(":LongTokenGenAt", $UpdateDateTime->format("Y-m-d H:i:s"));
         $PDOstt->execute();
-        $Data = $PDOstt->fetch(PDO::FETCH_ASSOC);
-
+        //error_log($PDOstt->debugDumpParams());
+        if ($PDOstt->rowCount() == 0) {
+          error_log("Failed to update LongTokenof user $this->UserID: No row had been updated by PDO. PDO message: $PDOstt->errorInfo()");
+          throw new ConnectionException("LongToken was not updated in the database.");
+        }
+        
         // Perhaps this is unnecessary.
         // $this->UpdateSessionToken();
         // It was.
@@ -918,11 +925,9 @@ case
         $LastTry = new DateTime($Dt["LastSigninAt"]);
       }
       $Now = new DateTime();
-      error_log("UPDATE!!!");
-      error_log($LastTry->getTimestamp());
-      error_log($Now->getTimestamp());
 
       if (abs($Now->getTimestamp() - $LastTry->getTimestamp()) <= $GLOBALS["SIGNIN_DELAY"]) {
+        error_log("Sign-in throttling detected for user ID $this->UserID !");
         throw new TooManyRequestsException("Please wait before you can update sessiontoken. " . abs($Now->getTimestamp() - $LastTry->getTimestamp()));
         return false;
       }

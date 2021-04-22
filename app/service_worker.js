@@ -1,4 +1,4 @@
-var CACHE_NAME = "Schedulepost-cached-v8-1";
+var CACHE_NAME = "Schedulepost-cached-v8-2";
 var CacheURLs = [
   "/app/", // aka
   "/app/index.html",
@@ -14,14 +14,16 @@ var CacheURLs = [
   "/resources/images/clock.png",
   "/resources/images/grid.png",
   "/resources/images/Updates.png",
-  "/favicon.ico"
+  "/favicon.ico",
+  "/resources/favicon/favicon-192x192.png",
+  "/app/manifest.json"
 ]
 
 self.addEventListener("install", (Event) => {
   Event.waitUntil(
     caches.open(CACHE_NAME).then(async (CacheObj) => {
-      skipWaiting();
       CacheObj.addAll(CacheURLs);
+      skipWaiting();
     })
   );
 });
@@ -39,12 +41,14 @@ self.addEventListener("fetch", (Event) => {
       caches.open(CACHE_NAME).then((CacheObj) => {
         return CacheObj.match(Event.request).then((Resp) => {
           if (Resp) {
+
             console.debug("response " + Event.request.url + " from cache");
             console.debug(Event.request);
-            Event.waitUntil(fetch(Event.request).then((Resp) => {
-              if (Resp.status >= 200 && Resp.status < 300) {
+            cr = Event.request.clone();
+            Event.waitUntil(fetch(cr).then((Cresp) => {
+              if (Cresp.status >= 200 && Cresp.status < 300) {
                 console.debug("caching " + Event.request.url);
-                CacheObj.put(Event.request, Resp);
+                //CacheObj.put(Event.request, Cresp);
               } else {
                 console.error("!?");
                 console.error(Event.request);
@@ -53,12 +57,20 @@ self.addEventListener("fetch", (Event) => {
             return Resp;
           } else {
             console.debug("Fetching " + Event.request.url);
-            return fetch(Event.request).then((Resp) => {
-              if (Resp.status >= 200 && Resp.status < 300) {
+            cr = Event.request.clone();
+            //console.warn(cr);
+            if (cr.url === "http://localhost:84/app/index.html") {
+              console.error(cr);
+              //throw Error("!!!!!!!!!!");
+            }
+
+            return fetch(cr).then((Cresp) => {
+              CacheReq = Cresp.clone();
+              if (CacheReq.status >= 200 && CacheReq.status < 300) {
                 console.debug("caching " + Event.request.url);
-                CacheObj.put(Event.request, Resp);
+                //CacheObj.put(Event.request, CacheReq);
               }
-              return Resp;
+              return Cresp;
             })
           }
         })
@@ -81,7 +93,7 @@ self.addEventListener("activate", function (ev) {
     });
     navigator.serviceWorker.getRegistration().then((reg) => {
       reg.update();
+      clients.claim();
     });
-    clients.claim();
   });
 });

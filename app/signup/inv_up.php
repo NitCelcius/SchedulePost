@@ -51,7 +51,7 @@ while (true) {
 
   if ($ExpDate < $CDate) {
     http_response_code(400);
-header("Location: /app/signup/index.php?emsg=INVI_INVA");
+    header("Location: /app/signup/index.php?emsg=INVI_INVA");
     break;
   }
 
@@ -113,7 +113,7 @@ header("Location: /app/signup/index.php?emsg=INVI_INVA");
   }
 
   $tk =
-  bin2hex(openssl_random_pseudo_bytes(32));
+    bin2hex(openssl_random_pseudo_bytes(32));
   $_SESSION["Tk"] = $tk;
 
   break;
@@ -129,7 +129,8 @@ header("Location: /app/signup/index.php?emsg=INVI_INVA");
   <link href="/app/signup/inv_up.css" rel="stylesheet">
   <link href="/app/signup/signup_general.css" rel="stylesheet">
   <meta lang="ja">
-  <meta name="viewport" content="width=device-width,initial-scale=1.0,minimum-scale=1.0">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <meta charset="utf-8">
   <meta name="theme-color" content="#CEEDA9">
   <meta name="description" content="Welcome to SchedulePost">
 </head>
@@ -143,23 +144,23 @@ header("Location: /app/signup/index.php?emsg=INVI_INVA");
     <h1>登録確認</h1>
     <hr>
     <div class="Column_Wrap" id="Welcome">
-    <div id="Welcome_Left">
-      <div id="Signup_Info">
-      <h3 id="School_Name"><?php echo $SchoolName;?></h3>
-      <h2 id="Group_Name"><?php echo $GroupName;?></h2>
-      <p>へようこそ。</p>
+      <div id="Welcome_Left">
+        <div id="Signup_Info">
+          <h3 id="School_Name"><?php echo $SchoolName; ?></h3>
+          <h2 id="Group_Name"><?php echo $GroupName; ?></h2>
+          <p>へようこそ。</p>
+        </div>
       </div>
-    </div>
-    <form id="Add_Form" name="Add_Form" action="/app/signup/inv_apply.php" method="post">
-      <label>登録する名前を入力
-        <input type="text" name="UserName">
-        <input type="hidden" name="Tk" value="<?php echo $tk; ?>">
-        <button>GO</button>
-      </label>
-    </form>
+      <form id="Add_Form" name="Add_Form" action="/app/signup/inv_apply.php" method="post">
+        <label>登録する名前を入力
+          <input type="text" name="UserName">
+          <input type="hidden" name="Tk" value="<?php echo $tk; ?>">
+          <button>GO</button>
+        </label>
+      </form>
     </div>
     <p class="Center_Desc">GO を押すと登録されます。</p>
-    
+
   </article>
 
   <footer>(C)2021 SchedulePost</footer>

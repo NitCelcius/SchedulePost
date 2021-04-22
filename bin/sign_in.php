@@ -63,7 +63,8 @@ if (DateInterval::createFromDateString($GLOBALS["LongTokenExpiry"]) === false) {
   exit("ERROR: The server is not yet set up.");
 }
 
-$INPUT = json_decode(file_get_contents("php://input"), true) ?? array();
+$InRaw = file_get_contents("php://input");
+$INPUT = json_decode($InRaw, true) ?? array();
 
 $Res = (array_key_exists("Mail", $INPUT) && $INPUT["Mail"] != "" && array_key_exists("PassPhrase", $INPUT) && $INPUT["PassPhrase"] != "");
 switch ($Res) {
@@ -122,11 +123,11 @@ switch ($Res) {
           "Result" => true,
           "UserID" => $RespObj["UserID"]
         );
-        
       } else {
         error_log("sign_in.php: error");
-        error_log(print_r($RespObj, true));
-        http_response_code(403);
+        error_log("Input: " . $InRaw);
+        error_log("Server response: ". $api_resp);
+        http_response_code(500);
         $Result = array(
           "Result" => false,
           "ReasonCode" => "INTERNAL_EXCEPTION",

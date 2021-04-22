@@ -332,6 +332,7 @@ async function Edit_Upload(TimetableObj) {
 
   DestructLoadAnim();
   if (Info["Result"]) {
+    IsChanged = false;
     alert("更新しました。");
   } else {
     alert("更新に失敗しました。\n\n" + Info["ReasonCode"] + "," + Info["ReasonText"]);
