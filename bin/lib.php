@@ -1194,6 +1194,10 @@ class Fetcher {
 
     return $Result["BelongSchoolID"];
   }
+
+  function GetUserHomework(string $UserID, int $MaxCount, HomeworkLookupParams $Params) {
+    
+  }
 }
 
 class Messages {
@@ -1248,6 +1252,65 @@ class Messages {
     } else {
       $Message = "Error information not provided.";
     }
+  }
+}
+
+class HomeworkLookupParams {
+  private $StateName;
+  private $FromDate;
+  private $UntilDate;
+
+  function __construct(string $StateName = null, DateTime $FromDate = null, DateTime $UntilDate = null ) {
+    $this->StateName = $StateName;
+    $this->FromDate = $FromDate;
+    $this->UntilDate = $UntilDate;
+  }
+
+}
+
+// Well this does look bad
+class StartAndEndTime {
+  private $StartTime;
+  private $EndTime;
+
+  function __construct(DateTime $Start, DateTime $End)
+  {
+    $this->EndTime = $Start;
+    $this->StartTime = $End;
+    $this->Validate();
+  }
+
+  function Validate() {
+    if ($this->StartTime > $this->EndTime) {
+      $Temp = $this->EndTime;
+      $this->EndTime = $this->StartTime;
+      $this->StartTime = $Temp;
+    }
+  }
+
+  function SetStartTime(DateTime $StartTime) {
+    $this->StartTime = $StartTime;
+    $this->Validate();
+  }
+
+  function SetEndTime(DateTime $EndTime) {
+    $this->EndTime = $EndTime;
+    $this->Validate();
+  }
+  
+  function Get() {
+    return [
+      "StartTime" => $this->StartTime,
+      "EndTime" => $this->EndTime
+    ];
+  }
+
+  function GetStartTime() {
+    return $this->StartTime;
+  }
+
+  function GetEndTime() {
+    return $this->EndTime;
   }
 }
 

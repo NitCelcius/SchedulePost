@@ -842,6 +842,64 @@ while (true) {
     }
     */
 
+    /*
+      "Action": "GET_HOMEWORK",
+      "TargetType": ("School", "Group", "Tag", "User", null)
+      "TargetID": (String|null)
+      "MaxCount" : Int
+      "State": [ 
+        (New, Read, InProgress, Checked)
+      ] | null,
+      "FromDate": String|null
+      "UntilDate": String|null
+    //
+      If TargetType/TargetID is null, get all homeworks assigned to the user(itself).
+      If MaxCount is null, default value will be set.
+
+      If State is null (or multiple) select all.
+      If FromDate is null, will get as many data as possible.
+      If UntilDate is null, will be until today
+    */
+    case "GET_HOMEWORK": {
+        if (!$User) {
+          $Resp = Messages::GenerateErrorJSON("SIGNIN_REQUIRED");
+          break;
+        } else {
+          try {
+            $mc = null;
+
+            if (is_int($Recv["MaxCount"])) {
+              $mc = intval($Recv["MaxCount"]);
+            } else if ($Recv["MaxCount"] === null){
+              if (is_int($GLOBALS["SP_MAX_HW_COUNT"])) {
+                $mc = intval($GLOBALS["SP_MAX_HW_COUNT"]);
+              }
+            }
+            if ($mc === null) {
+              $Resp = Messages::GenerateErrorJSON("ILLEGAL_CALL", "Please specify MaxCount correctly. The value must be between 1 to the server-specified max value.");
+              if (!is_int($GLOBALS["SP_MAX_HW_COUNT"])) {
+                error_log("GET_HOMEWORK: the envilonment value SP_MAX_HW_COUNT is invalid! Please specify one.");
+              }
+              break;
+            }
+            $Args = array(
+              "TargetType" => $Recv["TargetType"] ?? null,
+              "TargetID" => $Recv["TargetID"] ?? null,
+              "MaxCount" => $mc,
+              "State" => $Recv["State"] ?? null,
+              "FromDate" => $Recv["FromDate"] ?? null,
+              "UntilDate" => $Recv["UntilDate"] ?? null
+            );
+            
+
+          } catch (Exception $e) {
+            error_log("There was an uncaught exception while executing GET_HOMEWORK.");
+            error_log($e->getMessage());
+            $Resp = Messages::GenerateErrorJSON("ERROR_UNKNOWN");
+          }
+        }
+    }
+
     default: {
         error_log("An error occurred in API: Undefined action " . $Recv["Action"] . ". Is this API old?");
         $Resp = Messages::GenerateErrorJSON("UNEXPECTED_ARGUMENT", "That action is invalid.");
