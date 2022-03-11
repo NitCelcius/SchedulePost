@@ -346,17 +346,17 @@ class UserAuth {
   }
 
   // Read-only.
-  function GetUserID() {
+  function GetUserID(): string {
     return $this->UserID;
   }
 
   // Read-only.
-  function GetSessionToken() {
+  function GetSessionToken(): string {
     return $this->SessionToken;
   }
 
   // Read-only.
-  function GetLongToken() {
+  function GetLongToken(): string {
     return $this->LongToken;
   }
 
@@ -1195,8 +1195,76 @@ class Fetcher {
     return $Result["BelongSchoolID"];
   }
 
-  function GetUserHomework(string $UserID, int $MaxCount, HomeworkLookupParams $Params) {
-    
+  function GetUserHomeworkList(string $UserID, int $MaxCount = null, HomeworkLookupParams $Params = null) {
+    // $Filters: A map (aka dictionary) of WHERE conditions; Keys are for removing/editing specific keys that may conflict.
+    $Filters = [];
+    // $FilterVariables: A map (dic) of WHERE conditions values; to prevent SQL injection and to use prepared statement.
+    //   KEY: Name (must include colon :)
+    //   VALUE: Value (literally. String/int/null/bool is allowed in SQL)
+    $FilterValues = [];
+    $PDO = DBConnection::Connect();
+
+    // Homework: STATE set by user
+    if (!empty($Params->StateName)) {
+      array_push($Filters, "State", "Status = :State");
+      array_push($FilterValues, ":State", $Params->StateName);
+    }
+
+    // Homework: DUE DATE/TIME
+    if (!empty($Params->DueRange)) {
+      array_push($Filters, "Due_Begin", "DueDate >= :DueBegin");
+      array_push($FilterValues, ":DueBegin", $Params->DueRange->GetStartTime());
+
+      array_push($Filters, "Due_End", "DueDate <= :DueEnd");
+      array_push($FilterValues, ":DueEnd", $Params->DueRange->GetEndTime());
+    }
+
+    // Homework: CREATION DATE/TIME
+    if (!empty($Params->CreationTime)) {
+      array_push($Filters, "Creation_Begin", "CreatedAt >= :CreationBegin");
+      array_push($FilterValues, ":CreationBegin", $Params->CreationTime->GetStartTime());
+
+      array_push($Filters, "Due_End", "CreatedAt <= :CreationEnd");
+      array_push($FilterValues, ":CreationEnd", $Params->CreationTime->GetEndTime());
+    }
+
+    // Homework: IS NOTE ADDED
+    if (!empty($Params->IsNoteAdded)) {
+      if ($Params->IsNoteAdded) {
+        array_push($Filters, "IsNoteAdded", "Memo IS NOT NULL");
+      } else {
+        array_push($Filters, "IsNoteAdded", "Memo IS NULL");
+      }
+    }
+
+
+    // I couldn't find a way to dynamically generate WHERE clause and ended up doing like this. Anyways...
+    if (empty($Filters)) {
+      $FilterQuery = ""; // Nothing!
+    } else {
+      $FilterQuery = " WHERE ".implode("AND", array_values($Filters));
+    }
+    $PDOstt = $PDO->prepare("select BelongSchoolID from group_profile" + $FilterQuery);
+
+    // What, values come first?
+    array_walk($FilterValues, function($v, $k, $stt) {
+      $stt->bindValue($k, $v);
+    }, $PDOstt);
+
+  }
+}
+
+
+// Seriously, but I couldn't find a way to dynamically generate WHERE clause.
+class PDOWhereClauseGen {
+  static function GenerateWhereClause(array $Params): string {
+    $ClauseStr = "";
+    $Keys = array_keys($Params);
+    $Cnt = count($Keys);
+    $ClauseStr = implode(" AND ", array_map( function ($k, $v) {
+      return $k + " " + $v;
+    }, array_keys($Params)));
+    return $ClauseStr;
   }
 }
 
@@ -1256,16 +1324,55 @@ class Messages {
 }
 
 class HomeworkLookupParams {
-  private $StateName;
-  private $FromDate;
-  private $UntilDate;
+  public $StateName;
+  public $DueRange;
+  public $CreationTime;
+  public $CreatedBy;
+  private $TargetID;
+  private $TargetType;
 
-  function __construct(string $StateName = null, DateTime $FromDate = null, DateTime $UntilDate = null ) {
-    $this->StateName = $StateName;
-    $this->FromDate = $FromDate;
-    $this->UntilDate = $UntilDate;
+  /**
+   * Constructor for HomeworkLookupParams.
+   *
+   * @param string $TargetType The type of the target. "User" "Group" "Tag" etc. Required.
+   * @param string $TargetID The ID of the target. Required.
+   * @param array|string|bool $StateName State(s) of the homework. Set null to search from any state. Set false to 
+   * @param StartAndEndTime|null $DueRange Range of due date (hand-in limit) to filter homework. Set null if you don't want to filter.
+   * @param StartAndEndTime|null $CreationTime Range of creation date to filter homework. Set null if you don't want to filter.
+   * @param string|null $CreatedBy The ID of creator. Set null to list all.
+   */
+  function __construct(string $TargetType, string $TargetID, $StateNames = null, StartAndEndTime $DueRange = null, StartAndEndTime $CreationTime = null) {
+    $this->TargetType = $TargetType;
+    $this->TargetID = $TargetID;
+
+    $this->StateName = $StateNames;
+    $this->DueRange = $DueRange;
+    $this->CreationTime = $CreationTime;
   }
 
+  function GetTargetType(): string {
+    return $this->TargetType;
+  }
+
+  function GetTargetID(): string {
+    return $this->TargetID;
+  }
+
+}
+
+class HomeworkUserLookupParams extends HomeworkLookupParams {
+  public $IsNoteAdded;
+
+  function __construct(string $TargetType, string $TargetID, $StateNames = null, StartAndEndTime $DueRange = null, StartAndEndTime $CreationTime = null, bool $IsNoteAdded)
+  {
+    $this->TargetType = $TargetType;
+    $this->TargetID = $TargetID;
+
+    $this->StateName = $StateNames;
+    $this->DueRange = $DueRange;
+    $this->CreationTime = $CreationTime;
+    $this->IsNoteAdded = $IsNoteAdded;
+  }
 }
 
 // Well this does look bad
